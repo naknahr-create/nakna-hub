@@ -52,7 +52,7 @@ function mockLine(flow, overrides = {}) {
     calls,
     fetcher: async (url, init) => {
       calls.push({url, init});
-      assert.equal(init.redirect, 'error');
+      assert.equal(init.redirect, 'manual');
       if (url.endsWith('/token')) {
         const body = new URLSearchParams(init.body);
         assert.equal(body.get('client_id'), CHANNEL);

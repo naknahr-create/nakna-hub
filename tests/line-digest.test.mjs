@@ -112,6 +112,7 @@ test('test send is one explicitly requested account-specific message and is rate
   const calls=[];const mock=async(url,options)=>{calls.push({url,...options});return new Response('{}',{status:200});};
   const result=await sendLineTest(env,'a',NOW,mock);
   assert.equal(result.accepted,true);assert.equal(calls.length,1);
+  assert.equal(calls[0].redirect,'manual');
   const body=JSON.parse(calls[0].body);assert.equal(body.to,LINE_A);assert.match(body.messages[0].text,/ข้อความทดสอบ/);
   assert.match(calls[0].headers['X-Line-Retry-Key'],/^[a-f0-9-]{36}$/);
   await assert.rejects(sendLineTest(env,'a',NOW+59_000,mock),e=>e.status===429);
@@ -174,6 +175,19 @@ test('terminal errors, rate limits and quota errors have distinct bounded behavi
   assert.equal(classifyLineResponse(400,'{}',null).outcome,'failed');
   assert.equal(classifyLineResponse(429,'rate limit',null).outcome,'retry');
   assert.deepEqual(classifyLineResponse(429,'You have reached your monthly limit.',null),{outcome:'failed',code:'quota_exceeded'});
+});
+test('LINE push redirects are terminal and never follow the destination',async()=>{
+  const env=setup();await enable(env);const calls=[];
+  const mock=async(url,options)=>{
+    calls.push({url,...options});
+    return new Response(null,{status:307,headers:{Location:'https://other.example/push'}});
+  };
+  assert.equal((await runLineDigests(env,NOW,mock)).failed,1);
+  await runLineDigests(env,NOW+15*60_000,mock);
+  assert.equal(calls.length,1);
+  assert.equal(calls[0].url,'https://api.line.me/v2/bot/message/push');
+  assert.equal(calls[0].redirect,'manual');
+  assert.equal(env.DB.sql.prepare('SELECT last_error FROM hub_line_deliveries').get().last_error,'line_http_307');
 });
 test('monthly quota errors are terminal instead of repeatedly consuming API requests',async()=>{
   const env=setup();await enable(env);let calls=0;

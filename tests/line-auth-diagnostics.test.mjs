@@ -90,6 +90,8 @@ for (const [name, overrides, expected] of [
   ['recognized invalid client', {token: () => Response.json({error: 'invalid_client', error_description: PRIVATE}, {status: 400})}, {stage: 'token', category: 'upstream_invalid_client', status: 400}],
   ['recognized invalid grant', {token: () => Response.json({error: 'invalid_grant', error_description: PRIVATE}, {status: 400})}, {stage: 'token', category: 'upstream_invalid_grant', status: 400}],
   ['non-JSON HTTP error body', {token: () => new Response(PRIVATE, {status: 502})}, {stage: 'token', category: 'upstream_http', status: 502}],
+  ['token redirect', {token: () => new Response(null, {status: 307, headers: {Location: 'https://other.example/token'}})}, {stage: 'token', category: 'upstream_http', status: 307}],
+  ['verification redirect', {verify: () => new Response(null, {status: 303, headers: {Location: 'https://other.example/verify'}})}, {stage: 'verify', category: 'upstream_http', status: 303}],
   ['token timeout', {token: () => {throw new DOMException(PRIVATE, 'TimeoutError');}}, {stage: 'token', category: 'timeout'}],
   ['token network failure', {token: () => {throw new TypeError(PRIVATE + ' private upstream URL');}}, {stage: 'token', category: 'network_error'}],
   ['malformed JSON', {token: () => new Response('{"private":"' + PRIVATE)}, {stage: 'token', category: 'invalid_json', status: 200}],

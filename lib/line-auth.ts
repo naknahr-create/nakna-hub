@@ -163,7 +163,9 @@ async function readJson(response: Response, allowErrorBody = false): Promise<Jso
 }
 async function lineFetch(fetcher: typeof fetch, url: string, init: RequestInit, stage: AuthFailureStage): Promise<JsonObject> {
   let response: Response;
-  try { response = await fetcher(url, {...init, redirect: 'error', signal: AbortSignal.timeout(10_000)}); }
+  // Workers rejects redirect: 'error' before sending the request. Manual mode
+  // keeps credentials at this endpoint; the non-2xx guard below rejects 3xx.
+  try { response = await fetcher(url, {...init, redirect: 'manual', signal: AbortSignal.timeout(10_000)}); }
   catch (error) {
     const timeout = error instanceof Error && ['TimeoutError', 'AbortError'].includes(error.name);
     throw new LineAuthFailure(stage, timeout ? 'timeout' : 'network_error');

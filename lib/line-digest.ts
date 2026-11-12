@@ -239,7 +239,9 @@ async function sendJob(env: LineDigestEnvironment, id: string, now: number, fetc
   try {
     const response = await fetcher('https://api.line.me/v2/bot/message/push', {
       method: 'POST', headers: {'Content-Type': 'application/json', Authorization: `Bearer ${env.LINE_MESSAGING_CHANNEL_ACCESS_TOKEN}`, 'X-Line-Retry-Key': job.retry_key},
-      body: job.payload_json, signal: AbortSignal.timeout(12_000), redirect: 'error',
+      // Workers supports manual, not error; classifyLineResponse rejects 3xx.
+      // Never forward the bearer token or report payload to a redirect target.
+      body: job.payload_json, signal: AbortSignal.timeout(12_000), redirect: 'manual',
     });
     const body = (await response.text()).slice(0, 1000);
     result = classifyLineResponse(response.status, body, response.headers.get('x-line-accepted-request-id'));
