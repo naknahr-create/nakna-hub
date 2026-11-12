@@ -15,6 +15,13 @@
       "when": 1794487509286,
       "tag": "0001_bright_steve_rogers",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1794493269237,
+      "tag": "0002_line_login_and_reports",
+      "breakpoints": true
     }
   ]
 }

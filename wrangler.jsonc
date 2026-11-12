@@ -41,5 +41,13 @@
   ],
   "build": {
     "command": "npm run build"
+  },
+  "vars": {
+    "APP_ORIGIN": "https://nakna-hub.nakna.workers.dev"
+  },
+  "triggers": {
+    "crons": [
+      "*/15 * * * *"
+    ]
   }
 }

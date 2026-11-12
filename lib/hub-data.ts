@@ -1,4 +1,4 @@
-import {accessConfiguration} from './cloudflare-access';
+import {getAuthConfiguration} from './hub-auth';
 import {env} from 'cloudflare:workers';
 import type {AnalyticsData,AnalyticsRange,HubAccount,HubLink,HubPlan,HubProfile,HubTemplate,OperatorData,PageEditorData,PageSummary,PlanLimits,PublicHubData,WorkspaceData} from './hub-types';
 
@@ -6,7 +6,7 @@ export class HubError extends Error {
   constructor(public status:number,message:string,public extra:Record<string,unknown>={}) {super(message);}
 }
 type Identity={userId:string;email:string;displayName:string};
-type AccountRow={id:string;user_id:string;display_name:string;email:string;plan:HubPlan;created_at:number;updated_at:number};
+export type AccountRow={id:string;user_id:string;display_name:string;email:string;plan:HubPlan;created_at:number;updated_at:number};
 type PageRow={id:string;account_id:string;slug:string;profile_json:string;revision:number;published_revision:number;snapshot_json:string|null;published:number;archived:number;created_at:number;updated_at:number;published_at:number|null};
 type LinkRow={id:string;page_id:string;type:'link'|'heading';title:string;description:string;url:string;icon:string;enabled:number;featured:number;sort_order:number;archived:number;created_at:number};
 type Snapshot={profile:HubProfile;links:HubLink[];revision:number};
@@ -27,8 +27,8 @@ export async function api(handler:()=>Promise<Response>):Promise<Response>{
 }
 function identity(request:Request):Identity|null{
   const userId=request.headers.get('oai-authenticated-user-id')?.trim();
-  const email=request.headers.get('oai-authenticated-user-email')?.trim().toLowerCase();
-  if(!userId||!email)return null;
+  const email=request.headers.get('oai-authenticated-user-email')?.trim().toLowerCase()??'';
+  if(!userId)return null;
   let name=request.headers.get('oai-authenticated-user-full-name')?.trim()??'';
   if(request.headers.get('oai-authenticated-user-full-name-encoding')==='percent-encoded-utf-8')try{name=decodeURIComponent(name);}catch{name='';}
   return {userId,email,displayName:(name||email.split('@')[0]||'ผู้ใช้งาน').slice(0,120)};
@@ -58,14 +58,17 @@ export function planLimits(plan:HubPlan):PlanLimits{return plan==='pro'?{maxPage
 async function operatorFor(user:Identity,bind=false):Promise<boolean>{
   const existing=await db().prepare('SELECT user_id FROM hub_operators WHERE slot=?').bind('operator').first<{user_id:string}>();
   if(existing)return existing.user_id===user.userId;
-  if(!env.ADMIN_EMAIL||env.ADMIN_EMAIL.trim().toLowerCase()!==user.email)return false;
+  const lineOperator=!!env.ADMIN_LINE_USER_ID&&/^U[0-9a-f]{32}$/.test(env.ADMIN_LINE_USER_ID)&&user.userId===`line:${env.LINE_LOGIN_CHANNEL_ID}:${env.ADMIN_LINE_USER_ID}`;
+  const accessOperator=user.userId.startsWith('cf-access:')&&!!user.email&&!!env.ADMIN_EMAIL&&env.ADMIN_EMAIL.trim().toLowerCase()===user.email;
+  if(!lineOperator&&!accessOperator)return false;
   if(!bind)return true;
   await db().prepare('INSERT OR IGNORE INTO hub_operators (slot,user_id,created_at) VALUES (?,?,?)').bind('operator',user.userId,Date.now()).run();
   const bound=await db().prepare('SELECT user_id FROM hub_operators WHERE slot=?').bind('operator').first<{user_id:string}>();return bound?.user_id===user.userId;
 }
-async function requireAccount(request:Request):Promise<AccountRow>{
-  if(!accessConfiguration(env))throw new HubError(503,'สตูดิโอยังไม่พร้อมใช้งาน ผู้ดูแลต้องตั้งค่าระบบเข้าสู่ระบบก่อน',{code:'auth_not_configured'});
-  const user=identity(request);if(!user)throw new HubError(401,'เข้าสู่ระบบเพื่อจัดการ HUB ของคุณ',{signInUrl:'/studio'});
+export async function requireAccount(request:Request):Promise<AccountRow>{
+  const auth=getAuthConfiguration(env);
+  if(!auth.configured)throw new HubError(503,auth.message??'สตูดิโอยังไม่พร้อมใช้งาน ผู้ดูแลต้องตั้งค่าระบบเข้าสู่ระบบก่อน',{code:'auth_not_configured'});
+  const user=identity(request);if(!user)throw new HubError(401,'เข้าสู่ระบบเพื่อจัดการ HUB ของคุณ',{signInUrl:auth.signInUrl,provider:auth.provider});
   let account=await db().prepare('SELECT * FROM hub_accounts WHERE user_id=?').bind(user.userId).first<AccountRow>();
   if(!account){const now=Date.now();await db().prepare('INSERT OR IGNORE INTO hub_accounts (id,user_id,display_name,email,plan,created_at,updated_at) VALUES (?,?,?,?,?,?,?)').bind(crypto.randomUUID(),user.userId,user.displayName,user.email,'starter',now,now).run();account=await db().prepare('SELECT * FROM hub_accounts WHERE user_id=?').bind(user.userId).first<AccountRow>();}
   if(!account)throw new HubError(503,'ยังสร้างบัญชีไม่ได้ กรุณาลองใหม่');

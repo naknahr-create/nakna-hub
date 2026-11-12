@@ -6,7 +6,7 @@ A multi-customer link hub product under the NAKNA brand, using the primary color
 
 This repository targets **Cloudflare Workers with Vinext**, D1, and R2. Start with [คู่มือเริ่มต้นภาษาไทย](GITHUB_START_HERE_TH.md). The root `wrangler.jsonc` and `vite.config.ts` are the deployment configuration; this build does not require `.openai/hosting.json` or the original hosting platform.
 
-The public landing page and published customer hubs can run without an authentication provider. **Management remains blocked until Cloudflare Access is configured.** Cloudflare Zero Trust/Access setup is not completed by installing this repository or deploying the Worker. A successfully built public page does not demonstrate a working customer login.
+The public landing page and published customer hubs can run without an authentication provider. **LINE Login is the primary customer sign-in.** Customers can separately opt in to daily analytics messages through the NAKNA HUB LINE Official Account. Follow [การเชื่อม LINE และรายงานประจำวัน](docs/LINE_SETUP_TH.md) to configure the channels, migration, secrets, and webhook. Management remains blocked until a supported login provider is configured; deploying this repository does not create LINE channels or enable message delivery.
 
 Starter and Pro limits are implemented. **There is no paid checkout, payment collection, recurring subscription, or payment-provider integration yet.** Customers request Pro; the platform operator grants or removes it manually. A request does not charge the customer or automatically change their plan.
 
@@ -15,7 +15,7 @@ Starter and Pro limits are implemented. **There is no paid checkout, payment col
 - Node.js >= 22.13.0; install the committed dependency versions with `npm ci`.
 - Vinext / React builds a native Worker using `@cloudflare/vite-plugin`. Keep `package-lock.json` committed.
 - D1 binding `DB` uses `nakna-hub-db`; R2 binding `BUCKET` uses `nakna-hub-assets`. `wrangler.jsonc` records the D1 ID for the current account. Change it when deploying to a different account.
-- Drizzle schema is in `db/schema.ts`; versioned SQL migrations are in `drizzle/`. Apply the migrations to the target D1 database before serving database-backed requests.
+- Drizzle schema is in `db/schema.ts`, `db/line-auth-schema.ts`, and `db/line-digest-schema.ts`; versioned SQL migrations and their snapshots are in `drizzle/`. Apply the migrations to the target D1 database before serving database-backed requests.
 - `keep_vars: true` preserves dashboard-managed runtime variables across deploys. Authentication variables belong in the Worker's runtime settings, not only the build environment. Keep credentials out of Git.
 
 The existing Cloudflare Workers Builds default deploy command is supported:
@@ -47,9 +47,12 @@ npm run dev
 For a local production preview:
 
 ```sh
+npm run db:migrate:local
 npm run build
 npm run preview
 ```
+
+The preview explicitly shares the repository's `.wrangler/state` with local migrations, so the generated configuration under `dist/server/` does not create a separate empty local database.
 
 For the first remote deployment, authenticate Wrangler to the intended Cloudflare account, ensure the configured D1 database and R2 bucket exist, then run:
 
@@ -60,11 +63,17 @@ npm run deploy
 
 The remote migration command writes schema changes to the configured D1 database. It does not copy customer data from another deployment. If applying SQL through the D1 dashboard console, run the committed migrations in filename order and keep the migration ledger consistent before later switching to Wrangler migrations.
 
-Other commands: `npm run lint`, `npm run db:generate`, `npm run test:auth`. `npm run start` is an alias for the local production preview; it does not deploy.
+Other commands: `npm run lint`, `npm run db:generate`, `npm run test:auth`, `npm run test:line`. Authentication and report tests use SQLite and mocked provider responses; they do not sign in to real LINE accounts or send messages. `npm run start` is an alias for the local production preview; it does not deploy.
 
 ### Authentication and operator setup
 
-Create a Cloudflare Access **self-hosted application** for the management paths on the actual deployment hostname. Use one application/AUD for `/studio*`, `/admin*`, `/api/workspace*`, `/api/slugs*`, `/api/pages*`, `/api/uploads*`, `/api/account*`, and `/api/operator*`. Set its access policy to the people allowed to manage accounts. Keep `/`, `/h/*`, `/go/*`, `/media/*`, `/api/hubs/*`, and `/api/events` publicly reachable; the application still controls private-media access itself. Protecting the entire hostname would also require visitors to sign in to public hubs.
+Configure LINE Login using the [Thai setup guide](docs/LINE_SETUP_TH.md). `/api/auth/config` exposes the selected provider and local sign-in/sign-out URLs without secrets. LINE takes precedence whenever its configuration is valid. It uses authorization code + PKCE, browser-bound one-time state, nonce, server-side ID-token verification, and opaque D1-backed sessions. Only session hashes are stored; cookies are Secure, HttpOnly, and SameSite=Lax. Logout is a same-origin POST to `/auth/logout` and revokes the session in D1. The requested scopes are `openid profile`; an email is not required or invented.
+
+LINE identities are namespaced as `line:<login-channel-id>:<line-user-id>`. Each verified identity owns its own account. Existing Access or original-platform accounts are not merged by email or name. To designate the first platform operator, set `ADMIN_LINE_USER_ID` to the owner's verified LINE user ID from this provider. It grants nothing without a matching authenticated session. The first eligible operator request binds that stable identity in `hub_operators`; changing configuration later does not transfer an existing operator binding.
+
+**Cloudflare Access is an optional fallback for installations without configured LINE Login.** It is not an additional requirement for LINE customers. If switching an existing Access installation to LINE, remove or adjust its edge Access restrictions on customer routes, OAuth callbacks, and the webhook; an edge login wall would prevent those requests from reaching the application. Accounts are still protected by the application session.
+
+For an Access-only installation, create a Cloudflare Access **self-hosted application** for the management paths on the actual deployment hostname. Use one application/AUD for `/studio*`, `/admin*`, `/api/workspace*`, `/api/slugs*`, `/api/pages*`, `/api/uploads*`, `/api/account*`, `/api/operator*`, `/api/line/settings*`, `/api/line/preview*`, and `/api/line/test*`. Keep `/`, `/h/*`, `/go/*`, `/media/*`, `/api/hubs/*`, `/api/events`, `/api/auth/config`, and `/api/line/webhook` reachable without an edge login wall; the application still verifies authorization and webhook signatures as appropriate. Protecting the entire hostname would also require visitors to sign in to public hubs.
 
 Set these Worker runtime variables after creating the Access application:
 
@@ -74,7 +83,7 @@ Set these Worker runtime variables after creating the Access application:
 | `CF_ACCESS_AUD` | The application's AUD tag, a 64-character value copied from its settings |
 | `ADMIN_EMAIL` | Optional operator email; must match a verified Access identity |
 
-The first two variables are optional for deploying the public site but required to enable management. Missing or invalid authentication configuration makes protected account APIs return HTTP 503 with `auth_not_configured`. When configured, a request without a valid user JWT is unauthorized (HTTP 401). Sign-in goes to the Access-protected `/studio`; sign-out goes to `/cdn-cgi/access/logout`.
+The first two variables enable Access only when LINE Login is not configured. Missing or invalid configuration for both providers makes protected account APIs return HTTP 503 with `auth_not_configured`. When a provider is configured, unauthenticated requests return HTTP 401. In Access mode, sign-in goes to the Access-protected `/studio`; sign-out goes to `/cdn-cgi/access/logout`.
 
 The Worker removes incoming `oai-authenticated-*` headers, verifies the Cloudflare Access user JWT signature, issuer, audience, and expiry, and supplies only the verified identity to the application. Supplying those identity headers yourself does not log in. Local development also has no automatic customer-login bypass.
 
@@ -91,12 +100,25 @@ The Worker removes incoming `oai-authenticated-*` headers, verifies the Cloudfla
 | `/go/:slug/:linkId` | Record an eligible click and redirect to the destination in the published snapshot |
 | `/media/:id` | Serve an authorized uploaded avatar |
 
-Customer passwords are not stored by this application. Cloudflare Access authenticates management users; published hub visitors do not need accounts.
+Customer passwords are not stored by this application. LINE Login authenticates customers, with the optional Access fallback described above; published hub visitors do not need accounts.
+
+## Daily LINE reports
+
+Reports are off for new accounts. In **บัญชีและ LINE**, a connected customer adds the Official Account as a friend, chooses a time in 15-minute increments, enables reports, and saves. The default is 09:00 Asia/Bangkok. Each report covers the previous complete Thai calendar day across that customer's hubs: view events, click events, click change from the preceding day, the three most-clicked links, and the busiest click hour. Counts are events, not unique people. A zero-activity day remains explicit rather than fabricating insights.
+
+`LINE_DIGEST_ENABLED=true` is a separate platform gate; it is absent/off by default. A quarter-hour Cron Trigger calls the Worker scheduled handler. A durable D1 outbox allows one daily report per account/date, immutable payloads, leased sends, persisted LINE retry keys, and bounded retries within 23 hours. Each tick handles at most 100 queued deliveries with five concurrent pushes; larger populations can be processed on subsequent ticks. It is not a promise of exact-time delivery or unlimited sending capacity. Monitor D1/Worker limits and LINE message quota as the service grows.
+
+The preview uses real account-scoped analytics without sending anything. A test send requires a separate confirmation and the preview's report date, is limited to once per minute per account, and does not enable daily reports. The server chooses the verified account's recipient; the browser cannot supply a LINE user ID or message body. A stale preview is rejected before consuming the test-send allowance.
+
+Webhook requests are HMAC-verified using their original bytes before JSON parsing. Follow/unfollow events update friendship state with deduplication and timestamp ordering; the webhook does not send messages. Opting out or unfollowing cancels pending daily deliveries, and each send rechecks eligibility. A request already accepted by LINE cannot be recalled. An accepted API response means LINE accepted the request, not that the customer received or read it. See the setup guide for quota and operational checks.
 
 ## API routes
 
 | Method | Route | Authorization and behavior |
 | --- | --- | --- |
+| GET | `/api/auth/config` | Public provider availability and local URLs; no credentials |
+| GET | `/auth/line/start`, `/auth/line/callback` | Browser-bound LINE OAuth flow at the Worker entry |
+| POST | `/auth/logout` | Same-origin session revocation and cookie clearing |
 | GET | `/api/workspace` | Current customer's account, page summaries, usage, plan limits, and upgrade-request status |
 | GET | `/api/slugs?slug=...` | Signed-in slug validation and availability |
 | POST | `/api/pages` | Create a draft page within the customer's page quota |
@@ -112,6 +134,10 @@ Customer passwords are not stored by this application. Cloudflare Access authent
 | POST | `/api/account/upgrade` | Record the current customer's request for manual Pro access |
 | GET | `/api/operator` | Operator-only account summaries and upgrade requests |
 | PATCH | `/api/operator/accounts/:id` | Operator-only manual plan change |
+| GET / PATCH | `/api/line/settings` | Current customer's connection, opt-in, and send time |
+| GET | `/api/line/preview` | Current customer's previous-day report; does not send |
+| POST | `/api/line/test` | Confirmed test for the current account; requires `{ "reportDate": "YYYY-MM-DD" }` |
+| POST | `/api/line/webhook` | Signed LINE follow/unfollow events; no customer session required |
 | GET | `/api/hubs/:slug` | Published profile and blocks; no draft or private account data |
 | POST | `/api/events` | Same-origin page-view event for an existing published page |
 
@@ -121,13 +147,19 @@ All state-changing customer and operator APIs enforce a same-origin request chec
 
 | Table | Responsibility |
 | --- | --- |
-| `hub_accounts` | One independent customer account per verified Access user identity, with display identity and plan |
+| `hub_accounts` | One independent customer account per verified provider identity, with display identity and plan |
 | `hub_pages` | Account-owned slug, draft profile, draft revision, publication state, and current published snapshot |
 | `hub_links` | Page-owned link and heading blocks, ordering, enabled state, and archive state |
 | `hub_events` | Page/link click events and page-view events |
 | `hub_assets` | Account-owned avatar metadata and private R2 object key |
 | `hub_upgrade_requests` | Manual Pro request and resolution state |
 | `hub_operators` | Bound platform-operator identity |
+| `hub_line_auth_attempts` | Expiring, single-use browser-bound OAuth attempts |
+| `hub_line_sessions` | Hashed opaque login sessions bound to origin and Login channel |
+| `hub_line_connections` | Verified LINE user ID and timestamped friendship state |
+| `hub_line_preferences` | Per-account opt-in, Thai send time, and test-send cooldown |
+| `hub_line_deliveries` | Durable message outbox, retry keys, leases, and acceptance status |
+| `hub_line_webhook_receipts` | Deduplication of signed follow/unfollow events |
 
 Management reads and writes first resolve the account from the authenticated identity and then verify page ownership. Link queries additionally constrain the page ID. Analytics and CSV require the same ownership check; changing an ID in a URL does not grant access. Operator permissions cover the platform summary and plan changes; ordinary page-editing APIs still require the page owner.
 
@@ -172,9 +204,9 @@ All reporting ranges use Asia/Bangkok (UTC+7). Today starts at local midnight; t
 
 ## Verification and release limits
 
-The standalone pipeline has been checked locally with the pinned dependencies: native Vinext build, Wrangler deployment dry-run, fresh D1 migrations, public page rendering, page/link publication, and persisted click analytics. A dry-run does not deploy the Worker or validate the account's Access policy. Verify a real sign-in, ownership isolation, uploads, and an anonymous published-page visit on the final hostname after configuring Access.
+The standalone pipeline is validated with the pinned dependencies: native Vinext build, Wrangler deployment dry-run, D1 migrations, and local runtime checks. Authentication, account isolation, report calculations, retry behavior, and webhook processing also have automated tests using mocked LINE HTTP responses. These checks do not validate real channel credentials or prove a real message was delivered. Verify a real LINE sign-in, add-friend flow, one explicitly requested test report, and the next scheduled opt-in report on the final hostname after configuration.
 
-The public landing-page examples are design fixtures, not live customer statistics. Checkout and recurring billing remain unimplemented. Access policies decide who can enter management; the application does not provide a separate open-registration or customer-password flow.
+The public landing-page examples are design fixtures, not live customer statistics. Checkout and recurring billing remain unimplemented. LINE channel availability controls who can authorize the app; the application creates an independent account on first verified use and does not provide customer passwords. Message delivery remains disabled until the provider resources and runtime configuration are completed.
 
 The old screenshot reference `docs/nakna-hub-homepage.jpg` is absent from this repository, so no image preview is embedded here. This has no effect on the app's `public/` assets or its build.
 
@@ -187,3 +219,9 @@ The old screenshot reference `docs/nakna-hub-homepage.jpg` is absent from this r
 - [D1 migrations](https://developers.cloudflare.com/d1/reference/migrations/)
 - [Cloudflare Access for Workers](https://developers.cloudflare.com/workers/configuration/cloudflare-access/)
 - [Validate Cloudflare Access JWTs](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/validating-json/)
+- [Integrating LINE Login](https://developers.line.biz/en/docs/line-login/integrate-line-login/)
+- [Linking a LINE Official Account](https://developers.line.biz/en/docs/line-login/link-a-bot/)
+- [LINE user IDs and providers](https://developers.line.biz/en/docs/messaging-api/getting-user-ids/)
+- [LINE Messaging API retries](https://developers.line.biz/en/docs/messaging-api/retrying-api-request/)
+- [LINE webhook signatures](https://developers.line.biz/en/docs/messaging-api/verify-webhook-signature/)
+- [LINE Messaging API pricing](https://developers.line.biz/en/docs/messaging-api/pricing/)

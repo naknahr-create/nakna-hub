@@ -2,7 +2,7 @@
 
 ชุดนี้เป็นแอปรวมลิงก์หลายบัญชี มี Studio, หน้าเผยแพร่ `/h/:slug`, สถิติคลิก, อันดับลิงก์, รูปโปรไฟล์ และแพ็กเกจ Starter/Pro ใช้ **Vinext + Cloudflare Workers + D1 + R2**
 
-**สถานะการเข้าสู่ระบบ:** โค้ดรองรับ Cloudflare Access แต่ยังต้องตั้งค่า Zero Trust/Access ในบัญชี Cloudflare ก่อนใช้ Studio และ API จัดการบัญชี ถ้ายังไม่ตั้งค่า ระบบจะปิดการจัดการไว้ ส่วนหน้าสาธารณะทำงานได้เมื่อ Worker และฐานข้อมูลพร้อม
+**สถานะการเข้าสู่ระบบ:** โค้ดรองรับ **LINE Login** เป็นช่องทางหลัก พร้อมสรุปสถิติรายวันผ่าน LINE Official Account ลูกค้าเลือกเปิดรับเองได้ ต้องเชื่อม LINE channels และตั้งค่า runtime ก่อนใช้จริง ดู [คู่มือเชื่อม LINE](docs/LINE_SETUP_TH.md) ถ้ายังไม่ตั้งค่าผู้ให้บริการเข้าสู่ระบบ ระบบจะปิดการจัดการไว้ ส่วนหน้าสาธารณะทำงานได้เมื่อ Worker และฐานข้อมูลพร้อม
 
 ## 1. ตรวจไฟล์ใน GitHub
 
@@ -53,31 +53,22 @@ npm run db:migrate:remote
 
 การนำซอร์สขึ้นโฮสต์ใหม่ไม่ย้ายข้อมูลบัญชี สถิติ หรือรูปของลูกค้าจากโฮสต์เดิมให้อัตโนมัติ
 
-## 4. เปิดใช้งาน Studio ด้วย Cloudflare Access
+## 4. เปิดใช้งาน Studio และรายงานผ่าน LINE
 
-สร้าง **Self-hosted application** ใน Cloudflare Zero Trust/Access บน hostname ที่ใช้งานจริง ใช้ application/AUD เดียวกันสำหรับ:
+ทำตาม [คู่มือเชื่อม LINE](docs/LINE_SETUP_TH.md) ซึ่งแยกการเข้าสู่ระบบออกจากการรับข้อความ:
 
-```text
-/studio*          /admin*
-/api/workspace*   /api/slugs*       /api/pages*
-/api/uploads*     /api/account*     /api/operator*
-```
+1. ใช้ LINE Login channel และ Messaging API channel ภายใต้ **Provider เดียวกัน** เพื่อให้ LINE user ID ตรงกัน
+2. ใช้ migration `0002_line_login_and_reports.sql` ก่อนเปิดฟีเจอร์ ถ้าฐานข้อมูลเดิมเคยใช้ D1 Console ให้ตรวจ ledger ก่อนใช้คำสั่ง migrations ซ้ำ
+3. ตั้ง callback ของ LINE Login เป็น `https://nakna-hub.nakna.workers.dev/auth/line/callback`
+4. ตั้ง runtime variables/secrets ของ Worker สำหรับ LINE Login แล้วตรวจการเข้าสู่ระบบจริง
+5. เชื่อม Official Account กับ Login channel ตั้ง webhook เป็น `https://nakna-hub.nakna.workers.dev/api/line/webhook` และเปิดรับ webhook
+6. ตั้ง Messaging API secrets และเปิด `LINE_DIGEST_ENABLED=true` หลังเตรียมระบบครบ ลูกค้ายังต้องเปิดรับสรุปเองใน **บัญชีและ LINE**
 
-กำหนด policy ว่าใครเข้าสู่ระบบได้ และเปิดหน้าสาธารณะไว้: `/`, `/h/*`, `/go/*`, `/media/*`, `/api/hubs/*`, `/api/events` ถ้าป้องกันทั้ง hostname ผู้ชมหน้ารวมลิงก์ก็จะถูกบังคับให้เข้าสู่ระบบด้วย
+ค่าเริ่มต้นคือ **09:00 น. เวลาไทย สรุปข้อมูลของเมื่อวาน** เปลี่ยนเวลาได้ทุก 15 นาที และปิดรับได้ทุกเมื่อ การกดดูตัวอย่างไม่ส่งข้อความ การส่งทดสอบต้องกดยืนยันอีกครั้งและไม่เปิดสรุปรายวันเอง
 
-จากนั้นตั้ง **runtime variables ของ Worker** ใน Settings → Variables and Secrets:
+ตัวแปรต้องเป็น **runtime variables/secrets ของ Worker** ใน Settings → Variables and Secrets ไม่ใช่ใส่เฉพาะ Build environment `keep_vars: true` ใน config ช่วยคงค่าที่ตั้งผ่าน dashboard ระหว่าง deploy ห้าม commit channel secret หรือ access token ลง GitHub
 
-| ตัวแปร | ค่าที่ต้องใส่ |
-| --- | --- |
-| `CF_ACCESS_TEAM_DOMAIN` | `https://ชื่อทีม.cloudflareaccess.com` |
-| `CF_ACCESS_AUD` | AUD ของ Access application จำนวน 64 ตัวอักษร |
-| `ADMIN_EMAIL` | อีเมลผู้ดูแลที่ยืนยันผ่าน Access แล้ว ถ้าต้องการเปิดแผง operator |
-
-การใส่ตัวแปรใน Build environment อย่างเดียวไม่พอ ตัว Worker ต้องอ่านได้ตอนรับ request ด้วย `keep_vars: true` ใน config ช่วยคงค่าที่ตั้งผ่าน dashboard ระหว่าง deploy
-
-เมื่อยังไม่ได้ตั้ง Access API จัดการบัญชีตอบ `503 / auth_not_configured`; เมื่อตั้งแล้วแต่ไม่มี JWT ที่ถูกต้องจะตอบ `401` ปุ่มเข้าสู่ระบบไป `/studio` และออกจากระบบผ่าน `/cdn-cgi/access/logout` โค้ดตรวจลายเซ็นและข้อมูลใน JWT และไม่เชื่อ header ยืนยันตัวตนที่ผู้เข้าชมส่งมาเอง
-
-`ADMIN_EMAIL` ใช้ผูกผู้ดูแลครั้งแรกหลังยืนยันตัวตน ไม่ใช่รหัสผ่าน และเปลี่ยนอีเมลตัวแปรภายหลังจะไม่ย้ายสิทธิ์ที่ผูกไว้แล้ว บัญชีจากระบบโฮสต์เดิมไม่ถูกจับคู่กับบัญชี Access โดยอัตโนมัติ
+Cloudflare Access ยังคงเป็นทางเลือกสำหรับการติดตั้งที่ไม่ได้ตั้ง LINE Login เท่านั้น รายละเอียดอยู่ใน [README](README.md#authentication-and-operator-setup) เมื่อตั้ง LINE Login แล้ว ไม่ต้องสร้าง Access application เพิ่ม บัญชี LINE กับบัญชี Access เดิมจะไม่รวมกันด้วยอีเมลโดยอัตโนมัติ
 
 ## 5. รันในเครื่องหรือ deploy จาก Terminal
 
@@ -90,9 +81,12 @@ npm run dev
 ดู production build ในเครื่อง:
 
 ```bash
+npm run db:migrate:local
 npm run build
 npm run preview
 ```
+
+Preview ใช้ฐานข้อมูล local ใน `.wrangler/state` เดียวกับคำสั่ง migrations แม้ config ที่ build แล้วจะอยู่ใน `dist/server/`
 
 Deploy จาก Terminal หลังเตรียม D1/R2 และ migrations แล้ว:
 
@@ -100,12 +94,13 @@ Deploy จาก Terminal หลังเตรียม D1/R2 และ migrati
 npm run deploy
 ```
 
-Dev ไม่มีการข้ามระบบ login อัตโนมัติ จึงต้องทดสอบการเข้าสู่ระบบจริงบน hostname ที่ตั้ง Access แล้ว เมื่อ deploy เสร็จ ให้ลองเข้าสู่ Studio, สร้างและเผยแพร่หน้า, เปิดหน้านั้นแบบไม่เข้าสู่ระบบ, คลิกลิงก์ และตรวจอันดับคลิก
+Dev ไม่มีการข้ามระบบ login อัตโนมัติ ทดสอบระบบ auth และรายงานแบบไม่ส่งข้อความจริงได้ด้วย `npm run test:auth` และ `npm run test:line` หลังเชื่อม LINE จริงแล้ว ให้ลองเข้าสู่ Studio, สร้างและเผยแพร่หน้า, เปิดหน้านั้นแบบไม่เข้าสู่ระบบ, คลิกลิงก์ และตรวจอันดับคลิก จากนั้นเจ้าของบัญชีจึงยืนยันส่งรายงานทดสอบ 1 ข้อความจากหน้าบัญชี
 
 ## ขอบเขตของชุดนี้
 
 - Pro ยังเป็นการเปิดสิทธิ์ด้วยผู้ดูแล ไม่มี checkout หรือตัดเงินรายเดือนอัตโนมัติ
 - สถิติเป็นจำนวน event ไม่ใช่จำนวนคนไม่ซ้ำ และตัวอย่างบนหน้าแรกไม่ใช่สถิติลูกค้าจริง
+- รายงาน LINE ใช้โควตาข้อความของ Official Account ต้องตั้งช่องทางจริงและตรวจโควตาก่อนเปิดบริการ การ deploy โค้ดไม่สร้างบัญชี LINE ให้โดยอัตโนมัติ
 - ไม่มี secrets, ฐานข้อมูลลูกค้า, รูปอัปโหลด, `node_modules` หรือ build output ในชุดซอร์ส
 - เป็นแอปที่มี backend ใช้ GitHub Pages แบบ static อย่างเดียวไม่ได้
 - ภาพคู่มือเดิม `docs/nakna-hub-homepage.jpg` ไม่ได้อยู่ใน repository และไม่จำเป็นต่อการ build
@@ -114,4 +109,4 @@ Dev ไม่มีการข้ามระบบ login อัตโนมั
 
 ### เอกสารอ้างอิง
 
-[Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/) · [Wrangler custom build](https://developers.cloudflare.com/workers/wrangler/custom-builds/) · [Cloudflare Vite plugin](https://developers.cloudflare.com/workers/vite-plugin/get-started/) · [D1 migrations](https://developers.cloudflare.com/d1/reference/migrations/) · [Cloudflare Access](https://developers.cloudflare.com/workers/configuration/cloudflare-access/) · [การตรวจ Access JWT](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/validating-json/)
+[Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/) · [D1 migrations](https://developers.cloudflare.com/d1/reference/migrations/) · [LINE Login](https://developers.line.biz/en/docs/line-login/integrate-line-login/) · [เชื่อม Official Account](https://developers.line.biz/en/docs/line-login/link-a-bot/) · [โควตา Messaging API](https://developers.line.biz/en/docs/messaging-api/pricing/)

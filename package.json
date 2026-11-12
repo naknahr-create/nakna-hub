@@ -12,12 +12,13 @@
     "start": "npm run preview",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
-    "preview": "wrangler dev --config dist/server/wrangler.json --local --ip 127.0.0.1 --inspector-port 0",
+    "preview": "wrangler dev --config dist/server/wrangler.json --local --persist-to .wrangler/state --ip 127.0.0.1 --inspector-port 0",
     "deploy": "npm run build && npm run deploy:cloudflare",
     "deploy:cloudflare": "wrangler deploy --config dist/server/wrangler.json",
     "db:migrate:local": "wrangler d1 migrations apply DB --local --config wrangler.jsonc",
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote --config wrangler.jsonc",
-    "test:auth": "node --experimental-strip-types --test tests/cloudflare-access.test.mjs"
+    "test:auth": "node --experimental-strip-types --test tests/cloudflare-access.test.mjs",
+    "test:line": "node --experimental-strip-types --test tests/line-*.test.mjs tests/hub-auth-integration.test.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

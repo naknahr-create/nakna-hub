@@ -1,11 +1,15 @@
-import { authenticateAccessRequest } from "../lib/cloudflare-access";
+import { authenticateHubRequest } from "../lib/hub-auth";
+import { handleLineAuthRequest } from "../lib/line-auth";
+import { runLineDigests } from "../lib/line-digest";
 import handler from "vinext/server/fetch-handler";
 import { runWithConnectorBinding } from "../lib/connector-context";
 import type { ConnectorBinding } from "../lib/connector-contract.mjs";
 
 const worker = {
   async fetch(request: Request, env: Cloudflare.Env, ctx: ExecutionContext<{ CONNECTORS?: ConnectorBinding }>) {
-    request = await authenticateAccessRequest(request, env);
+    const authResponse = await handleLineAuthRequest(request, env);
+    if (authResponse) return authResponse;
+    request = await authenticateHubRequest(request, env);
     let binding = ctx.props?.CONNECTORS;
     // Local preview emulates the same request-scoped capability. This branch and
     // the auxiliary service binding are absent from production builds.
@@ -26,6 +30,13 @@ const worker = {
       };
     }
     return runWithConnectorBinding(binding, () => handler.fetch(request, env, ctx));
+  },
+  async scheduled(controller: ScheduledController, env: Cloudflare.Env, ctx: ExecutionContext) {
+    // A platform gate plus each account's explicit opt-in are both required.
+    if (env.LINE_DIGEST_ENABLED !== "true") return;
+    ctx.waitUntil(runLineDigests(env, controller.scheduledTime).catch(() => {
+      console.error("LINE daily report job failed; inspect the delivery queue before retrying.");
+    }));
   },
 };
 
