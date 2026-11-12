@@ -3,5 +3,7 @@ declare namespace Cloudflare {
     DB?: D1Database;
     BUCKET?: R2Bucket;
     ADMIN_EMAIL?: string;
+    CF_ACCESS_TEAM_DOMAIN?: string;
+    CF_ACCESS_AUD?: string;
   }
 }

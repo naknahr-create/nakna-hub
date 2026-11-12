@@ -1,3 +1,4 @@
+import {accessConfiguration} from './cloudflare-access';
 import {env} from 'cloudflare:workers';
 import type {AnalyticsData,AnalyticsRange,HubAccount,HubLink,HubPlan,HubProfile,HubTemplate,OperatorData,PageEditorData,PageSummary,PlanLimits,PublicHubData,WorkspaceData} from './hub-types';
 
@@ -63,7 +64,8 @@ async function operatorFor(user:Identity,bind=false):Promise<boolean>{
   const bound=await db().prepare('SELECT user_id FROM hub_operators WHERE slot=?').bind('operator').first<{user_id:string}>();return bound?.user_id===user.userId;
 }
 async function requireAccount(request:Request):Promise<AccountRow>{
-  const user=identity(request);if(!user)throw new HubError(401,'เข้าสู่ระบบเพื่อจัดการ HUB ของคุณ',{signInUrl:'/signin-with-chatgpt?return_to=%2Fstudio'});
+  if(!accessConfiguration(env))throw new HubError(503,'สตูดิโอยังไม่พร้อมใช้งาน ผู้ดูแลต้องตั้งค่าระบบเข้าสู่ระบบก่อน',{code:'auth_not_configured'});
+  const user=identity(request);if(!user)throw new HubError(401,'เข้าสู่ระบบเพื่อจัดการ HUB ของคุณ',{signInUrl:'/studio'});
   let account=await db().prepare('SELECT * FROM hub_accounts WHERE user_id=?').bind(user.userId).first<AccountRow>();
   if(!account){const now=Date.now();await db().prepare('INSERT OR IGNORE INTO hub_accounts (id,user_id,display_name,email,plan,created_at,updated_at) VALUES (?,?,?,?,?,?,?)').bind(crypto.randomUUID(),user.userId,user.displayName,user.email,'starter',now,now).run();account=await db().prepare('SELECT * FROM hub_accounts WHERE user_id=?').bind(user.userId).first<AccountRow>();}
   if(!account)throw new HubError(503,'ยังสร้างบัญชีไม่ได้ กรุณาลองใหม่');
