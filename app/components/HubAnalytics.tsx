@@ -115,7 +115,7 @@ export default function HubAnalytics({page, notify, initialLinkId}: {
       anchor.download = `nakna-hub-${page.slug}-${range}${linkId ? "-link" : ""}.csv`;
       anchor.hidden = true; document.body.appendChild(anchor); anchor.click(); anchor.remove();
       setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
-      notify("ดาวน์โหลดรายงาน CSV แล้ว");
+      notify("เริ่มดาวน์โหลดรายงาน CSV แล้ว");
     } catch (cause) {setExportError(cause instanceof Error ? cause.message : "ส่งออกรายงานไม่สำเร็จ");}
     finally {setExporting(false);}
   }

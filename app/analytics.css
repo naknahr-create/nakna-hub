@@ -73,7 +73,7 @@
 .ha-analytics .ha-chart-empty h4{font-size:13px;font-weight:500;color:#77916c}
 .ha-analytics .ha-chart-empty p{font-size:11px;color:#9ead94;line-height:1.8}
 .ha-analytics .ha-ranking{margin-bottom:24px;padding-bottom:16px}
-.ha-analytics .ha-table-scroll{overflow-x:auto;scrollbar-width:thin;scrollbar-color:#cbded3 transparent}
+.ha-analytics .ha-table-scroll{position:relative;overflow-x:auto;scrollbar-width:thin;scrollbar-color:#cbded3 transparent}
 .ha-analytics table{width:100%;border-collapse:collapse;min-width:720px;font-size:11px;table-layout:fixed}
 .ha-analytics th,.ha-analytics td{padding:16px 12px;border-bottom:1px solid #eaf0eb;text-align:right;vertical-align:middle;font-variant-numeric:tabular-nums}
 .ha-analytics thead th{font-weight:500;font-size:10px;color:#94a58f;padding-top:8px;padding-bottom:12px;white-space:nowrap}
