@@ -1,107 +1,281 @@
-.hb-billing{max-width:1100px;margin:0 auto;color:#173536;font-size:14px;line-height:1.7;padding-bottom:12px}
-.hb-heading{display:flex;align-items:center;justify-content:space-between;gap:25px;margin:0 0 30px}
-.hb-eyebrow{font-size:9px;font-weight:600;letter-spacing:.15em;color:#789889;margin-bottom:9px!important}
-.hb-heading h1{font-size:32px;line-height:1.4;font-weight:600;letter-spacing:-.6px}
-.hb-heading h1+p{font-size:13px;color:#72897e;margin-top:10px!important}
-.hb-secure{display:inline-flex;align-items:center;gap:7px;color:#6a8676;font-size:11px;white-space:nowrap}
-.hb-loading{display:flex;align-items:center;gap:9px;padding:16px 19px;background:#edf5f0;border:1px solid #dae7de;border-radius:10px;color:#547e67;font-size:12px;margin-bottom:20px}
-.hb-notice{display:flex;align-items:flex-start;gap:13px;background:#f4f7ee;border:1px solid #e0e7d5;border-radius:11px;padding:18px 20px;margin-bottom:20px;color:#667c50;font-size:12px}
-.hb-notice>svg{flex-shrink:0;margin-top:2px}
-.hb-notice strong{font-size:13px;font-weight:500;display:block;margin-bottom:3px}
-.hb-notice p{line-height:1.8}
-.hb-notice small{display:block;margin-top:6px;font-size:11px;color:#839675}
-.hb-notice-success{background:#edf7f1;border-color:#cce5d6;color:#397d5b}
-.hb-error{display:flex;align-items:center;justify-content:space-between;gap:20px;border:1px solid #edd6c7;background:#fff5ef;color:#a55d35;border-radius:10px;padding:16px 19px;margin-bottom:20px;font-size:12px}
-.hb-error button{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#994e28;flex-shrink:0}
-.hb-membership{display:flex;align-items:center;justify-content:space-between;gap:24px;border:1px solid #c7ded1;background:#eff7f2;border-radius:14px;padding:25px 27px;margin-bottom:28px}
-.hb-membership>div:first-child{display:flex;align-items:center;gap:15px}
-.hb-membership-icon{display:grid;place-items:center;width:51px;height:51px;border:1px solid #cce0d6;background:#fff;color:#538c70;border-radius:12px;flex-shrink:0}
-.hb-membership p{font-size:11px;color:#748f7e}
-.hb-membership h2{font-size:20px;font-weight:600;color:#285f49;margin:2px 0 5px!important}
-.hb-sub-status{color:#987b4d}.hb-sub-status.is-active{color:#477e61}
-.hb-membership-detail{display:flex;align-items:center;gap:20px;flex-wrap:wrap;justify-content:flex-end}
-.hb-membership-detail strong{display:block;color:#385f49;font-size:12px;font-weight:500;margin-top:4px}
-.hb-membership-detail small{font-size:11px;color:#8c8058}
-.hb-button{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:9px;padding:12px 18px;min-height:45px;font-size:13px;font-weight:500;line-height:1.5}
-.hb-button-outline{background:#fff!important;border:1px solid #c5ddcf!important;color:#45765c!important}
-.hb-button-outline:hover{background:#f8fcfa!important;border-color:#83b49d!important}
-.hb-button-primary{background:#04878a!important;color:white!important;width:100%;min-height:49px}
-.hb-button-primary:hover{background:#086e70!important}
-.hb-button:disabled{opacity:.5;cursor:not-allowed}
-.hb-cycle-row{display:flex;align-items:center;gap:16px;justify-content:center;margin:30px 0 25px;flex-wrap:wrap}
-.hb-cycle{display:inline-flex;align-items:center;background:#e9f0ec;border:1px solid #dce7df;border-radius:12px;padding:4px;gap:4px}
-.hb-cycle button{display:flex;align-items:center;justify-content:center;gap:9px;padding:9px 18px;min-height:42px;min-width:105px;border-radius:8px;color:#728779;font-size:13px}
-.hb-cycle button.is-selected{background:#fff;color:#207f70;box-shadow:0 2px 7px #274a360a}
-.hb-cycle button span{font-size:9px;color:#66834c;background:#eef5e4;border-radius:4px;padding:2px 5px}
-.hb-cycle-row>p{font-size:11px;color:#7b917e}
-.hb-plans{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:23px;align-items:stretch}
-.hb-plan{position:relative;min-width:0;border:1px solid #dce6df;border-radius:17px;padding:31px 32px 25px;background:#fff;display:flex;flex-direction:column}
-.hb-plan-label{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-bottom:19px}
-.hb-plan-label>span{display:inline-flex;align-items:center;gap:7px;font-size:10px;letter-spacing:.12em;font-weight:600;color:#668a75}
-.hb-plan-label em{font-size:9px;font-style:normal;letter-spacing:0;padding:4px 8px;background:#f0f5e8;border:1px solid #dce6cf;color:#7f9765;border-radius:5px;white-space:nowrap}
-.hb-plan h2{font-size:23px;font-weight:600;letter-spacing:-.3px;line-height:1.5;color:#214d3d}
-.hb-plan h2+p{font-size:12px;color:#7d9385;margin-top:7px!important;min-height:22px}
-.hb-price{display:flex;align-items:baseline;gap:8px;margin:25px 0 0}
-.hb-price strong{font-size:42px;line-height:1.2;font-weight:600;letter-spacing:-1.5px;color:#204f3e;font-variant-numeric:tabular-nums}
-.hb-price>span{font-size:12px;color:#809780}
-.hb-plan .hb-price-note{font-size:11px;color:#7b947c;margin-top:8px;min-height:19px}
-.hb-plan ul{list-style:none;padding:24px 0;margin:19px 0 0;border-top:1px solid #e6ede5;display:grid;gap:14px;flex:1}
-.hb-plan li{display:flex;align-items:flex-start;gap:10px;font-size:12px;line-height:1.8;color:#66836f}
-.hb-plan li svg{flex-shrink:0;margin-top:3px;color:#80a78b}
-.hb-plan li strong{font-weight:500;color:#35684f}
-.hb-plan li.hb-plan-brand{color:#8e987f}
-.hb-plan li.hb-plan-brand svg{color:#a0ab8b}
-.hb-free-foot{display:flex;align-items:center;justify-content:center;font-size:11px;color:#8ba17f;border:1px solid #e5eddd;background:#f8fbf4;min-height:49px;border-radius:9px;margin-top:9px}
-.hb-pro-plan{border-color:#9dc6b5;background:#f6fbf8;box-shadow:0 6px 25px #3e72580a}
-.hb-pro-plan .hb-plan-label>span{color:#04878a}
-.hb-pro-plan .hb-price strong{color:#087c79}
-.hb-pro-plan .hb-button-primary{margin-top:9px}
-.hb-renew-note{font-size:10px;text-align:center;line-height:1.8;color:#8b9c81;margin-top:11px!important}
-.hb-brand-preview{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:26px;padding:30px 32px;border:1px solid #dce8df;border-radius:15px;background:#fff;align-items:center}
-.hb-feature-icon{display:grid;place-items:center;width:38px;height:38px;border-radius:10px;background:#edf5ec;color:#7fa073;margin-bottom:15px}
-.hb-brand-preview h2{font-size:20px;font-weight:500;color:#355c45;margin-bottom:8px!important}
-.hb-brand-preview p{font-size:12px;line-height:1.9;color:#779178}
-.hb-brand-preview>div>small{font-size:10px;color:#8aa17d;display:block;margin-top:12px}
-.hb-brand-comparison{display:flex;align-items:center;gap:15px;min-width:0}
-.hb-brand-comparison>div{flex:1;min-width:0}
-.hb-brand-comparison>div>span{display:block;text-align:center;font-size:8px;font-weight:500;letter-spacing:.1em;color:#93a287;margin-bottom:10px}
-.hb-brand-comparison>svg{color:#91ac88;flex-shrink:0}
-.hb-mini-footer{height:145px;background:#f2eff6;border:1px solid #e5deed;border-radius:11px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:13px;padding:12px}
-.hb-mini-footer>small{font-size:7px;color:#948a9f;text-align:center}
-.hb-mini-footer .hub-brand{transform:scale(.66);transform-origin:center;white-space:nowrap}
-.hb-mini-clear{background:#f4f9f1;border:1px dashed #cbdcbe;color:#7da26b;gap:8px}
-.hb-mini-clear>strong{font-size:10px;font-weight:500;text-align:center;color:#739164;line-height:1.5}
-.hb-mini-clear>small{font-size:8px;color:#95a885;line-height:1.6}
-.hb-terms{margin:33px 0}
-.hb-terms>div:first-child{display:flex;align-items:center;gap:10px;color:#7d9c77;margin-bottom:17px}
-.hb-terms h2{font-size:17px;font-weight:500;color:#496f50}
-.hb-reasons{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:25px}
-.hb-reasons p{font-size:11px;line-height:1.9;color:#84977d}
-.hb-reasons strong{display:block;font-size:13px;font-weight:500;color:#5a7f54;margin-bottom:7px}
-.hb-conditions{border-top:1px solid #e0e9da;border-bottom:1px solid #e0e9da;padding:24px 0;color:#819575}
-.hb-conditions h2{font-size:14px;font-weight:500;color:#64815a;margin-bottom:12px!important}
-.hb-conditions ul{padding-left:19px;margin:0;display:grid;gap:5px;font-size:11px;line-height:1.9}
-.hb-conditions a{display:inline-flex;align-items:center;gap:7px;font-size:11px;color:#4b8969!important;text-decoration:underline!important;text-underline-offset:3px;margin-top:14px}
-.hb-footer{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:19px 0 0;color:#87a077;font-size:10px}
-.hb-footer>span,.hb-footer>button{display:flex;align-items:center;gap:7px}
-.hb-footer>button{font-size:10px;color:#709365;padding:9px 0}
-.hb-appearance-branding{margin-top:25px;padding:22px 0 0;border-top:1px solid #e5ece2}
-.hb-appearance-branding>div:first-child{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
-.hb-appearance-branding h3{font-size:13px;font-weight:500;color:#416c52;line-height:1.7}
-.hb-appearance-branding p{font-size:11px;color:#809678;line-height:1.9;margin-top:5px!important}
-.hb-appearance-branding .hb-lock-pill{display:inline-flex;align-items:center;gap:5px;border:1px solid #dce6ce;background:#f0f6e7;color:#8a9e72;padding:4px 7px;border-radius:5px;font-size:9px;flex-shrink:0}
-.hb-appearance-branding .hb-upgrade-brand{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:15px;background:#f2f8ef;border:1px solid #dbe8d2;border-radius:9px;padding:12px 14px}
-.hb-upgrade-brand>span{font-size:11px;color:#668655;line-height:1.8}
-.hb-upgrade-brand>span strong{display:block;font-size:12px;font-weight:500;color:#476f3e}
-.hb-upgrade-brand>button{background:#04878a!important;color:#fff!important;display:flex;align-items:center;justify-content:center;gap:6px;border-radius:7px;padding:10px 12px;font-size:11px;white-space:nowrap;min-height:39px}
-.hb-branding-switch{margin-top:15px;display:flex;align-items:center;justify-content:space-between;gap:20px;font-size:12px;color:#4e7959;padding:13px 15px;border:1px solid #dce8d6;background:#f8fbf5;border-radius:8px}
-.hb-branding-switch input{width:18px;height:18px;accent-color:#04878a;flex-shrink:0}
-.hb-account-plan-link{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:24px;border:1px solid #d7e6d4;background:#f3f9ef;border-radius:12px;margin-top:24px}
-.hb-account-plan-link h2{font-size:16px;font-weight:500;color:#4a7242;margin-bottom:5px!important}
-.hb-account-plan-link p{font-size:12px;color:#809573;line-height:1.9}
-.hb-account-plan-link button{white-space:nowrap}
-.hb-membership-detail>p,.hb-brand-preview>div,.hb-terms>div,.hb-heading>div{min-width:0}
-@media(max-width:950px){.hb-plan{padding:27px 25px}.hb-brand-preview{grid-template-columns:1fr;gap:25px}.hb-brand-comparison{max-width:500px;margin:0 auto;width:100%}.hb-membership{align-items:flex-start}.hb-membership-detail{flex-direction:column;align-items:flex-end;gap:10px}.hb-reasons{gap:17px}.hb-heading h1{font-size:28px}}
-@media(max-width:680px){.hb-heading{align-items:flex-start;flex-direction:column;gap:12px;margin-bottom:24px}.hb-heading h1{font-size:27px}.hb-heading h1+p{font-size:12px}.hb-secure{font-size:10px}.hb-plans{grid-template-columns:1fr;gap:18px}.hb-cycle-row{justify-content:flex-start;gap:9px;margin:22px 0}.hb-cycle-row>p{font-size:10px;width:100%}.hb-cycle{width:100%}.hb-cycle button{flex:1;padding:10px}.hb-plan{padding:26px 23px}.hb-plan h2{font-size:22px}.hb-plan ul{margin-top:18px;padding-top:20px}.hb-price strong{font-size:39px}.hb-membership{padding:20px;flex-direction:column;gap:19px}.hb-membership-detail{align-items:flex-start;width:100%}.hb-membership-detail .hb-button{width:100%}.hb-membership h2{font-size:18px}.hb-brand-preview{padding:25px 22px}.hb-brand-comparison{gap:10px}.hb-mini-footer{height:145px;padding:10px 6px}.hb-mini-footer .hub-brand{transform:scale(.55)}.hb-reasons{grid-template-columns:1fr;gap:17px}.hb-reasons p{font-size:12px}.hb-reasons strong{font-size:14px;margin-bottom:4px}.hb-terms h2{font-size:16px}.hb-conditions ul{font-size:12px;gap:10px}.hb-footer{flex-direction:column;align-items:flex-start;gap:7px}.hb-error{align-items:flex-start;gap:10px}.hb-notice{padding:16px;gap:10px}.hb-upgrade-brand{flex-wrap:wrap}.hb-upgrade-brand>button{width:100%}.hb-account-plan-link{flex-direction:column;align-items:flex-start;padding:20px}.hb-account-plan-link button{width:100%}}
+/* Billing uses the Studio palette; fallbacks also support isolated rendering. */
+.hb-billing {
+  --hb-ink: var(--hs-ink, #17343b);
+  --hb-muted: var(--hs-muted, #536970);
+  --hb-primary: var(--hs-primary, #087f83);
+  --hb-pro: var(--hs-pro, #6954c7);
+  --hb-border: var(--hs-border, #dce5e8);
+  max-width: 1120px;
+  margin: 0 auto;
+  padding-bottom: 16px;
+  color: var(--hb-ink);
+  font-size: 16px;
+  line-height: 1.7;
+}
+.hb-billing button,
+.hb-billing a,
+.hb-upgrade-brand > button,
+.hb-branding-switch input {
+  transition: background .16s, border-color .16s, box-shadow .16s;
+}
+.hb-billing :is(button, a):focus-visible,
+.hb-upgrade-brand > button:focus-visible,
+.hb-branding-switch input:focus-visible {
+  outline: 3px solid var(--hs-primary, #087f83);
+  outline-offset: 4px;
+}
+.hb-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 30px;
+}
+.hb-eyebrow {
+  color: var(--hb-primary);
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.hb-heading h1 {
+  font-size: clamp(26px, 2.5vw, 34px);
+  line-height: 1.4;
+  font-weight: 600;
+  letter-spacing: -.6px;
+}
+.hb-heading h1 + p {
+  color: var(--hb-muted);
+  font-size: 16px;
+  margin-top: 8px;
+}
+.hb-secure {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 8px;
+  padding: 9px 12px;
+  margin-top: 30px;
+  border: 1px solid var(--hb-border);
+  border-radius: 10px;
+  color: var(--hb-muted);
+  background: #fff;
+  font-size: 12px;
+}
+.hb-secure svg {color: var(--hb-primary);}
+.hb-loading,
+.hb-notice,
+.hb-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 16px 18px;
+  border: 1px solid #d4e6ef;
+  border-radius: 12px;
+  background: #eff7fb;
+  color: #285971;
+  font-size: 14px;
+}
+.hb-loading {align-items: center;}
+.hb-loading > svg,
+.hb-notice > svg {flex-shrink: 0; margin-top: 2px;}
+.hb-notice strong {display: block; font-size: 15px; font-weight: 600; margin-bottom: 3px;}
+.hb-notice p {line-height: 1.8;}
+.hb-notice small {display: block; margin-top: 6px; font-size: 13px;}
+.hb-notice-success {background: #ecf8f2; border-color: #b9dfcc; color: #246448;}
+.hb-unavailable {background: #fff8eb; border-color: #ecd8ad; color: #795214;}
+.hb-error {align-items: center; justify-content: space-between; background: #fff2f0; border-color: #efc7c0; color: #a33126;}
+.hb-error button {display: inline-flex; align-items: center; justify-content: center; gap: 7px; flex-shrink: 0; min-height: 44px; padding: 8px 12px; border: 1px solid #e8beb6; border-radius: 8px; background: #fff; font-size: 14px; font-weight: 500;}
+.hb-error button:hover {background: #fff8f7;}
+.hb-membership {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 28px;
+  padding: 24px;
+  border: 1px solid #c5dcdb;
+  border-radius: 16px;
+  background: #eef7f6;
+}
+.hb-membership > div:first-child {display: flex; align-items: center; gap: 16px;}
+.hb-membership-icon {display: grid; place-items: center; width: 52px; height: 52px; flex-shrink: 0; border: 1px solid #c5dcdb; border-radius: 14px; background: #fff; color: var(--hb-primary);}
+.hb-membership p {color: var(--hb-muted); font-size: 13px;}
+.hb-membership h2 {color: var(--hb-ink); font-size: 22px; font-weight: 600; margin: 3px 0 5px;}
+.hb-sub-status {display: inline-block; padding: 2px 7px; border-radius: 5px; color: #865c14; background: #fff1d2; font-size: 12px; font-weight: 500;}
+.hb-sub-status.is-active {color: #246448; background: #d8eee2;}
+.hb-membership-detail {display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 18px;}
+.hb-membership-detail strong {display: block; color: var(--hb-ink); font-size: 14px; font-weight: 600; margin-top: 3px;}
+.hb-membership-detail small {font-size: 13px; color: #795214;}
+.hb-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 46px;
+  padding: 11px 18px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.hb-button-outline {border-color: #bdd1d4; background: #fff; color: var(--hb-ink);}
+.hb-button-outline:hover {border-color: var(--hb-primary); background: #f5fbfa;}
+.hb-button-primary {width: 100%; min-height: 50px; background: var(--hb-primary); color: #fff; box-shadow: 0 3px 7px #087f8315;}
+.hb-button-primary:hover {background: var(--hs-primary-dark, #05666a); box-shadow: 0 4px 12px #087f8320;}
+.hb-button:disabled {opacity: 1; cursor: not-allowed; background: #e6ecee; border-color: #d4dfe2; color: #5b7077; box-shadow: none;}
+.hb-cycle-row {display: flex; align-items: center; justify-content: space-between; gap: 20px; margin: 28px 0 20px;}
+.hb-cycle-copy h2 {font-size: 17px; font-weight: 600; color: var(--hb-ink);}
+.hb-cycle-copy p {font-size: 13px; color: var(--hb-muted); margin-top: 4px;}
+.hb-cycle {display: flex; align-items: center; flex-shrink: 0; padding: 5px; gap: 4px; background: #e9eef0; border: 1px solid var(--hb-border); border-radius: 12px;}
+.hb-cycle button {display: flex; align-items: center; justify-content: center; gap: 9px; min-height: 44px; padding: 9px 16px; border: 1px solid transparent; border-radius: 8px; color: var(--hb-muted); font-size: 14px; font-weight: 500;}
+.hb-cycle button:hover {background: #f5f8f9;}
+.hb-cycle button.is-selected {color: var(--hb-primary); background: #fff; border-color: #d4e1e3; box-shadow: 0 2px 4px #17343b08;}
+.hb-cycle button span {color: #5843b3; background: #eee9fc; font-size: 12px; padding: 2px 6px; border-radius: 5px; white-space: nowrap;}
+.hb-plans {display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; gap: 24px;}
+.hb-plan {position: relative; display: flex; flex-direction: column; min-width: 0; padding: 28px; border: 1px solid var(--hb-border); border-radius: 18px; background: #fff; box-shadow: 0 3px 14px #17343b03;}
+.hb-plan-label {display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 19px;}
+.hb-plan-label > span {display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 700; letter-spacing: .08em; color: var(--hb-muted);}
+.hb-plan-label em {display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 6px; background: #eef4f5; color: #435f67; font-size: 12px; line-height: 1.5; font-style: normal; font-weight: 500;}
+.hb-plan-label em svg {flex-shrink: 0;}
+.hb-plan h2 {font-size: 25px; line-height: 1.45; font-weight: 600; letter-spacing: -.4px; color: var(--hb-ink);}
+.hb-plan h2 + p {font-size: 16px; color: var(--hb-muted); margin-top: 7px; min-height: 24px;}
+.hb-price {display: flex; align-items: baseline; flex-wrap: wrap; gap: 9px; margin-top: 24px;}
+.hb-price strong {font-size: 44px; font-weight: 600; letter-spacing: -1.6px; line-height: 1.3; color: var(--hb-ink); font-variant-numeric: tabular-nums;}
+.hb-price > span {font-size: 14px; color: var(--hb-muted);}
+.hb-plan .hb-price-note {font-size: 13px; color: var(--hb-muted); line-height: 1.7; margin-top: 8px; min-height: 44px;}
+.hb-plan ul {display: grid; gap: 13px; flex: 1; margin: 18px 0 0; padding: 24px 0; list-style: none; border-top: 1px solid var(--hb-border);}
+.hb-plan li {display: flex; align-items: flex-start; gap: 10px; font-size: 16px; line-height: 1.75; color: var(--hb-muted);}
+.hb-plan li svg {flex-shrink: 0; margin-top: 3px; color: var(--hb-primary);}
+.hb-plan li strong {font-weight: 600; color: var(--hb-ink);}
+.hb-plan li small {display: block; margin-top: 1px; font-size: 12px; color: var(--hb-muted);}
+.hb-plan li.hb-plan-brand svg {color: #64777e;}
+.hb-free-foot {display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 50px; padding: 12px; margin-top: 8px; border: 1px solid var(--hb-border); border-radius: 10px; background: #f4f7f8; color: var(--hb-muted); font-size: 14px; font-weight: 500;}
+.hb-plan:not(.hb-pro-plan)::after {content: ''; height: 33px;}
+.hb-pro-plan {border: 2px solid #9c8bdf; padding: 27px; background: #fff; box-shadow: 0 6px 22px #6954c70b;}
+.hb-pro-plan::before {content: ''; position: absolute; left: 26px; right: 26px; top: -2px; height: 4px; border-radius: 0 0 3px 3px; background: var(--hb-pro);}
+.hb-pro-plan .hb-plan-label > span,
+.hb-pro-plan .hb-key-benefit svg {color: var(--hb-pro);}
+.hb-pro-plan .hb-plan-label em {color: #5843b3; background: #f0ecfc;}
+.hb-pro-plan .hb-button-primary {margin-top: 8px;}
+.hb-key-benefit {font-weight: 500;}
+.hb-renew-note {margin-top: 10px; color: var(--hb-muted); font-size: 12px; text-align: center; line-height: 1.8;}
+.hb-brand-preview {display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 32px; margin-top: 24px; padding: 28px; border: 1px solid var(--hb-border); border-radius: 16px; background: #fff;}
+.hb-feature-icon {display: grid; place-items: center; width: 44px; height: 44px; margin-bottom: 14px; border-radius: 12px; color: var(--hb-pro); background: #f0ecfc;}
+.hb-brand-preview h2 {color: var(--hb-ink); font-size: 20px; font-weight: 600; margin-bottom: 8px;}
+.hb-brand-preview p {color: var(--hb-muted); font-size: 16px; line-height: 1.85;}
+.hb-brand-preview > div > small {display: block; margin-top: 12px; color: var(--hb-primary); font-size: 13px;}
+.hb-brand-comparison {display: flex; align-items: center; gap: 14px; min-width: 0;}
+.hb-brand-comparison > div {flex: 1; min-width: 0;}
+.hb-brand-comparison > div > span {display: block; margin-bottom: 9px; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-align: center; color: var(--hb-muted);}
+.hb-brand-comparison > svg {flex-shrink: 0; color: var(--hb-muted);}
+.hb-mini-footer {display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; min-height: 160px; padding: 18px 10px; border: 1px solid #e1dceb; border-radius: 12px; background: #f4f1f8;}
+.hb-mini-footer > small {font-size: 12px; color: #70627f; text-align: center;}
+.hb-mini-footer .hub-brand {gap: 6px; white-space: nowrap;}
+.hb-mini-footer .hub-brand-mark {width: 24px; height: 24px;}
+.hb-mini-footer .hub-brand-name {font-size: 17px; gap: 5px;}
+.hb-mini-footer .hub-brand-label {font-size: 9px; letter-spacing: 1px; padding-left: 5px;}
+.hb-mini-clear {gap: 8px; color: var(--hb-pro); background: #f8f6ff; border: 1px solid #d9d0f3;}
+.hb-mini-clear > strong {font-size: 14px; font-weight: 600; text-align: center; color: #5843b3; line-height: 1.6;}
+.hb-mini-clear > small {font-size: 12px; color: #70627f; line-height: 1.6;}
+.hb-terms {margin: 32px 0;}
+.hb-terms > div:first-child {display: flex; align-items: center; gap: 9px; margin-bottom: 17px; color: var(--hb-primary);}
+.hb-terms h2 {color: var(--hb-ink); font-size: 20px; font-weight: 600;}
+.hb-reasons {display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px;}
+.hb-reasons p {color: var(--hb-muted); font-size: 15px; line-height: 1.8;}
+.hb-reasons strong {display: block; color: var(--hb-ink); font-size: 16px; font-weight: 600; margin-bottom: 6px;}
+.hb-conditions {padding: 24px; border: 1px solid var(--hb-border); border-radius: 14px; background: #fff; color: var(--hb-muted);}
+.hb-conditions h2 {color: var(--hb-ink); font-size: 17px; font-weight: 600; margin-bottom: 12px;}
+.hb-conditions ul {display: grid; gap: 8px; margin: 0; padding-left: 21px; font-size: 14px; line-height: 1.8;}
+.hb-conditions li::marker {color: var(--hb-primary);}
+.hb-conditions a {display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-top: 10px; color: var(--hb-primary); font-size: 14px; font-weight: 500; text-decoration: underline; text-underline-offset: 4px;}
+.hb-footer {display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 16px; color: var(--hb-muted); font-size: 13px;}
+.hb-footer > span,
+.hb-footer > button {display: flex; align-items: center; gap: 8px;}
+.hb-footer > span svg {color: var(--hb-primary);}
+.hb-footer > button {min-height: 44px; padding: 9px 12px; border: 1px solid var(--hb-border); border-radius: 9px; background: #fff; color: var(--hb-primary); font-size: 13px; font-weight: 500;}
+.hb-footer > button:hover {background: #edf7f6;}
 
-@media(max-width:580px){.hb-nav-tail{display:none}}
+/* Matching Pro controls in appearance and account screens. */
+.hb-appearance-branding {margin-top: 26px; padding-top: 24px; border-top: 1px solid var(--hs-border, #dce5e8);}
+.hb-appearance-branding > div:first-child {display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;}
+.hb-appearance-branding h3 {font-size: 16px; line-height: 1.7; font-weight: 600; color: var(--hs-ink, #17343b);}
+.hb-appearance-branding p {font-size: 15px; line-height: 1.8; margin-top: 5px; color: var(--hs-muted, #536970);}
+.hb-lock-pill {display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; padding: 4px 8px; border: 1px solid #d8cdf3; border-radius: 6px; color: #5843b3; background: #f2edff; font-size: 12px; font-weight: 600;}
+.hb-appearance-branding .hb-upgrade-brand {display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 16px; padding: 16px; border: 1px solid #dcd3f1; border-radius: 12px; background: #f7f4ff;}
+.hb-upgrade-brand > span {font-size: 13px; color: #665682; line-height: 1.8;}
+.hb-upgrade-brand > span strong {display: block; font-size: 15px; font-weight: 600; color: #4c3b7b;}
+.hb-upgrade-brand > button {display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 10px 14px; border-radius: 9px; background: var(--hs-primary, #087f83); color: #fff; font-size: 14px; font-weight: 600; white-space: nowrap;}
+.hb-upgrade-brand > button:hover {background: var(--hs-primary-dark, #05666a);}
+.hb-branding-switch {display: flex; align-items: center; justify-content: space-between; gap: 20px; min-height: 60px; margin-top: 16px; padding: 15px 16px; border: 1px solid var(--hs-border, #dce5e8); border-radius: 10px; background: #f6f9fa; color: var(--hs-ink, #17343b); font-size: 15px; cursor: pointer;}
+.hb-branding-switch input {width: 22px; height: 22px; flex-shrink: 0; accent-color: var(--hs-primary, #087f83); cursor: pointer;}
+.hb-account-plan-link {display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 24px; margin-top: 24px; border: 1px solid #dcd3f1; border-radius: 16px; background: #f7f4ff;}
+.hb-account-plan-link h2 {margin-bottom: 5px; color: var(--hs-ink, #17343b); font-size: 19px; font-weight: 600;}
+.hb-account-plan-link p {color: var(--hs-muted, #536970); font-size: 15px; line-height: 1.8;}
+.hb-account-plan-link button {white-space: nowrap;}
+.hb-membership-detail > p,
+.hb-brand-preview > div,
+.hb-terms > div,
+.hb-heading > div {min-width: 0;}
+
+@media (max-width: 1050px) {
+  .hb-heading {flex-direction: column; gap: 14px;}
+  .hb-secure {margin-top: 0;}
+  .hb-plan {padding: 24px;}
+  .hb-pro-plan {padding: 23px;}
+  .hb-plan-label {flex-wrap: wrap; gap: 8px; min-height: 52px; align-content: flex-start;}
+  .hb-brand-preview {grid-template-columns: 1fr; gap: 24px;}
+  .hb-brand-comparison {max-width: 540px; width: 100%; margin: 0 auto;}
+  .hb-cycle-row {flex-wrap: wrap; gap: 14px;}
+  .hb-membership {align-items: flex-start;}
+  .hb-membership-detail {flex-direction: column; align-items: flex-end; gap: 10px;}
+}
+@media (max-width: 680px) {
+  .hb-heading {margin-bottom: 24px;}
+  .hb-heading h1 {font-size: 27px;}
+  .hb-heading h1 + p {font-size: 16px;}
+  .hb-plans {grid-template-columns: 1fr; gap: 18px;}
+  .hb-plan {padding: 24px 20px; border-radius: 16px;}
+  .hb-pro-plan {padding: 23px 19px;}
+  .hb-plan:not(.hb-pro-plan)::after {display: none;}
+  .hb-plan-label {min-height: 0; margin-bottom: 16px;}
+  .hb-plan h2 {font-size: 24px;}
+  .hb-plan .hb-price-note {min-height: 0;}
+  .hb-plan ul {gap: 13px; margin-top: 20px; padding: 20px 0;}
+  .hb-price {margin-top: 20px;}
+  .hb-price strong {font-size: 42px;}
+  .hb-cycle-row {margin: 24px 0 18px;}
+  .hb-cycle {width: 100%;}
+  .hb-cycle button {flex: 1; padding: 9px 10px;}
+  .hb-membership {flex-direction: column; gap: 20px; padding: 20px;}
+  .hb-membership h2 {font-size: 20px;}
+  .hb-membership-detail {align-items: flex-start; width: 100%;}
+  .hb-membership-detail .hb-button {width: 100%;}
+  .hb-brand-preview {padding: 24px 20px;}
+  .hb-brand-comparison {gap: 10px;}
+  .hb-mini-footer {min-height: 170px; padding: 14px 8px;}
+  .hb-mini-footer .hub-brand {gap: 4px;}
+  .hb-mini-footer .hub-brand-mark {width: 21px; height: 21px;}
+  .hb-mini-footer .hub-brand-name {font-size: 16px; gap: 4px;}
+  .hb-mini-footer .hub-brand-label {display: none;}
+  .hb-reasons {grid-template-columns: 1fr; gap: 18px;}
+  .hb-reasons p {padding-bottom: 18px; border-bottom: 1px solid var(--hb-border);}
+  .hb-reasons p:last-child {padding-bottom: 0; border-bottom: 0;}
+  .hb-terms {margin: 28px 0;}
+  .hb-conditions {padding: 20px;}
+  .hb-footer {flex-direction: column; align-items: flex-start; gap: 12px;}
+  .hb-error {align-items: flex-start; flex-direction: column; gap: 12px;}
+  .hb-notice {padding: 16px; gap: 10px;}
+  .hb-appearance-branding .hb-upgrade-brand {flex-wrap: wrap;}
+  .hb-upgrade-brand > button {width: 100%;}
+  .hb-account-plan-link {flex-direction: column; align-items: flex-start; padding: 20px;}
+  .hb-account-plan-link button {width: 100%;}
+}
+@media (max-width: 580px) {.hb-nav-tail {display: none;}}
+@media (prefers-reduced-motion: reduce) {
+  .hb-billing button,
+  .hb-billing a,
+  .hb-upgrade-brand > button,
+  .hb-branding-switch input {transition: none;}
+}
