@@ -13,5 +13,11 @@ declare namespace Cloudflare {
     LINE_OFFICIAL_ACCOUNT_URL?: string;
     LINE_DIGEST_ENABLED?: string;
     ADMIN_LINE_USER_ID?: string;
+    STRIPE_BILLING_ENABLED?: string;
+    STRIPE_SECRET_KEY?: string;
+    STRIPE_WEBHOOK_SECRET?: string;
+    STRIPE_PRICE_PRO_MONTHLY?: string;
+    STRIPE_PRICE_PRO_YEARLY?: string;
+    STRIPE_PORTAL_CONFIGURATION_ID?: string;
   }
 }

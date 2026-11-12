@@ -8,14 +8,14 @@ This repository targets **Cloudflare Workers with Vinext**, D1, and R2. Start wi
 
 The public landing page and published customer hubs can run without an authentication provider. **LINE Login is the primary customer sign-in.** Customers can separately opt in to daily analytics messages through the NAKNA HUB LINE Official Account. Follow [การเชื่อม LINE และรายงานประจำวัน](docs/LINE_SETUP_TH.md) to configure the channels, migration, secrets, and webhook. Management remains blocked until a supported login provider is configured; deploying this repository does not create LINE channels or enable message delivery.
 
-Starter and Pro limits are implemented. **There is no paid checkout, payment collection, recurring subscription, or payment-provider integration yet.** Customers request Pro; the platform operator grants or removes it manually. A request does not charge the customer or automatically change their plan.
+Starter is free (1 hub / 20 blocks). Pro is 149 THB/month or 1,490 THB/year (10 hubs / 100 blocks per hub and optional public-footer branding removal). Stripe Checkout, Customer Portal, signed webhooks, and paid entitlement expiry are implemented. **New purchases remain disabled until the actual Stripe account, live prices, secrets, webhook and runtime gate are configured.** See [Stripe setup and pricing decisions](docs/STRIPE_SETUP_TH.md). Deploying source alone does not connect a Stripe merchant account.
 
 ### Runtime and resources
 
 - Node.js >= 22.13.0; install the committed dependency versions with `npm ci`.
 - Vinext / React builds a native Worker using `@cloudflare/vite-plugin`. Keep `package-lock.json` committed.
 - D1 binding `DB` uses `nakna-hub-db`; R2 binding `BUCKET` uses `nakna-hub-assets`. `wrangler.jsonc` records the D1 ID for the current account. Change it when deploying to a different account.
-- Drizzle schema is in `db/schema.ts`, `db/line-auth-schema.ts`, and `db/line-digest-schema.ts`; versioned SQL migrations and their snapshots are in `drizzle/`. Apply the migrations to the target D1 database before serving database-backed requests.
+- Drizzle schema is in `db/schema.ts`, `db/line-auth-schema.ts`, and `db/line-digest-schema.ts`, and `db/hub-billing-schema.ts`; versioned SQL migrations and their snapshots are in `drizzle/`. Apply the migrations to the target D1 database before serving database-backed requests.
 - `keep_vars: true` preserves dashboard-managed runtime variables across deploys. Authentication variables belong in the Worker's runtime settings, not only the build environment. Keep credentials out of Git.
 
 The existing Cloudflare Workers Builds default deploy command is supported:
@@ -73,7 +73,7 @@ LINE identities are namespaced as `line:<login-channel-id>:<line-user-id>`. Each
 
 **Cloudflare Access is an optional fallback for installations without configured LINE Login.** It is not an additional requirement for LINE customers. If switching an existing Access installation to LINE, remove or adjust its edge Access restrictions on customer routes, OAuth callbacks, and the webhook; an edge login wall would prevent those requests from reaching the application. Accounts are still protected by the application session.
 
-For an Access-only installation, create a Cloudflare Access **self-hosted application** for the management paths on the actual deployment hostname. Use one application/AUD for `/studio*`, `/admin*`, `/api/workspace*`, `/api/slugs*`, `/api/pages*`, `/api/uploads*`, `/api/account*`, `/api/operator*`, `/api/line/settings*`, `/api/line/preview*`, and `/api/line/test*`. Keep `/`, `/h/*`, `/go/*`, `/media/*`, `/api/hubs/*`, `/api/events`, `/api/auth/config`, and `/api/line/webhook` reachable without an edge login wall; the application still verifies authorization and webhook signatures as appropriate. Protecting the entire hostname would also require visitors to sign in to public hubs.
+For an Access-only installation, create a Cloudflare Access **self-hosted application** for the management paths on the actual deployment hostname. Use one application/AUD for `/studio*`, `/admin*`, `/api/workspace*`, `/api/slugs*`, `/api/pages*`, `/api/uploads*`, `/api/account*`, `/api/operator*`, `/api/line/settings*`, `/api/line/preview*`, and `/api/line/test*`, plus the authenticated `/api/billing`, `/api/billing/checkout`, `/api/billing/portal`, and `/api/billing/sync` routes. Keep `/`, `/h/*`, `/go/*`, `/media/*`, `/api/hubs/*`, `/api/events`, `/api/auth/config`, `/api/line/webhook`, and `/api/billing/webhook` reachable without an edge login wall; the application still verifies authorization and webhook signatures as appropriate. Protecting the entire hostname would also require visitors to sign in to public hubs.
 
 Set these Worker runtime variables after creating the Access application:
 
@@ -131,7 +131,12 @@ Webhook requests are HMAC-verified using their original bytes before JSON parsin
 | GET | `/api/pages/:id/analytics?range=...` | Owner-only analytics for `today`, `7d`, `30d`, or `all` |
 | GET | `/api/pages/:id/export?range=...` | Owner-only CSV export for the same reporting range |
 | POST | `/api/uploads` | Signed-in avatar upload, attributed to the current account |
-| POST | `/api/account/upgrade` | Record the current customer's request for manual Pro access |
+| POST | `/api/account/upgrade` | Legacy manual upgrade request; does not charge or grant Pro |
+| GET | `/api/billing` | Current account's billing availability and subscription |
+| POST | `/api/billing/checkout` | Create/reuse an authenticated Stripe subscription checkout |
+| POST | `/api/billing/portal` | Open the current customer's Stripe portal |
+| POST | `/api/billing/sync` | Reconcile current Stripe state after checkout/portal return |
+| POST | `/api/billing/webhook` | Signature-verified Stripe events; no customer session required |
 | GET | `/api/operator` | Operator-only account summaries and upgrade requests |
 | PATCH | `/api/operator/accounts/:id` | Operator-only manual plan change |
 | GET / PATCH | `/api/line/settings` | Current customer's connection, opt-in, and send time |
@@ -152,7 +157,10 @@ All state-changing customer and operator APIs enforce a same-origin request chec
 | `hub_links` | Page-owned link and heading blocks, ordering, enabled state, and archive state |
 | `hub_events` | Page/link click events and page-view events |
 | `hub_assets` | Account-owned avatar metadata and private R2 object key |
-| `hub_upgrade_requests` | Manual Pro request and resolution state |
+| `hub_upgrade_requests` | Legacy manual Pro request and resolution state |
+| `hub_billing_accounts` | Stripe customer binding, checkout reuse and concurrency lock |
+| `hub_billing_subscriptions` | Verified subscription status and paid entitlement end |
+| `hub_billing_webhook_events` | Processed Stripe event IDs |
 | `hub_operators` | Bound platform-operator identity |
 | `hub_line_auth_attempts` | Expiring, single-use browser-bound OAuth attempts |
 | `hub_line_sessions` | Hashed opaque login sessions bound to origin and Login channel |
@@ -186,7 +194,7 @@ Archiving a block changes the draft while preserving the existing public snapsho
 
 Blocks include both links and headings. Disabled blocks still count until archived; draft pages count toward the page limit. Quotas are enforced in server-side SQL when creating or restoring data, not only by disabled UI controls. Link updates use a draft-revision guard to reject stale writes.
 
-A Pro-to-Starter change requires no more than one unarchived page and no more than 20 blocks in both its draft and any live published snapshot. The downgrade check and account-plan update share one SQL statement. Starter branding is enforced when reading public data, even if an older Pro snapshot hid it.
+Operator-initiated manual downgrades require the account to fit Starter limits. Stripe-managed expiry is independent: it restores Starter and public branding when the paid entitlement ends, even if the account contains more pages or links. Existing content and published snapshots are preserved; creation and restoration still enforce Starter limits. Starter branding is enforced when reading public data, even if an older Pro snapshot hid it. The public terms describe this preservation policy.
 
 ## Avatars and media access
 

@@ -1,5 +1,6 @@
 import {getAuthConfiguration} from './hub-auth';
 import {imageAssetId} from './hub-link-media';
+import {expireBillingEntitlement} from './hub-billing-entitlements';
 import {env} from 'cloudflare:workers';
 import type {AnalyticsData,AnalyticsRange,HubAccount,HubLink,HubPlan,HubProfile,HubTemplate,OperatorData,PageEditorData,PageSummary,PlanLimits,PublicHubData,WorkspaceData} from './hub-types';
 
@@ -73,6 +74,7 @@ export async function requireAccount(request:Request):Promise<AccountRow>{
   let account=await db().prepare('SELECT * FROM hub_accounts WHERE user_id=?').bind(user.userId).first<AccountRow>();
   if(!account){const now=Date.now();await db().prepare('INSERT OR IGNORE INTO hub_accounts (id,user_id,display_name,email,plan,created_at,updated_at) VALUES (?,?,?,?,?,?,?)').bind(crypto.randomUUID(),user.userId,user.displayName,user.email,'starter',now,now).run();account=await db().prepare('SELECT * FROM hub_accounts WHERE user_id=?').bind(user.userId).first<AccountRow>();}
   if(!account)throw new HubError(503,'ยังสร้างบัญชีไม่ได้ กรุณาลองใหม่');
+  if(account.plan==='pro'&&await expireBillingEntitlement(db(),account.id))account={...account,plan:'starter'};
   if(account.email!==user.email||account.display_name!==user.displayName){await db().prepare('UPDATE hub_accounts SET email=?,display_name=?,updated_at=? WHERE id=?').bind(user.email,user.displayName,Date.now(),account.id).run();account={...account,email:user.email,display_name:user.displayName};}
   return account;
 }
@@ -259,7 +261,9 @@ export async function unpublishPage(request:Request,id:string):Promise<PageEdito
 type PublicRow=PageRow&{owner_user_id:string;owner_plan:HubPlan};
 async function publicPage(value:string,byId=false):Promise<PublicRow>{
   const row=await db().prepare('SELECT p.*,a.user_id AS owner_user_id,a.plan AS owner_plan FROM hub_pages p JOIN hub_accounts a ON a.id=p.account_id WHERE p.'+(byId?'id':'slug')+'=? AND p.published=1 AND p.archived=0 AND p.snapshot_json IS NOT NULL').bind(value).first<PublicRow>();
-  if(!row)throw new HubError(404,'หน้านี้ยังไม่เผยแพร่ หรือไม่พบหน้านี้');return row;
+  if(!row)throw new HubError(404,'หน้านี้ยังไม่เผยแพร่ หรือไม่พบหน้านี้');
+  if(row.owner_plan==='pro'&&await expireBillingEntitlement(db(),row.account_id))row.owner_plan='starter';
+  return row;
 }
 function snapshotOf(row:PublicRow):Snapshot{const snapshot=JSON.parse(row.snapshot_json!) as Snapshot;return {...snapshot,profile:{...snapshot.profile,showBranding:row.owner_plan==='pro'?snapshot.profile.showBranding:true}};}
 export async function getPublicHub(request:Request,slug:string):Promise<PublicHubData>{
