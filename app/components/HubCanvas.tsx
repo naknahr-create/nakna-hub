@@ -2,7 +2,8 @@
 import {useEffect,useState,type CSSProperties} from 'react';
 import {ArrowUpRight,ArrowRight,MoveUpRight,Sparkles} from 'lucide-react';
 import type {HubProfile,HubLink} from '../../lib/hub-types';
-import {HubBrand,HubIcon} from './ui';
+import {HubBrand} from './ui';
+import {HubLinkIcon} from './HubLinkIcon';
 
 export function HubCanvas({profile,links,slug='',preview=false,compact=false,onDemoClick}:{profile:HubProfile;links:HubLink[];slug?:string;preview?:boolean;compact?:boolean;onDemoClick?:(title:string)=>void}){
  const [source,setSource]=useState('');
@@ -22,7 +23,7 @@ export function HubCanvas({profile,links,slug='',preview=false,compact=false,onD
      <div className="hc-profile-rule"><span/><ArrowRight size={17}/></div>
    </section><section className="hc-links" aria-label="ลิงก์ของหน้าเว็บ">
      {visible.map((l,index)=>l.type==='heading'?<h2 key={l.id} className="hc-section-label">{l.title}</h2>:<a key={l.id} className={`hc-link ${l.featured?'hc-link-featured':''}`} href={href(l)} target="_blank" rel="noopener" aria-label={`${l.title} เปิดในแท็บใหม่`} onClick={e=>{if(onDemoClick){e.preventDefault();onDemoClick(l.title);}}}>
-       <span className="hc-link-number">{String(index+1).padStart(2,'0')}</span><span className="hc-link-icon"><HubIcon name={l.icon} size={22}/></span><span className="hc-link-copy"><span className="hc-link-title">{l.title}</span>{l.description&&<span className="hc-link-description">{l.description}</span>}</span><ArrowUpRight className="hc-link-arrow" size={20}/>{l.featured&&<span className="hc-featured-label"><Sparkles size={11}/> แนะนำ</span>}
+       <span className="hc-link-number">{String(index+1).padStart(2,'0')}</span><span className="hc-link-icon"><HubLinkIcon icon={l.icon} url={l.url} size={30}/></span><span className="hc-link-copy"><span className="hc-link-title">{l.title}</span>{l.description&&<span className="hc-link-description">{l.description}</span>}</span><ArrowUpRight className="hc-link-arrow" size={20}/>{l.featured&&<span className="hc-featured-label"><Sparkles size={11}/> แนะนำ</span>}
      </a>)}
      {!visible.length&&<div className="hc-empty"><span className="hc-empty-symbol"><MoveUpRight size={26}/></span><h2>พื้นที่ดี ๆ กำลังเริ่มต้น</h2><p>{preview?'เพิ่มลิงก์แรก แล้วดูหน้าของคุณตรงนี้':'กลับมาพบกันเร็ว ๆ นี้'}</p></div>}
    </section></div>

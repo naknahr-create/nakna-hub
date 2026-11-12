@@ -1,4 +1,5 @@
 import {getAuthConfiguration} from './hub-auth';
+import {imageAssetId} from './hub-link-media';
 import {env} from 'cloudflare:workers';
 import type {AnalyticsData,AnalyticsRange,HubAccount,HubLink,HubPlan,HubProfile,HubTemplate,OperatorData,PageEditorData,PageSummary,PlanLimits,PublicHubData,WorkspaceData} from './hub-types';
 
@@ -181,11 +182,21 @@ export async function archivePage(request:Request,id:string):Promise<void>{
   const result=await db().prepare('UPDATE hub_pages SET archived=1,published=0,snapshot_json=NULL,revision=revision+1,updated_at=? WHERE id=? AND account_id=? AND archived=0').bind(Date.now(),id,account.id).run();if(!result.meta.changes)throw new HubError(404,'ไม่พบหน้านี้');
 }
 const LINK_KEYS=['type','title','description','url','icon','enabled','featured','sortOrder','archived'] as const;
-function validateLink(data:Record<string,unknown>,existing?:HubLink):Omit<HubLink,'id'>{
-  keys(data,LINK_KEYS);const link:Omit<HubLink,'id'>=existing?{type:existing.type,title:existing.title,description:existing.description,url:existing.url,icon:existing.icon,enabled:existing.enabled,featured:existing.featured,sortOrder:existing.sortOrder,archived:existing.archived}:{type:'link',title:'',description:'',url:'',icon:'link',enabled:true,featured:false,sortOrder:0,archived:false};
+async function validateLinkIcon(value:unknown,account:AccountRow):Promise<string>{
+  const icon=text(value,'ไอคอน',80,true),assetId=imageAssetId(icon);
+  if(assetId){
+    if(!await db().prepare('SELECT id FROM hub_assets WHERE id=? AND account_id=?').bind(assetId,account.id).first())throw new HubError(400,'คุณไม่มีสิทธิ์ใช้รูปนี้ กรุณาอัปโหลดรูปของคุณ');
+    return 'image:'+assetId;
+  }
+  if(!/^[a-zA-Z0-9_-]{1,40}$/.test(icon))throw new HubError(400,'ไอคอนไม่ถูกต้อง');
+  return icon;
+}
+async function validateLink(data:Record<string,unknown>,account:AccountRow,existing?:HubLink):Promise<Omit<HubLink,'id'>>{
+  keys(data,LINK_KEYS);const link:Omit<HubLink,'id'>=existing?{type:existing.type,title:existing.title,description:existing.description,url:existing.url,icon:existing.icon,enabled:existing.enabled,featured:existing.featured,sortOrder:existing.sortOrder,archived:existing.archived}:{type:'link',title:'',description:'',url:'',icon:'auto',enabled:true,featured:false,sortOrder:0,archived:false};
   if('type'in data){if(data.type!=='link'&&data.type!=='heading')throw new HubError(400,'ประเภทบล็อกไม่ถูกต้อง');link.type=data.type;}
-  for(const field of ['title','description','icon'] as const)if(field in data)link[field]=text(data[field],field==='title'?'ชื่อบล็อก':field==='icon'?'ไอคอน':'คำอธิบาย',field==='title'?100:field==='description'?220:40,field!=='description');
-  if(!link.title)throw new HubError(400,'กรอกชื่อบล็อก');if(!/^[a-zA-Z0-9_-]+$/.test(link.icon))throw new HubError(400,'ไอคอนไม่ถูกต้อง');
+  for(const field of ['title','description'] as const)if(field in data)link[field]=text(data[field],field==='title'?'ชื่อบล็อก':'คำอธิบาย',field==='title'?100:220,field==='title');
+  if(!link.title)throw new HubError(400,'กรอกชื่อบล็อก');
+  link.icon=await validateLinkIcon('icon'in data?data.icon:link.icon,account);
   if('url'in data)link.url=text(data.url,'ลิงก์ปลายทาง',2048);
   if(link.type==='link')link.url=validateUrl(link.url);else {link.url='';link.featured=false;}
   for(const field of ['enabled','featured','archived'] as const)if(field in data){if(typeof data[field]!=='boolean')throw new HubError(400,'สถานะบล็อกไม่ถูกต้อง');link[field]=data[field] as boolean;}
@@ -194,7 +205,7 @@ function validateLink(data:Record<string,unknown>,existing?:HubLink):Omit<HubLin
   return link;
 }
 export async function createLink(request:Request,pageId:string):Promise<HubLink>{
-  const account=await requireAccount(request);sameOrigin(request);await ownPage(account,pageId);const data=await body(request),link=validateLink(data);link.archived=false;
+  const account=await requireAccount(request);sameOrigin(request);await ownPage(account,pageId);const data=await body(request),link=await validateLink(data,account);link.archived=false;
   const max=await db().prepare('SELECT MAX(sort_order) AS n FROM hub_links WHERE page_id=?').bind(pageId).first<{n:number|null}>();if(!('sortOrder'in data))link.sortOrder=(max?.n??-1)+1;
   const id=crypto.randomUUID(),now=Date.now();
   const results=await db().batch([
@@ -205,7 +216,7 @@ export async function createLink(request:Request,pageId:string):Promise<HubLink>
 }
 export async function updateLink(request:Request,pageId:string,linkId:string):Promise<HubLink>{
   const account=await requireAccount(request);sameOrigin(request);const page=await ownPage(account,pageId);const existing=await db().prepare('SELECT * FROM hub_links WHERE id=? AND page_id=?').bind(linkId,pageId).first<LinkRow>();if(!existing)throw new HubError(404,'ไม่พบบล็อกนี้');
-  const data=await body(request);if(!Object.keys(data).length)throw new HubError(400,'ไม่มีข้อมูลให้แก้ไข');const link=validateLink(data,fromLink(existing));
+  const data=await body(request);if(!Object.keys(data).length)throw new HubError(400,'ไม่มีข้อมูลให้แก้ไข');const link=await validateLink(data,account,fromLink(existing));
   const restoring=existing.archived===1&&!link.archived;
   const results=await db().batch([
     db().prepare("UPDATE hub_links SET type=?,title=?,description=?,url=?,icon=?,enabled=?,featured=?,sort_order=?,archived=? WHERE id=? AND page_id=? AND EXISTS(SELECT 1 FROM hub_pages WHERE id=? AND account_id=? AND archived=0 AND revision=?) AND (?=0 OR (SELECT COUNT(*) FROM hub_links WHERE page_id=? AND archived=0)<CASE (SELECT plan FROM hub_accounts WHERE id=?) WHEN 'pro' THEN 100 ELSE 20 END)").bind(link.type,link.title,link.description,link.url,link.icon,+link.enabled,+link.featured,link.sortOrder,+link.archived,linkId,pageId,pageId,account.id,page.revision,+restoring,pageId,account.id),
@@ -236,7 +247,7 @@ export async function publishPage(request:Request,id:string):Promise<PageEditorD
   if('revision'in data&&data.revision!==page.revision)throw new HubError(409,'ร่างมีการเปลี่ยนแปลง กรุณาโหลดข้อมูลล่าสุดก่อนเผยแพร่');
   const profile=profileOf(page,account.plan),links=(await linksFor(id,false)).filter(l=>l.enabled);
   if(!links.some(l=>l.type==='link'))throw new HubError(400,'เพิ่มลิงก์ที่เปิดใช้งานอย่างน้อย 1 รายการก่อนเผยแพร่');
-  for(const link of links)if(link.type==='link')validateUrl(link.url);
+  for(const link of links)if(link.type==='link'){validateUrl(link.url);await validateLinkIcon(link.icon,account);}
   const snapshot:Snapshot={profile,links,revision:page.revision},now=Date.now();
   const result=await db().prepare('UPDATE hub_pages SET snapshot_json=?,published=1,published_revision=?,published_at=?,updated_at=? WHERE id=? AND account_id=? AND archived=0 AND revision=?').bind(JSON.stringify(snapshot),page.revision,now,now,id,account.id,page.revision).run();
   if(!result.meta.changes)throw new HubError(409,'ร่างมีการเปลี่ยนแปลงระหว่างเผยแพร่ กรุณาลองใหม่');return editorData(account,await ownPage(account,id));
@@ -289,11 +300,20 @@ export async function goToLink(request:Request,slug:string,linkId:string):Promis
 }
 function parseRange(value:string|null):AnalyticsRange{if(value===null)return '7d';if(!['today','7d','30d','all'].includes(value))throw new HubError(400,'ช่วงเวลาไม่ถูกต้อง');return value as AnalyticsRange;}
 function startOfRange(range:AnalyticsRange,now:number):number{if(range==='all')return 0;const day=86400000,offset=25200000,midnight=Math.floor((now+offset)/day)*day-offset;return midnight-(range==='7d'?6:range==='30d'?29:0)*day;}
+// This is an event ratio, not unique-visitor conversion. Multiple clicks from
+// one page view can exceed 100%; no views means the rate cannot be calculated.
+function clickRate(clicks:number,views:number):number|null{return views>0?Math.round(clicks/views*1000)/10:null;}
 export async function analytics(request:Request,pageId:string):Promise<AnalyticsData>{
-  const account=await requireAccount(request);await ownPage(account,pageId,true);const range=parseRange(new URL(request.url).searchParams.get('range')),now=Date.now(),start=startOfRange(range,now);
+  const account=await requireAccount(request);await ownPage(account,pageId,true);const params=new URL(request.url).searchParams,range=parseRange(params.get('range')),now=Date.now(),start=startOfRange(range,now);
+  const requestedLink=params.get('linkId');let selected:LinkRow|null=null;
+  if(requestedLink!==null){
+    if(!UUID.test(requestedLink)||params.getAll('linkId').length!==1)throw new HubError(400,'ลิงก์ที่เลือกไม่ถูกต้อง');
+    selected=await db().prepare("SELECT l.* FROM hub_links l WHERE l.id=? AND l.page_id=? AND (l.type='link' OR EXISTS(SELECT 1 FROM hub_events e WHERE e.link_id=l.id AND e.page_id=l.page_id AND e.type='click'))").bind(requestedLink,pageId).first<LinkRow>();
+    if(!selected)throw new HubError(404,'ไม่พบลิงก์นี้ในฮับของคุณ');
+  }
   const [totals,ranking,daily,devices,sources,active]=await Promise.all([
     db().prepare('SELECT type,COUNT(*) AS n FROM hub_events WHERE page_id=? AND created_at>=? AND created_at<=? GROUP BY type').bind(pageId,start,now).all<{type:string;n:number}>(),
-    db().prepare("SELECT l.id,l.title,COUNT(e.id) AS clicks FROM hub_links l LEFT JOIN hub_events e ON e.link_id=l.id AND e.page_id=l.page_id AND e.type='click' AND e.created_at>=? AND e.created_at<=? WHERE l.page_id=? AND (l.type='link' OR EXISTS(SELECT 1 FROM hub_events old WHERE old.link_id=l.id AND old.page_id=l.page_id AND old.type='click')) GROUP BY l.id ORDER BY clicks DESC,l.sort_order,l.id").bind(start,now,pageId).all<{id:string;title:string;clicks:number}>(),
+    db().prepare("SELECT l.id,l.title,l.url,l.icon,l.enabled,l.archived,COUNT(e.id) AS clicks FROM hub_links l LEFT JOIN hub_events e ON e.link_id=l.id AND e.page_id=l.page_id AND e.type='click' AND e.created_at>=? AND e.created_at<=? WHERE l.page_id=? AND (l.type='link' OR EXISTS(SELECT 1 FROM hub_events old WHERE old.link_id=l.id AND old.page_id=l.page_id AND old.type='click')) GROUP BY l.id ORDER BY clicks DESC,l.sort_order,l.id").bind(start,now,pageId).all<{id:string;title:string;url:string;icon:string;enabled:number;archived:number;clicks:number}>(),
     db().prepare("SELECT date(created_at/1000,'unixepoch','+7 hours') AS date,SUM(CASE WHEN type='click' THEN 1 ELSE 0 END) AS clicks,SUM(CASE WHEN type='view' THEN 1 ELSE 0 END) AS views FROM hub_events WHERE page_id=? AND created_at>=? AND created_at<=? GROUP BY date ORDER BY date").bind(pageId,start,now).all<{date:string;clicks:number;views:number}>(),
     db().prepare("SELECT device AS name,COUNT(*) AS count FROM hub_events WHERE page_id=? AND type='click' AND created_at>=? AND created_at<=? GROUP BY device ORDER BY count DESC").bind(pageId,start,now).all<{name:string;count:number}>(),
     db().prepare("SELECT source AS name,COUNT(*) AS count FROM hub_events WHERE page_id=? AND type='view' AND created_at>=? AND created_at<=? GROUP BY source ORDER BY count DESC").bind(pageId,start,now).all<{name:string;count:number}>(),
@@ -301,11 +321,23 @@ export async function analytics(request:Request,pageId:string):Promise<Analytics
   ]);
   const totalClicks=totals.results.find(t=>t.type==='click')?.n??0,totalViews=totals.results.find(t=>t.type==='view')?.n??0,lookup=new Map(daily.results.map(d=>[d.date,d]));
   const days:AnalyticsData['daily']=[];if(range==='all')days.push(...daily.results);else{const first=new Date(start+25200000).toISOString().slice(0,10),last=new Date(now+25200000).toISOString().slice(0,10);for(let date=first;date<=last;date=new Date(Date.parse(date+'T00:00:00Z')+86400000).toISOString().slice(0,10))days.push(lookup.get(date)??{date,clicks:0,views:0});}
-  return {pageId,range,totalClicks,totalViews,activeLinks:active?.n??0,ranking:ranking.results.map(r=>({...r,share:totalClicks?Math.round(r.clicks/totalClicks*1000)/10:0})),daily:days,devices:devices.results,sources:sources.results};
+  const ranked=ranking.results.map(r=>({...r,enabled:!!r.enabled,archived:!!r.archived,share:totalClicks?Math.round(r.clicks/totalClicks*1000)/10:0,clickRate:clickRate(r.clicks,totalViews)}));
+  let selectedLink:AnalyticsData['selectedLink'];
+  if(selected){
+    const [selectedDaily,selectedDevices,selectedSources]=await Promise.all([
+      db().prepare("SELECT date(created_at/1000,'unixepoch','+7 hours') AS date,COUNT(*) AS clicks FROM hub_events WHERE page_id=? AND link_id=? AND type='click' AND created_at>=? AND created_at<=? GROUP BY date ORDER BY date").bind(pageId,selected.id,start,now).all<{date:string;clicks:number}>(),
+      db().prepare("SELECT device AS name,COUNT(*) AS count FROM hub_events WHERE page_id=? AND link_id=? AND type='click' AND created_at>=? AND created_at<=? GROUP BY device ORDER BY count DESC,name").bind(pageId,selected.id,start,now).all<{name:string;count:number}>(),
+      db().prepare("SELECT source AS name,COUNT(*) AS count FROM hub_events WHERE page_id=? AND link_id=? AND type='click' AND created_at>=? AND created_at<=? GROUP BY source ORDER BY count DESC,name").bind(pageId,selected.id,start,now).all<{name:string;count:number}>(),
+    ]);
+    const row=ranked.find(r=>r.id===selected.id)!,selectedDays=new Map(selectedDaily.results.map(day=>[day.date,day.clicks]));
+    selectedLink={id:row.id,title:row.title,url:row.url,icon:row.icon,clicks:row.clicks,share:row.share,clickRate:row.clickRate,daily:days.map(day=>({date:day.date,clicks:selectedDays.get(day.date)??0})),devices:selectedDevices.results,sources:selectedSources.results};
+  }
+  return {pageId,range,totalClicks,totalViews,clickRate:clickRate(totalClicks,totalViews),activeLinks:active?.n??0,ranking:ranked,daily:days,devices:devices.results,sources:sources.results,...(selectedLink?{selectedLink}:{})};
 }
 function csvCell(value:string|number):string{let clean=String(value);if(typeof value==='string'&&/^[\s]*[=+\-@\t\r]/.test(clean))clean="'"+clean;return '"'+clean.replace(/"/g,'""')+'"';}
 export async function exportAnalytics(request:Request,pageId:string):Promise<Response>{
-  const data=await analytics(request,pageId),rows:Array<Array<string|number>>=[['อันดับ','ชื่อลิงก์','จำนวนคลิก','สัดส่วนคลิก (%)','ช่วงเวลา (เวลาไทย)'],...data.ranking.map((l,i)=>[i+1,l.title,l.clicks,l.share,data.range]),[],['ยอดคลิกรวม',data.totalClicks],['ยอดเปิดหน้า',data.totalViews]];
+  const data=await analytics(request,pageId),selected=data.selectedLink,links=selected?data.ranking.filter(link=>link.id===selected.id):data.ranking;
+  const rows:Array<Array<string|number>>=[['อันดับ','ชื่อลิงก์','URL','จำนวนคลิก','สัดส่วนจากคลิกทั้งฮับ (%)','คลิกต่อการเข้าชม (%)','ช่วงเวลา (เวลาไทย)'],...links.map(l=>[data.ranking.findIndex(row=>row.id===l.id)+1,l.title,l.url,l.clicks,l.share,l.clickRate??'',data.range]),[],['ขอบเขต',selected?selected.title:'ทุกลิงก์ในฮับ'],['ยอดคลิก',selected?.clicks??data.totalClicks],['ยอดเปิดหน้าฮับ',data.totalViews],['คลิกต่อการเข้าชม (%)',(selected?.clickRate??(selected?null:data.clickRate))??''],['สูตร','จำนวนคลิก ÷ จำนวนครั้งที่เข้าชมฮับ × 100'],['หมายเหตุ','นับเป็นครั้ง ไม่ใช่จำนวนคน อัตราอาจเกิน 100% เมื่อมีการคลิกหลายครั้งต่อการเข้าชม; ช่องว่างหมายถึงยังไม่มีการเข้าชม'],[],['วันที่ (เวลาไทย)','จำนวนคลิก','ยอดเปิดหน้าฮับ'],...(selected?selected.daily.map(day=>[day.date,day.clicks,data.daily.find(row=>row.date===day.date)?.views??0]):data.daily.map(day=>[day.date,day.clicks,day.views]))];
   const date=new Date(Date.now()+25200000).toISOString().slice(0,10);return new Response('\uFEFF'+rows.map(row=>row.map(csvCell).join(',')).join('\r\n'),{headers:{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':`attachment; filename="nakna-hub-${data.range}-${date}.csv"`,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
 }
 
@@ -333,9 +365,14 @@ export async function serveAsset(request:Request,id:string):Promise<Response>{
   const asset=await db().prepare('SELECT * FROM hub_assets WHERE id=?').bind(id).first<AssetRow>();if(!asset||!env.BUCKET)throw new HubError(404,'ไม่พบรูปภาพ');
   const user=identity(request);let allowed=false;
   if(user)allowed=!!await db().prepare('SELECT id FROM hub_accounts WHERE id=? AND user_id=?').bind(asset.account_id,user.userId).first();
-  if(!allowed)allowed=!!await db().prepare("SELECT id FROM hub_pages WHERE account_id=? AND published=1 AND archived=0 AND json_extract(snapshot_json,'$.profile.avatarUrl')=? LIMIT 1").bind(asset.account_id,'/media/'+id).first();
+  if(!allowed)allowed=!!await db().prepare(`SELECT p.id FROM hub_pages p WHERE p.account_id=? AND p.published=1 AND p.archived=0 AND (
+    json_extract(p.snapshot_json,'$.profile.avatarUrl')=? OR EXISTS(
+      SELECT 1 FROM json_each(p.snapshot_json,'$.links') l
+      WHERE json_extract(l.value,'$.type')='link' AND json_extract(l.value,'$.enabled')=1
+      AND COALESCE(json_extract(l.value,'$.archived'),0)=0 AND json_extract(l.value,'$.icon')=?
+    )) LIMIT 1`).bind(asset.account_id,'/media/'+id,'image:'+id).first();
   if(!allowed)throw new HubError(404,'ไม่พบรูปภาพ');const object=await env.BUCKET.get(asset.storage_key);if(!object)throw new HubError(404,'ไม่พบรูปภาพ');
-  return new Response(request.method==='HEAD'?null:object.body,{headers:{'Content-Type':asset.mime_type,'Content-Length':String(object.size),'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Content-Disposition':'inline; filename="avatar.'+(asset.mime_type==='image/jpeg'?'jpg':asset.mime_type==='image/png'?'png':'webp')+'"'}});
+  return new Response(request.method==='HEAD'?null:object.body,{headers:{'Content-Type':asset.mime_type,'Content-Length':String(object.size),'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Content-Disposition':'inline; filename="image.'+(asset.mime_type==='image/jpeg'?'jpg':asset.mime_type==='image/png'?'png':'webp')+'"'}});
 }
 export async function requestUpgrade(request:Request):Promise<void>{
   const account=await requireAccount(request);sameOrigin(request);if(account.plan==='pro')throw new HubError(409,'บัญชีของคุณใช้ Pro อยู่แล้ว');

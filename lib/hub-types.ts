@@ -56,11 +56,20 @@ export type AnalyticsData = {
   range: AnalyticsRange;
   totalClicks: number;
   totalViews: number;
+  /** Click events / page-view events × 100; may exceed 100, not unique-person CTR. */
+  clickRate: number | null;
   activeLinks: number;
-  ranking: Array<{id: string; title: string; clicks: number; share: number}>;
+  ranking: Array<{id: string; title: string; url: string; icon: string; enabled: boolean; archived: boolean; clicks: number; share: number; clickRate: number | null}>;
   daily: Array<{date: string; clicks: number; views: number}>;
   devices: Array<{name: string; count: number}>;
   sources: Array<{name: string; count: number}>;
+  selectedLink?: {
+    id: string; title: string; url: string; icon: string;
+    clicks: number; share: number; clickRate: number | null;
+    daily: Array<{date: string; clicks: number}>;
+    devices: Array<{name: string; count: number}>;
+    sources: Array<{name: string; count: number}>;
+  };
 };
 export type OperatorData = {
   accounts: Array<{id: string; displayName: string; email: string; plan: HubPlan; pageCount: number; totalClicks: number; upgradeRequested: boolean; createdAt: number}>;

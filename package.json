@@ -18,7 +18,8 @@
     "db:migrate:local": "wrangler d1 migrations apply DB --local --config wrangler.jsonc",
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote --config wrangler.jsonc",
     "test:auth": "node --experimental-strip-types --test tests/cloudflare-access.test.mjs",
-    "test:line": "node --experimental-strip-types --test tests/line-*.test.mjs tests/hub-auth-integration.test.mjs"
+    "test:line": "node --experimental-strip-types --test tests/line-*.test.mjs tests/hub-auth-integration.test.mjs",
+    "test:hub": "node --experimental-strip-types --test tests/hub-*.test.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
