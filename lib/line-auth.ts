@@ -17,6 +17,30 @@ type SessionRow = {
   origin: string; display_name: string; email: string; expires_at: number;
 };
 type JsonObject = Record<string, unknown>;
+type AuthFailureStage = 'begin_login' | 'claim_attempt' | 'provider_callback' | 'token' | 'verify' | 'friendship' | 'persist_session' | 'callback';
+type AuthFailureCategory = 'database_error' | 'upstream_http' | 'upstream_invalid_client' | 'upstream_invalid_grant' | 'upstream_invalid_request' | 'upstream_unauthorized_client' | 'upstream_server_error' | 'upstream_temporarily_unavailable' | 'timeout' | 'network_error' | 'invalid_json' | 'invalid_response' | 'response_too_large' | 'empty_response' | 'provider_error' | 'unexpected_error';
+class LineAuthFailure extends Error {
+  readonly stage: AuthFailureStage;
+  readonly category: AuthFailureCategory;
+  readonly status?: number;
+  constructor(stage: AuthFailureStage, category: AuthFailureCategory, status?: number) {
+    super('LINE authentication failed');
+    this.stage = stage; this.category = category; this.status = status;
+  }
+}
+function logAuthFailure(error: unknown, fallbackStage: AuthFailureStage): void {
+  // Emit only categories created here. Never serialize an exception, upstream
+  // body, callback URL, identity, cookie, or OAuth credential into logs.
+  const failure = error instanceof LineAuthFailure ? error : new LineAuthFailure(fallbackStage, 'unexpected_error');
+  const status = failure.status;
+  console.warn('LINE authentication failed', {
+    stage: failure.stage, category: failure.category,
+    ...(typeof status === 'number' && Number.isInteger(status) && status >= 100 && status <= 599 ? {status} : {}),
+  });
+}
+async function authDatabase<T>(stage: AuthFailureStage, run: () => Promise<T>): Promise<T> {
+  try { return await run(); } catch { throw new LineAuthFailure(stage, 'database_error'); }
+}
 
 const OAUTH_COOKIE = '__Host-nakna_line_oauth';
 const SESSION_COOKIE = '__Host-nakna_session';
@@ -119,8 +143,8 @@ export async function authenticateLineRequest(request: Request, env: LineEnviron
   return new Request(request, {headers});
 }
 
-async function readJson(response: Response): Promise<JsonObject> {
-  if (!response.ok) throw new Error('line_upstream_failed');
+async function readJson(response: Response, allowErrorBody = false): Promise<JsonObject> {
+  if (!response.ok && !allowErrorBody) throw new Error('line_upstream_failed');
   if (Number(response.headers.get('content-length') ?? 0) > 65_536) throw new Error('line_response_too_large');
   const reader = response.body?.getReader();
   if (!reader) throw new Error('line_response_empty');
@@ -137,8 +161,41 @@ async function readJson(response: Response): Promise<JsonObject> {
   if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('line_response_invalid');
   return data as JsonObject;
 }
-async function lineFetch(fetcher: typeof fetch, url: string, init: RequestInit): Promise<JsonObject> {
-  return readJson(await fetcher(url, {...init, redirect: 'error', signal: AbortSignal.timeout(10_000)}));
+async function lineFetch(fetcher: typeof fetch, url: string, init: RequestInit, stage: AuthFailureStage): Promise<JsonObject> {
+  let response: Response;
+  try { response = await fetcher(url, {...init, redirect: 'error', signal: AbortSignal.timeout(10_000)}); }
+  catch (error) {
+    const timeout = error instanceof Error && ['TimeoutError', 'AbortError'].includes(error.name);
+    throw new LineAuthFailure(stage, timeout ? 'timeout' : 'network_error');
+  }
+  if (!response.ok) {
+    let category: AuthFailureCategory = 'upstream_http';
+    // An error enum can help distinguish a rejected client from an expired code.
+    // Ignore all descriptions and unrecognized values; never log the response.
+    try {
+      const body = await readJson(response, true);
+      switch (body.error) {
+        case 'invalid_client': category = 'upstream_invalid_client'; break;
+        case 'invalid_grant': category = 'upstream_invalid_grant'; break;
+        case 'invalid_request': category = 'upstream_invalid_request'; break;
+        case 'unauthorized_client': category = 'upstream_unauthorized_client'; break;
+        case 'server_error': category = 'upstream_server_error'; break;
+        case 'temporarily_unavailable': category = 'upstream_temporarily_unavailable'; break;
+      }
+    } catch { /* HTTP status remains available if the bounded body cannot be read. */ }
+    throw new LineAuthFailure(stage, category, response.status);
+  }
+  try { return await readJson(response); }
+  catch (error) {
+    let category: AuthFailureCategory = 'invalid_response';
+    if (error instanceof SyntaxError) category = 'invalid_json';
+    else if (error instanceof Error) {
+      if (['TimeoutError', 'AbortError'].includes(error.name)) category = 'timeout';
+      else if (error.message === 'line_response_too_large') category = 'response_too_large';
+      else if (error.message === 'line_response_empty') category = 'empty_response';
+    }
+    throw new LineAuthFailure(stage, category, response.status);
+  }
 }
 
 async function beginLogin(request: Request, env: LineEnvironment, config: LineConfiguration, now: number): Promise<Response> {
@@ -151,7 +208,7 @@ async function beginLogin(request: Request, env: LineEnvironment, config: LineCo
     (state_hash,browser_hash,verifier,nonce,login_channel_id,origin,return_to,created_at,expires_at) VALUES (?,?,?,?,?,?,?,?,?)`)
     .bind(await hash(state), await hash(browserToken), verifier, nonce, config.channelId, config.origin,
       safeReturnTo(new URL(request.url).searchParams.get('returnTo')), now, now + ATTEMPT_MS));
-  await env.DB.batch(statements);
+  await authDatabase('begin_login', () => env.DB!.batch(statements));
   const authorize = new URL('https://access.line.me/oauth2/v2.1/authorize');
   authorize.search = new URLSearchParams({response_type: 'code', client_id: config.channelId, redirect_uri: config.callbackUrl,
     state, scope: 'openid profile', nonce, code_challenge: await challenge(verifier), code_challenge_method: 'S256'}).toString();
@@ -167,11 +224,14 @@ async function finishLogin(request: Request, env: LineEnvironment, config: LineC
   const browserToken = cookie(request, OAUTH_COOKIE);
   if (!state || !/^[0-9a-f]{64}$/.test(state) || params.getAll('state').length !== 1 || !browserToken) return authError('line_state_invalid');
   // Atomically claim a browser-bound, unexpired attempt before any token exchange.
-  const attempt = await env.DB.prepare(`DELETE FROM hub_line_auth_attempts
+  const attempt = await authDatabase('claim_attempt', async () => env.DB!.prepare(`DELETE FROM hub_line_auth_attempts
     WHERE state_hash=? AND browser_hash=? AND login_channel_id=? AND origin=? AND expires_at>? RETURNING *`)
-    .bind(await hash(state), await hash(browserToken), config.channelId, config.origin, now).first<AttemptRow>();
+    .bind(await hash(state), await hash(browserToken), config.channelId, config.origin, now).first<AttemptRow>());
   if (!attempt) return authError('line_state_invalid');
-  if (params.has('error')) return authError(params.get('error') === 'access_denied' ? 'line_denied' : 'line_unavailable');
+  if (params.has('error')) {
+    if (params.get('error') === 'access_denied') return authError('line_denied');
+    throw new LineAuthFailure('provider_callback', 'provider_error');
+  }
   const code = params.get('code');
   if (!code || code.length > 2048 || params.getAll('code').length !== 1) return authError('line_state_invalid');
   const fetcher = deps.fetcher ?? fetch;
@@ -179,13 +239,13 @@ async function finishLogin(request: Request, env: LineEnvironment, config: LineC
     method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'},
     body: new URLSearchParams({grant_type: 'authorization_code', code, redirect_uri: config.callbackUrl,
       client_id: config.channelId, client_secret: config.channelSecret, code_verifier: attempt.verifier}),
-  });
+  }, 'token');
   if (typeof tokens.id_token !== 'string' || tokens.id_token.length > 16_384
     || typeof tokens.access_token !== 'string' || !tokens.access_token || tokens.access_token.length > 4096) return authError('line_invalid_identity');
   const claims = await lineFetch(fetcher, 'https://api.line.me/oauth2/v2.1/verify', {
     method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'},
     body: new URLSearchParams({id_token: tokens.id_token, client_id: config.channelId, nonce: attempt.nonce}),
-  });
+  }, 'verify');
   const checkedAt = (deps.now ?? Date.now)();
   if (claims.iss !== 'https://access.line.me' || claims.aud !== config.channelId
     || typeof claims.sub !== 'string' || !LINE_USER_ID.test(claims.sub) || claims.nonce !== attempt.nonce
@@ -202,7 +262,7 @@ async function finishLogin(request: Request, env: LineEnvironment, config: LineC
   const friendshipCheckedAt = (deps.now ?? Date.now)();
   let friendStatus = 'unknown';
   try {
-    const friendship = await lineFetch(fetcher, 'https://api.line.me/friendship/v1/status', {headers: {Authorization: `Bearer ${tokens.access_token}`}});
+    const friendship = await lineFetch(fetcher, 'https://api.line.me/friendship/v1/status', {headers: {Authorization: `Bearer ${tokens.access_token}`}}, 'friendship');
     if (typeof friendship.friendFlag === 'boolean') friendStatus = friendship.friendFlag ? 'following' : 'not_following';
   } catch { /* Friendship is optional; a messaging setup issue must not block login. */ }
   const completedAt = (deps.now ?? Date.now)();
@@ -225,7 +285,7 @@ async function finishLogin(request: Request, env: LineEnvironment, config: LineC
   statements.push(env.DB.prepare(`INSERT INTO hub_line_sessions
     (token_hash,user_id,line_user_id,login_channel_id,origin,display_name,email,created_at,expires_at) VALUES (?,?,?,?,?,?,?,?,?)`)
     .bind(await hash(sessionToken), userId, lineUserId, config.channelId, config.origin, displayName, email, completedAt, completedAt + SESSION_MS));
-  await env.DB.batch(statements);
+  await authDatabase('persist_session', () => env.DB!.batch(statements));
   return redirect(attempt.return_to, [cookieValue(OAUTH_COOKIE, '', 0), cookieValue(SESSION_COOKIE, sessionToken, SESSION_MS / 1000)]);
 }
 
@@ -256,5 +316,9 @@ export async function handleLineAuthRequest(request: Request, env: LineEnvironme
   try {
     return path === '/auth/line/start' ? await beginLogin(request, env, config, (deps.now ?? Date.now)())
       : await finishLogin(request, env, config, deps);
-  } catch { return authError('line_unavailable'); }
+  } catch (error) {
+    logAuthFailure(error, path === '/auth/line/start' ? 'begin_login' : 'callback');
+    return authError('line_unavailable');
+  }
 }
+
