@@ -1,0 +1,6 @@
+NAKNA HUB — GitHub source export
+Export date: 2026-11-12 (Asia/Bangkok)
+Source commit: 272e77e392c12e2922aceed63b317934fd4c07ed
+Deployed site: https://nakna-hub.teechanaphat.chatgpt.site/
+Application sources: exact tracked files from this commit.
+Export-only additions: GITHUB_START_HERE_TH.md, SOURCE_VERSION.txt.
