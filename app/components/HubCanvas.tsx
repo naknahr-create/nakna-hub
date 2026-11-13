@@ -15,8 +15,8 @@ export function HubCanvas({profile,links,slug='',preview=false,compact=false,onD
  const [imageFailed,setImageFailed]=useState(false);
  useEffect(()=>setImageFailed(false),[profile.avatarUrl]);
  useEffect(()=>{if(preview)return;let ref='';try{const r=new URL(document.referrer);if(r.origin!==location.origin)ref=r.hostname;}catch{}setSource((new URLSearchParams(location.search).get('utm_source')||ref).slice(0,100));},[preview]);
- const productCards=visible.filter(l=>l.type==='service');
  const visible=links.filter(l=>l.enabled&&!l.archived).sort((a,b)=>a.sortOrder-b.sortOrder);
+ const productCards=visible.filter(l=>l.type==='service');
  const themePreset=getHubTheme(profile.themeId);
  const accent=profile.accent||'#04878a';
  const luminance=(color:string)=>{const [r,g,b]=[1,3,5].map(i=>{const c=parseInt(color.slice(i,i+2),16)/255;return c<=.04045?c/12.92:((c+.055)/1.055)**2.4;});return .2126*r+.7152*g+.0722*b;};
