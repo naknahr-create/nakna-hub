@@ -122,3 +122,24 @@
 @media(prefers-reduced-motion:reduce){.hc .hcb-action,.hc .hcb-gallery-open .hcb-media{transition:none}.hc .hcb-action:hover,.hc .hcb-gallery-open:hover .hcb-media{transform:none}}
 @media(prefers-reduced-transparency:reduce){.hc.hc-style-glass .hcb:not(.hcb-text){background:var(--hc-card);backdrop-filter:none;-webkit-backdrop-filter:none}.hc .hcb-lightbox::backdrop{background:#081719;backdrop-filter:none}}
 @media(forced-colors:active){.hc .hcb,.hc .hcb-action,.hc .hcb-gallery-open,.hc .hcb-expand,.hc .hcb-lightbox-panel{border:1px solid CanvasText;background:Canvas;color:CanvasText;box-shadow:none}.hc .hcb-featured-label{background:Highlight;color:HighlightText}.hc .hcb-media{background:Canvas}.hc .hcb button:focus-visible,.hc .hcb a:focus-visible{outline-color:Highlight}}
+
+/* Horizontal content cards: links below remain in the original vertical layout. */
+.hc .hc-card-carousel{grid-column:1/-1;min-width:0;width:100%;max-width:100%;margin:0}
+.hc .hc-card-rail{display:flex;gap:14px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;scroll-padding-inline:0;scrollbar-width:none;padding:3px 0 8px;touch-action:pan-x pan-y}
+.hc .hc-card-rail::-webkit-scrollbar{display:none}
+.hc .hc-card-slide{flex:0 0 min(85%,440px);min-width:0;scroll-snap-align:start;scroll-snap-stop:always}
+.hc .hc-card-slide:only-child{flex-basis:100%}
+.hc .hc-card-slide>.hcb{height:100%;display:flex;flex-direction:column}
+.hc .hc-card-slide>.hcb>.hcb-body{flex:1;display:flex;flex-direction:column}
+.hc .hc-card-slide .hcb-bottom{margin-top:auto;padding-top:20px}
+.hc .hc-card-navigation{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 1px 11px;color:var(--hc-ink)}
+.hc .hc-card-counter{font-size:12px;white-space:nowrap}
+.hc .hc-card-dots{display:flex;align-items:center;justify-content:center;gap:6px;flex:1}
+.hc .hc-card-dots button{width:7px;height:7px;min-width:7px;border:0;border-radius:50%;background:var(--hc-line);padding:0;cursor:pointer}
+.hc .hc-card-dots button[aria-current=true]{width:18px;border-radius:8px;background:var(--hc-accent)}
+.hc .hc-card-arrows{display:flex;gap:6px}
+.hc .hc-card-arrows button{display:grid;place-items:center;width:34px;height:34px;border:1px solid var(--hc-line);border-radius:50%;background:var(--hc-card);color:var(--hc-ink);cursor:pointer}
+.hc .hc-card-arrows button:disabled{opacity:.35;cursor:default}
+.hc .hc-card-arrows button:focus-visible,.hc .hc-card-dots button:focus-visible,.hc .hc-card-rail:focus-visible{outline:2px solid var(--hc-accent);outline-offset:3px}
+@media(max-width:450px){.hc .hc-card-slide{flex-basis:87%}.hc .hc-card-rail{gap:12px}}
+@media(prefers-reduced-motion:reduce){.hc .hc-card-rail{scroll-behavior:auto}}
