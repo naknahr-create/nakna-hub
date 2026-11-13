@@ -149,3 +149,12 @@
 }
 @media(max-width:380px){.ha-analytics .ha-metrics{gap:10px}.ha-analytics .ha-metrics article{padding:16px 12px}.ha-analytics .ha-metric-label{gap:5px}.ha-analytics .ha-panel{padding:18px 14px}.ha-analytics .ha-chart-legend{gap:2px}.ha-analytics .ha-chart-legend button{padding:8px 7px}.ha-analytics tbody tr{padding:12px}.ha-analytics .ha-metrics article>strong{font-size:28px}}
 @media(prefers-reduced-motion:reduce){.ha-analytics *{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+/* Explain exclusions beside the numbers rather than only in the footer. */
+.ha-analytics .ha-tracking-note{display:flex;align-items:flex-start;gap:12px;margin:0 0 22px;padding:14px 17px;border:1px solid #d6e5e7;border-radius:12px;background:#eff7f7;color:var(--ha-muted);font-size:14px;line-height:1.75}
+.ha-analytics .ha-tracking-note>svg{flex:0 0 19px;margin-top:3px;color:var(--ha-primary)}
+.ha-analytics .ha-tracking-note>div{min-width:0}
+.ha-analytics .ha-tracking-note strong{display:block;font-size:14px;font-weight:600;color:var(--ha-ink)}
+.ha-analytics .ha-tracking-note p{margin:2px 0 0;max-width:920px;overflow-wrap:anywhere}
+.ha-analytics .ha-tracking-note summary{cursor:pointer;min-height:36px;line-height:36px;font-size:14px;font-weight:500;color:#05666a}
+.ha-analytics .ha-tracking-note details[open]>p{padding-top:5px;border-top:1px solid #d6e5e7}
+@media(max-width:600px){.ha-analytics .ha-tracking-note{padding:13px 14px;gap:10px;font-size:13px}.ha-analytics .ha-tracking-note summary{min-height:44px;line-height:44px;font-size:13px}}

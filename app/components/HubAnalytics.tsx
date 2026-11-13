@@ -132,6 +132,8 @@ export default function HubAnalytics({page, notify, initialLinkId}: {
 
     {!page.published && <div className="ha-notice"><Info size={19}/><div><strong>ฮับนี้ยังไม่เปิดให้ผู้เข้าชม</strong><p>กดเผยแพร่ฮับแล้วแชร์ลิงก์ เพื่อเริ่มรับการเข้าชมจริง ประวัติเดิมยังคงอยู่</p></div></div>}
 
+    <aside className="ha-tracking-note" aria-label="การนับสถิติ"><Info size={19} aria-hidden="true"/><div><strong>การคลิกของเจ้าของฮับไม่นับในยอดนี้</strong><p>สถิตินับการใช้งานของผู้เข้าชม โดยไม่รวมบัญชีเจ้าของและพรีวิวในสตูดิโอ</p><details><summary>คลิกแล้วทำไมยังเป็นศูนย์?</summary><p>หากเปิดด้วยบัญชีเจ้าของ ระบบจะไม่นับทั้งยอดเข้าชมและยอดคลิก ลองทดสอบโดยเปิดลิงก์ในหน้าต่างไม่ระบุตัวตนที่ไม่ได้เข้าสู่ระบบ แล้วกลับมากดรีเฟรชสถิติ</p></details></div></aside>
+
     <div className="ha-toolbar">
       <div className="ha-ranges" role="group" aria-label="ช่วงเวลาสถิติ">
         {RANGES.map(item => <button key={item.value} type="button" aria-pressed={range === item.value} className={range === item.value ? "is-selected" : ""} onClick={() => setRange(item.value)}>{item.label}</button>)}
@@ -154,7 +156,7 @@ export default function HubAnalytics({page, notify, initialLinkId}: {
 
         <section className="ha-panel ha-trend-panel">
           <div className="ha-panel-heading"><div><h3>การเข้าชมและคลิกในแต่ละวัน</h3><p>{range === "all" ? "กราฟแสดง 90 วันล่าสุด · ตัวเลขรวมด้านบนเป็นข้อมูลทั้งหมด" : "เทียบการเปิดฮับกับการคลิกลิงก์ในช่วงที่เลือก"}</p></div><span className="ha-count-tag"><Link2 size={13}/>{number.format(data.activeLinks)} ลิงก์เปิดใช้งาน</span></div>
-          <TrendChart rows={chartDays(data.daily, range)} showViews emptyTitle="ยังไม่มีการเข้าชมหรือคลิกในช่วงนี้"/>
+          <TrendChart rows={chartDays(data.daily, range)} showViews emptyTitle="ยังไม่มีการเข้าชมหรือคลิกจากผู้เข้าชมในช่วงนี้" emptyDescription="แชร์ฮับให้คนอื่น หรือทดสอบในหน้าต่างไม่ระบุตัวตนที่ไม่ได้เข้าสู่ระบบ การเปิดฮับและคลิกจากบัญชีเจ้าของหรือพรีวิวจะไม่นับ"/>
         </section>
 
         <section className="ha-panel ha-ranking">
@@ -174,7 +176,7 @@ export default function HubAnalytics({page, notify, initialLinkId}: {
             <div className="ha-detail-metrics"><div><span>คลิกลิงก์นี้</span><strong>{number.format(detail.clicks)}<small>ครั้ง</small></strong></div><div><span>คลิกต่อการเข้าชมฮับ</span><strong>{percentage(detail.clickRate)}</strong></div><div><span>สัดส่วนจากคลิกทั้งหมด</span><strong>{percentage(detail.share)}</strong></div></div>
             <div className="ha-detail-chart-heading"><h4>คลิกของลิงก์นี้ในแต่ละวัน</h4><button className="ha-button" disabled={exporting} onClick={() => void exportCsv(selectedId)}>{exporting ? <LoaderCircle size={14} className="hs-spin"/> : <ArrowDownToLine size={14}/>}CSV ลิงก์นี้</button></div>
             {range === "all" && <p className="ha-detail-caption">กราฟแสดง 90 วันล่าสุด · ตัวเลขรวมเป็นข้อมูลทั้งหมด</p>}
-            <TrendChart rows={chartDays(detail.daily, range)} emptyTitle="ลิงก์นี้ยังไม่มีคลิกในช่วงที่แสดง"/>
+            <TrendChart rows={chartDays(detail.daily, range)} emptyTitle="ลิงก์นี้ยังไม่มีคลิกในช่วงที่แสดง" emptyDescription="ยอดจะแสดงเมื่อผู้เข้าชมคลิกลิงก์นี้ การคลิกจากบัญชีเจ้าของและพรีวิวจะไม่นับในยอดนี้"/>
             <div className="ha-breakdowns ha-detail-breakdowns"><Breakdown title="อุปกรณ์ที่คลิกลิงก์นี้" rows={detail.devices} unit="คลิก"/><Breakdown title="แหล่งที่มาของคลิกลิงก์นี้" rows={detail.sources} unit="คลิก"/></div>
           </>}
         </section>}
@@ -185,7 +187,7 @@ export default function HubAnalytics({page, notify, initialLinkId}: {
   </section>;
 }
 
-function TrendChart({rows, showViews = false, emptyTitle}: {rows: TrendDay[]; showViews?: boolean; emptyTitle: string}) {
+function TrendChart({rows, showViews = false, emptyTitle, emptyDescription}: {rows: TrendDay[]; showViews?: boolean; emptyTitle: string; emptyDescription: string}) {
   const chartId = useId();
   const [activeDate, setActiveDate] = useState("");
   const [mode, setMode] = useState<"both" | "clicks" | "views">("both");
@@ -203,7 +205,7 @@ function TrendChart({rows, showViews = false, emptyTitle}: {rows: TrendDay[]; sh
     <div className="ha-chart-controls"><div className="ha-chart-legend" role="group" aria-label="ข้อมูลที่แสดงบนกราฟ">
       {showViews ? <>{([{id: "both", label: "ทั้งสองรายการ"}, {id: "views", label: "เข้าชม"}, {id: "clicks", label: "คลิก"}] as const).map(item => <button key={item.id} aria-pressed={mode === item.id} onClick={() => setMode(item.id)} className={mode === item.id ? "is-selected" : ""}>{item.id !== "both" && <i className={`ha-key-${item.id}`}/>} {item.label}</button>)}</> : <span><i className="ha-key-clicks"/>จำนวนคลิก</span>}
     </div>{hasData && <label className="ha-chart-date"><span className="hs-sr-only">เลือกวันที่ในกราฟ</span><select aria-label="เลือกวันที่ในกราฟ" value={active?.date ?? ""} onChange={event => setActiveDate(event.target.value)}>{rows.map(row => <option key={row.date} value={row.date}>{shortDate(row.date)}</option>)}</select></label>}</div>
-    {!hasData ? <div className="ha-chart-empty"><BarChart3 size={30}/><h4>{emptyTitle}</h4><p>ข้อมูลจริงจะแสดงเมื่อมีคนเปิดฮับและกดลิงก์</p></div> : <>
+    {!hasData ? <div className="ha-chart-empty"><BarChart3 size={30}/><h4>{emptyTitle}</h4><p>{emptyDescription}</p></div> : <>
       <div className="ha-chart-scroll"><svg className="ha-chart" viewBox="0 0 760 235" role="img" aria-labelledby={chartId}>
         <title id={chartId}>{showViews ? "กราฟการเข้าชมและคลิกรายวัน" : "กราฟคลิกรายวัน"} เลือกวันที่ด้านบนเพื่ออ่านค่าตัวเลข</title>
         {[0, 1, 2, 3, 4].map(tick => <g key={tick}><line x1="45" x2="747" y1={188 - tick / 4 * 160} y2={188 - tick / 4 * 160} stroke="#e0e9ec" strokeDasharray={tick ? "4 5" : undefined}/><text x="34" y={192 - tick / 4 * 160} textAnchor="end">{number.format(stepValue * tick)}</text></g>)}

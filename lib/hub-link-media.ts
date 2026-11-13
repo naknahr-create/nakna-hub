@@ -16,11 +16,25 @@ export function iconDomain(value: string): string | null {
   return domain;
 }
 
-export function websiteIconUrl(value: string): string | null {
+export function websiteIconUrl(value: string, retry = false): string | null {
   try {
     const url = new URL(value);
     if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) return null;
     const domain = iconDomain(url.hostname);
-    return domain ? `/api/link-icon?domain=${encodeURIComponent(domain)}` : null;
+    return domain ? `/api/link-icon?domain=${encodeURIComponent(domain)}&v=2${retry ? '&retry=1' : ''}` : null;
   } catch { return null; }
+}
+
+/** A useful local fallback when an automatic website image is unavailable. */
+export function websiteIconFallback(value: string): string {
+  if (value.startsWith('mailto:')) return 'mail';
+  try {
+    const host = new URL(value).hostname.toLowerCase();
+    if (/(^|\.)(youtube\.com|youtu\.be)$/.test(host)) return 'youtube';
+    if (/(^|\.)(facebook\.com|fb\.com)$/.test(host)) return 'facebook';
+    if (/(^|\.)instagram\.com$/.test(host)) return 'instagram';
+    if (/(^|\.)tiktok\.com$/.test(host)) return 'tiktok';
+    if (/(^|\.)(line\.me|lin\.ee)$/.test(host)) return 'line';
+  } catch {}
+  return 'link';
 }
