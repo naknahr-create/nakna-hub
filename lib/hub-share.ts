@@ -41,8 +41,8 @@ export function resolveHubShareImage(profile: HubProfile, appOrigin?: string): s
 export function buildHubShareMetadata(profile: HubProfile, slug: string, appOrigin?: string): Metadata {
   const origin = hubShareOrigin(appOrigin);
   const url = `${origin}/h/${encodeURIComponent(slug)}`;
-  const title = `${profile.name} | นากนะ HUB`;
-  const description = (profile.bio || profile.tagline || `รวมทุกช่องทางของ ${profile.name} ไว้ในฮับเดียว`).replace(/\s+/g, ' ').trim();
+  const title = (profile.shareTitle || profile.name || 'ฮับของฉัน').replace(/\s+/g, ' ').trim();
+  const description = (profile.shareDescription || profile.bio || profile.tagline || `รวมทุกช่องทางของ ${profile.name} ไว้ในฮับเดียว`).replace(/\s+/g, ' ').trim();
   const image = resolveHubShareImage(profile, origin);
   return {
     metadataBase: new URL(origin),
@@ -50,7 +50,7 @@ export function buildHubShareMetadata(profile: HubProfile, slug: string, appOrig
     description,
     alternates: {canonical: url},
     openGraph: {
-      title, description, url, siteName: 'นากนะ HUB', locale: 'th_TH', type: 'website',
+      title, description, url, locale: 'th_TH', type: 'website',
       ...(image ? {images: [{url: image, alt: `ภาพแนะนำ ${profile.name}`}]} : {}),
     },
     twitter: {

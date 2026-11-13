@@ -10,6 +10,9 @@ export type HubProfile = {
   avatarUrl: string;
   /** Uploaded cover used when sharing the published hub. */
   shareImageUrl?: string;
+  /** Optional user-managed title and description for social link previews. */
+  shareTitle?: string;
+  shareDescription?: string;
   accent: string;
   /** A ready-made design, or `custom`/absent for the original appearance controls. */
   themeId?: string;

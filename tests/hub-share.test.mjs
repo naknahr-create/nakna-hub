@@ -47,3 +47,16 @@ test('malformed covers and unsafe avatar locations do not leak into social metad
     assert.equal(resolveHubShareImage({...profile, shareImageUrl: '', avatarUrl}), null);
   }
 });
+
+
+test('share title and description can be customized without forced platform branding', () => {
+  const customized=buildHubShareMetadata({...profile,shareTitle:'DEAL! บ้านและการลงทุน',shareDescription:'เลือกชมสินค้าและบริการทั้งหมด'},'naknahr');
+  assert.equal(customized.title,'DEAL! บ้านและการลงทุน');
+  assert.equal(customized.openGraph.title,'DEAL! บ้านและการลงทุน');
+  assert.equal(customized.twitter.title,'DEAL! บ้านและการลงทุน');
+  assert.equal(customized.description,'เลือกชมสินค้าและบริการทั้งหมด');
+  assert.equal(customized.openGraph.siteName,undefined);
+  const defaulted=buildHubShareMetadata(profile,'naknahr');
+  assert.equal(defaulted.title,'นากนะ HR');
+  assert.equal(defaulted.openGraph.title,'นากนะ HR');
+});

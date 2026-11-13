@@ -211,7 +211,7 @@ async function validateUploadedImage(value:unknown,account:AccountRow,pageId?:st
 
 async function validateProfile(input:unknown,current:HubProfile,account:AccountRow,pageId?:string,actorId?:string):Promise<HubProfile>{
   if(!input||typeof input!=='object'||Array.isArray(input))throw new HubError(400,'ข้อมูลโปรไฟล์ไม่ถูกต้อง');const data=input as Record<string,unknown>;
-  keys(data,['name','handle','tagline','bio','avatarUrl','shareImageUrl','accent','themeId','theme','layout','background','showBranding']);let profile={...current};
+  keys(data,['name','handle','tagline','bio','avatarUrl','shareImageUrl','shareTitle','shareDescription','accent','themeId','theme','layout','background','showBranding']);let profile={...current};
   if('themeId'in data){
     if(typeof data.themeId!=='string'||data.themeId!=='custom'&&!getHubTheme(data.themeId))throw new HubError(400,'ไม่พบธีมนี้ กรุณาเลือกธีมจากคลัง');
     profile=data.themeId==='custom'?{...profile,themeId:'custom'}:applyHubTheme(profile,data.themeId);
@@ -219,6 +219,8 @@ async function validateProfile(input:unknown,current:HubProfile,account:AccountR
   for(const field of ['name','handle','tagline','bio'] as const)if(field in data)profile[field]=text(data[field],field==='name'?'ชื่อหน้า':'ข้อความ',field==='bio'?280:field==='tagline'?120:80,field==='name');
   if('avatarUrl'in data)profile.avatarUrl=await validateAvatar(data.avatarUrl,account,pageId,actorId);
   if('shareImageUrl'in data)profile.shareImageUrl=await validateUploadedImage(data.shareImageUrl,account,pageId,actorId,'ภาพปกเวลาแชร์',false);
+  if('shareTitle'in data)profile.shareTitle=text(data.shareTitle,'ชื่อเวลาแชร์ลิงก์',120);
+  if('shareDescription'in data)profile.shareDescription=text(data.shareDescription,'คำอธิบายเวลาแชร์ลิงก์',280);
   if('accent'in data){if(typeof data.accent!=='string'||!/^#[0-9a-f]{6}$/i.test(data.accent))throw new HubError(400,'รหัสสีต้องเป็น #RRGGBB');profile.accent=data.accent;}
   if('theme'in data){if(data.theme!=='light'&&data.theme!=='dark')throw new HubError(400,'ธีมไม่ถูกต้อง');profile.theme=data.theme;}
   if('layout'in data){if(!['stack','grid','editorial'].includes(String(data.layout)))throw new HubError(400,'เลย์เอาต์ไม่ถูกต้อง');profile.layout=data.layout as HubProfile['layout'];}
