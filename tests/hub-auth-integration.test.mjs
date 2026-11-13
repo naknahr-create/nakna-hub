@@ -38,7 +38,7 @@ const hooks = registerHooks({
 });
 
 const {getAuthConfiguration, authenticateHubRequest} = await import('../lib/hub-auth.ts');
-const {requireAccount, getWorkspace, createPage, getPage, getOperator} = await import('../lib/hub-data.ts');
+const {requireAccount, requireOperator, getWorkspace, createPage, getPage, getOperator} = await import('../lib/hub-data.ts');
 const {GET: configGET} = await import('../app/api/auth/config/route.ts');
 const {GET: workspaceGET} = await import('../app/api/workspace/route.ts');
 const ORIGIN = 'https://hub.example.com';
@@ -184,7 +184,7 @@ test('verified LINE session creates a starter account with blank email and never
   assert.equal(account.plan, 'starter');
   const workspace = await getWorkspace(trusted);
   assert.equal(workspace.account.email, '');
-  assert.equal(workspace.account.isOperator, false);
+  assert.equal(Object.hasOwn(workspace.account, 'isOperator'), false, 'customer DTO never exposes platform administration');
   assert.equal(totalAccounts(), 1);
   assert.equal(fetchCalls, 0);
 });
@@ -218,14 +218,17 @@ test('same email never joins LINE tenants or an existing Access account; page ow
 test('customer sign-up cannot bootstrap operator access; an explicitly configured LINE subject binds the single operator', async () => {
   const db = setup('line', {ADMIN_EMAIL: 'same@example.com', ADMIN_LINE_USER_ID: SUBJECT_B});
   const ordinary = await authenticated(request('/api/workspace', await session(SUBJECT_A, {email: 'same@example.com'})));
-  assert.equal((await getWorkspace(ordinary)).account.isOperator, false);
+  assert.equal(Object.hasOwn((await getWorkspace(ordinary)).account, 'isOperator'), false);
   assert.equal(db.sql.prepare('SELECT COUNT(*) AS n FROM hub_operators').get().n, 0);
   await assert.rejects(getOperator(ordinary), error => error.status === 403);
   const designated = await authenticated(request('/api/workspace', await session(SUBJECT_B)));
-  assert.equal((await getWorkspace(designated)).account.isOperator, true);
+  assert.equal(Object.hasOwn((await getWorkspace(designated)).account, 'isOperator'), false);
+  assert.equal(db.sql.prepare('SELECT COUNT(*) AS n FROM hub_operators').get().n, 0, 'customer workspace does not bootstrap platform ownership');
+  await requireOperator(designated);
   assert.equal(db.sql.prepare('SELECT user_id FROM hub_operators').get().user_id, `line:${CHANNEL}:${SUBJECT_B}`);
   testEnv.ADMIN_LINE_USER_ID = SUBJECT_A;
-  assert.equal((await getWorkspace(ordinary)).account.isOperator, false, 'changing environment cannot seize an already-bound operator');
+  assert.equal(Object.hasOwn((await getWorkspace(ordinary)).account, 'isOperator'), false);
+  await assert.rejects(requireOperator(ordinary), error => error.status === 403, 'changing environment cannot seize an already-bound operator');
 });
 
 test('explicit Access fallback verifies the signed identity and remains separate from matching LINE email', async () => {
@@ -246,3 +249,4 @@ test('explicit Access fallback verifies the signed identity and remains separate
   assert.equal(fetchCalls, 1, 'only the mocked Access JWKS endpoint was requested');
   assert.equal(getAuthConfiguration(testEnv).signOutUrl, '/cdn-cgi/access/logout');
 });
+

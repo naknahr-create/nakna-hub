@@ -18,7 +18,7 @@ const ICONS = [
 ];
 function modeOf(value:string):Mode { return imageAssetId(value) ? 'image' : value === 'auto' ? 'auto' : 'icon'; }
 
-export default function LinkMediaPicker({value,url,onChange,disabled=false,onUploadingChange}:{value:string;url:string;onChange:(value:string)=>void;disabled?:boolean;onUploadingChange?:(uploading:boolean)=>void}) {
+export default function LinkMediaPicker({pageId,value,url,onChange,disabled=false,onUploadingChange}:{pageId?:string;value:string;url:string;onChange:(value:string)=>void;disabled?:boolean;onUploadingChange?:(uploading:boolean)=>void}) {
   const [mode,setMode] = useState<Mode>(() => modeOf(value));
   const [uploading,setUploading] = useState(false);
   const [error,setError] = useState('');
@@ -52,7 +52,7 @@ export default function LinkMediaPicker({value,url,onChange,disabled=false,onUpl
     const pending = new AbortController(); controller.current = pending;
     setUploading(true); uploadCallback.current?.(true);
     try {
-      const form = new FormData(); form.append('file',file);
+      const form = new FormData(); form.append('file',file); if(pageId) form.append('pageId',pageId);
       const response = await fetch('/api/uploads',{method:'POST',body:form,credentials:'same-origin',signal:pending.signal});
       const body = await response.json().catch(() => ({})) as {url?:string;error?:string};
       if(!response.ok) throw new Error(body.error || 'อัปโหลดรูปไม่สำเร็จ กรุณาลองอีกครั้ง');

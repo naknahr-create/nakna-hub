@@ -1,3 +1,4 @@
+import type {PageAccess} from './hub-team-types';
 export type HubPlan = 'starter' | 'pro';
 export type HubTemplate = 'creator' | 'business' | 'shop';
 export type AnalyticsRange = 'today' | '7d' | '30d' | 'all';
@@ -40,18 +41,20 @@ export type PageSummary = {
   totalClicks: number | null;
   totalViews: number | null;
   hasUnpublishedChanges: boolean;
+  access?: PageAccess;
 };
-export type HubAccount = {id: string; displayName: string; email: string; plan: HubPlan; isOperator: boolean; entitlements: {analytics: boolean; lineDigest: boolean}};
+export type HubAccount = {id: string; displayName: string; email: string; plan: HubPlan; isOperator?: boolean; entitlements: {analytics: boolean; lineDigest: boolean}};
 export type PlanLimits = {maxPages: number; maxLinksPerPage: number};
 export type WorkspaceData = {
   account: HubAccount;
   limits: PlanLimits;
   pages: PageSummary[];
   archivedPages: PageSummary[];
+  sharedPages: PageSummary[];
   usage: {pages: number; links: number; totalClicks: number | null};
   upgradeRequested: boolean;
 };
-export type PageEditorData = {page: PageSummary; profile: HubProfile; links: HubLink[]; revision: number};
+export type PageEditorData = {page: PageSummary; profile: HubProfile; links: HubLink[]; revision: number; access: PageAccess};
 export type PublicHubData = {pageId: string; slug: string; profile: HubProfile; links: HubLink[]; publishedAt: number; isOwner: boolean};
 export type AnalyticsData = {
   pageId: string;
@@ -77,3 +80,4 @@ export type OperatorData = {
   accounts: Array<{id: string; displayName: string; email: string; plan: HubPlan; pageCount: number; totalClicks: number; upgradeRequested: boolean; createdAt: number}>;
   totals: {accounts: number; pages: number; totalClicks: number; upgradeRequests: number};
 };
+

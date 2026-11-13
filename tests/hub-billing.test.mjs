@@ -101,6 +101,16 @@ function setup() {
   return {state, sql: testEnv.DB.sql};
 }
 async function request(path, {actor = 'a', method = 'GET', body, headers = {}} = {}) {
+  // These existing fixtures model a freshly loaded client. Missing and stale
+  // revisions are tested explicitly in hub-teams.test.mjs instead of auto-filled.
+  const url = new URL(path, ORIGIN);
+  const pageMatch = /^\/api\/pages\/([0-9a-f-]+)(?:\/(?:links(?:\/[0-9a-f-]+)?|reorder|publish|unpublish))?$/.exec(url.pathname);
+  if (pageMatch && ['POST', 'PATCH', 'DELETE'].includes(method)) {
+    const row = testEnv.DB.sql.prepare('SELECT revision FROM hub_pages WHERE id=?').get(pageMatch[1]);
+    if (row && method === 'DELETE' && !url.searchParams.has('revision')) url.searchParams.set('revision', String(row.revision));
+    else if (row && method !== 'DELETE') body = {revision: row.revision, ...body};
+    path = url.pathname + url.search;
+  }
   const token = actor === 'a' ? COOKIE_A : actor === 'b' ? COOKIE_B : '';
   return authenticateHubRequest(new Request(ORIGIN + path, {method, headers: {
     ...(token ? {Cookie: '__Host-nakna_session=' + token} : {}), ...(body !== undefined ? {'Content-Type': 'application/json'} : {}),
@@ -346,3 +356,4 @@ test('public rendering and authenticated access expire Stripe Pro even if a webh
   sql.prepare("UPDATE hub_accounts SET plan='pro' WHERE id=?").run(owner.id);
   assert.equal((await requireAccount(await request('/api/workspace'))).plan, 'starter');
 });
+

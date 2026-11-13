@@ -1,0 +1,11 @@
+import type {HubPlan} from './hub-types';
+export type TeamRole='editor'|'viewer';
+export type PageAccess={role:'owner'|TeamRole;canEdit:boolean;canPublish:boolean;canManage:boolean;analytics:boolean;ownerName:string;ownerAccountId:string;plan:HubPlan};
+export type TeamPage={id:string;title:string;slug:string};
+export type TeamSummary={id:string;name:string;ownerName:string;ownerAccountId:string;isOwner:boolean;role:'owner'|TeamRole;canPublish:boolean;memberCount:number;pendingCount:number;pages:TeamPage[];createdAt:number};
+export type TeamMember={id:string;accountId:string;displayName:string;role:TeamRole;canPublish:boolean;status:'pending'|'active'|'revoked';joinedAt:number};
+export type TeamInvitation={id:string;role:TeamRole;canPublish:boolean;status:'available'|'claimed'|'expired'|'revoked';expiresAt:number;createdAt:number};
+export type TeamActivity={id:string;actorName:string;action:string;createdAt:number};
+export type TeamDetail=TeamSummary&{members:TeamMember[];invites:TeamInvitation[];activity:TeamActivity[]};
+export type TeamsData={owned:TeamSummary[];joined:TeamSummary[]};
+export type InvitePreview={teamId:string;teamName:string;ownerName:string;pages:TeamPage[];role:TeamRole;canPublish:boolean;expiresAt:number;status:'available'|'pending'|'active'|'revoked'|'expired';isOwner:boolean};

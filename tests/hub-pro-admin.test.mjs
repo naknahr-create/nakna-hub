@@ -85,6 +85,16 @@ function setup() {
   return {db: testEnv.DB.sql, objects};
 }
 async function request(path, {actor = 'a', method = 'GET', body, headers = {}} = {}) {
+  // These existing fixtures model a freshly loaded client. Missing and stale
+  // revisions are tested explicitly in hub-teams.test.mjs instead of auto-filled.
+  const url = new URL(path, ORIGIN);
+  const pageMatch = /^\/api\/pages\/([0-9a-f-]+)(?:\/(?:links(?:\/[0-9a-f-]+)?|reorder|publish|unpublish))?$/.exec(url.pathname);
+  if (pageMatch && ['POST', 'PATCH', 'DELETE'].includes(method)) {
+    const row = testEnv.DB.sql.prepare('SELECT revision FROM hub_pages WHERE id=?').get(pageMatch[1]);
+    if (row && method === 'DELETE' && !url.searchParams.has('revision')) url.searchParams.set('revision', String(row.revision));
+    else if (row && method !== 'DELETE') body = {revision: row.revision, ...body};
+    path = url.pathname + url.search;
+  }
   const token = actor === 'a' ? COOKIE_A : actor === 'b' ? COOKIE_B : '';
   return authenticateHubRequest(new Request(ORIGIN + path, {method,
     headers: {...(token ? {Cookie: '__Host-nakna_session=' + token} : {}),
@@ -234,3 +244,4 @@ test('admin filters reject object-prototype names and invalid pagination',async(
   for(const status of ['constructor','__proto__','toString'])await assert.rejects(adminHubs(await request('/api/operator/hubs?status='+status)),e=>e.status===400);
   for(const page of ['0','-1','1.5','1000000'])await assert.rejects(adminAccounts(await request('/api/operator/accounts?page='+page)),e=>e.status===400);
 });
+

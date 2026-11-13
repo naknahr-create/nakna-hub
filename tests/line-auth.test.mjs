@@ -40,8 +40,8 @@ function cookies(response) { return response.headers.getSetCookie().map(value =>
 function request(path, cookieHeader = '', init = {}) {
   return new Request(`${ORIGIN}${path}`, {...init, headers: {...(cookieHeader ? {Cookie: cookieHeader} : {}), ...init.headers}});
 }
-async function start(db, extra = {}) {
-  const response = await handleLineAuthRequest(request('/auth/line/start?returnTo=%2Fstudio'), env(db, extra), {now: () => NOW});
+async function start(db, extra = {}, returnTo = '/studio') {
+  const response = await handleLineAuthRequest(request(`/auth/line/start?returnTo=${encodeURIComponent(returnTo)}`), env(db, extra), {now: () => NOW});
   assert.equal(response.status, 303);
   const url = new URL(response.headers.get('location'));
   return {response, url, cookie: cookies(response).join('; '), state: url.searchParams.get('state')};
@@ -117,11 +117,40 @@ test('add-friend prompt is optional and only enabled for allowed OA links', asyn
 });
 
 test('returnTo cannot redirect off-site or into unrelated local endpoints', async () => {
-  for (const returnTo of ['//evil.example', 'https://evil.example', '/api/operator', '/studio/../../auth/logout', '/\\evil.example', '/studio#bad']) {
+  for (const returnTo of ['//evil.example', 'https://evil.example', '/api/operator', '/studio/../../auth/logout', '/\\evil.example', '/studio#bad', '/administer', '/admin/../api/operator', '/admin#bad']) {
     const db = database();
     await handleLineAuthRequest(request(`/auth/line/start?returnTo=${encodeURIComponent(returnTo)}`), env(db), {now: () => NOW});
     assert.equal(db.sql.prepare('SELECT return_to FROM hub_line_auth_attempts').get().return_to, '/studio');
   }
+});
+
+test('operator sign-in returns directly to its separate console', async () => {
+  const db = database(), flow = await start(db, {}, '/admin?tab=hubs');
+  assert.equal(db.sql.prepare('SELECT return_to FROM hub_line_auth_attempts').get().return_to, '/admin?tab=hubs');
+  const result = await finish(db, flow, mockLine(flow));
+  assert.equal(result.headers.get('location'), '/admin?tab=hubs');
+});
+
+test('operator cancellation and token failure stay on the operator console', async () => {
+  for (const cancellation of [true, false]) {
+    const db = database(), flow = await start(db, {}, '/admin');
+    const result = cancellation
+      ? await handleLineAuthRequest(request(`/auth/line/callback?error=access_denied&state=${flow.state}`, flow.cookie), env(db), {now: () => NOW})
+      : await finish(db, flow, {fetcher: async () => Response.json({error: 'invalid_grant'}, {status: 400})});
+    assert.equal(result.headers.get('location'), `/admin?auth_error=${cancellation ? 'line_denied' : 'line_unavailable'}`);
+  }
+});
+
+test('team invitation survives successful LINE login and a recoverable cancellation', async () => {
+  const token = 'I'.repeat(43), destination = `/studio?invite=${token}`;
+  const db = database(), flow = await start(db, {}, destination);
+  assert.equal((await finish(db, flow, mockLine(flow))).headers.get('location'), destination);
+  const retryDb = database(), retry = await start(retryDb, {}, destination);
+  const result = await handleLineAuthRequest(request(`/auth/line/callback?error=access_denied&state=${retry.state}`, retry.cookie), env(retryDb), {now: () => NOW});
+  const target = new URL(result.headers.get('location'), ORIGIN);
+  assert.equal(target.pathname, '/studio');
+  assert.equal(target.searchParams.get('invite'), token);
+  assert.equal(target.searchParams.get('auth_error'), 'line_denied');
 });
 
 test('verified LINE identity creates hashed session without fake email or account auto-link', async () => {
@@ -273,3 +302,4 @@ test('identity sanitization preserves POST body and unrelated headers', async ()
   assert.equal(await result.text(), '{"name":"test"}');
   assert.equal(result.headers.get('oai-authenticated-user-id'), null);
 });
+

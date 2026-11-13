@@ -96,8 +96,10 @@ function redirect(location: string, cookies: string[] = []): Response {
   for (const value of cookies) headers.append('Set-Cookie', value);
   return new Response(null, {status: 303, headers});
 }
-function authError(code: string, clear = true): Response {
-  return redirect(`/studio?auth_error=${code}`, clear ? [cookieValue(OAUTH_COOKIE, '', 0)] : []);
+function authError(code: string, clear = true, returnTo = '/studio'): Response {
+  const destination = new URL(safeReturnTo(returnTo), 'https://return.invalid');
+  destination.searchParams.set('auth_error', code);
+  return redirect(`${destination.pathname}${destination.search}`, clear ? [cookieValue(OAUTH_COOKIE, '', 0)] : []);
 }
 function jsonError(status: number, code: string, message: string, allow?: string): Response {
   return Response.json({error: message, code}, {status, headers: {
@@ -105,11 +107,11 @@ function jsonError(status: number, code: string, message: string, allow?: string
   }});
 }
 function safeReturnTo(value: string | null): string {
-  // Studio uses client-side navigation. Only its local URL and optional query are allowed.
+  // Customer Studio and the separate operator console are the only login destinations.
   if (!value || value.length > 512 || /[\\\u0000-\u0020\u007f]/.test(value)) return '/studio';
   try {
     const url = new URL(value, 'https://return.invalid');
-    if (!value.startsWith('/') || value.startsWith('//') || url.origin !== 'https://return.invalid' || url.pathname !== '/studio' || url.hash) return '/studio';
+    if (!value.startsWith('/') || value.startsWith('//') || url.origin !== 'https://return.invalid' || !['/studio', '/admin'].includes(url.pathname) || url.hash) return '/studio';
     return `${url.pathname}${url.search}`;
   } catch { return '/studio'; }
 }
@@ -201,7 +203,7 @@ async function lineFetch(fetcher: typeof fetch, url: string, init: RequestInit, 
 }
 
 async function beginLogin(request: Request, env: LineEnvironment, config: LineConfiguration, now: number): Promise<Response> {
-  if (!env.DB) return authError('line_unavailable');
+  if (!env.DB) return authError('line_unavailable', true, new URL(request.url).searchParams.get('returnTo') ?? '/studio');
   const browserToken = randomToken(), state = randomHex(), verifier = randomToken(), nonce = randomHex();
   const oldBrowserToken = cookie(request, OAUTH_COOKIE);
   const statements = [env.DB.prepare('DELETE FROM hub_line_auth_attempts WHERE expires_at<=?').bind(now)];
@@ -230,12 +232,14 @@ async function finishLogin(request: Request, env: LineEnvironment, config: LineC
     WHERE state_hash=? AND browser_hash=? AND login_channel_id=? AND origin=? AND expires_at>? RETURNING *`)
     .bind(await hash(state), await hash(browserToken), config.channelId, config.origin, now).first<AttemptRow>());
   if (!attempt) return authError('line_state_invalid');
+  const fail = (code: string) => authError(code, true, attempt.return_to);
+  try {
   if (params.has('error')) {
-    if (params.get('error') === 'access_denied') return authError('line_denied');
+    if (params.get('error') === 'access_denied') return fail('line_denied');
     throw new LineAuthFailure('provider_callback', 'provider_error');
   }
   const code = params.get('code');
-  if (!code || code.length > 2048 || params.getAll('code').length !== 1) return authError('line_state_invalid');
+  if (!code || code.length > 2048 || params.getAll('code').length !== 1) return fail('line_state_invalid');
   const fetcher = deps.fetcher ?? fetch;
   const tokens = await lineFetch(fetcher, 'https://api.line.me/oauth2/v2.1/token', {
     method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'},
@@ -243,7 +247,7 @@ async function finishLogin(request: Request, env: LineEnvironment, config: LineC
       client_id: config.channelId, client_secret: config.channelSecret, code_verifier: attempt.verifier}),
   }, 'token');
   if (typeof tokens.id_token !== 'string' || tokens.id_token.length > 16_384
-    || typeof tokens.access_token !== 'string' || !tokens.access_token || tokens.access_token.length > 4096) return authError('line_invalid_identity');
+    || typeof tokens.access_token !== 'string' || !tokens.access_token || tokens.access_token.length > 4096) return fail('line_invalid_identity');
   const claims = await lineFetch(fetcher, 'https://api.line.me/oauth2/v2.1/verify', {
     method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'},
     body: new URLSearchParams({id_token: tokens.id_token, client_id: config.channelId, nonce: attempt.nonce}),
@@ -252,7 +256,7 @@ async function finishLogin(request: Request, env: LineEnvironment, config: LineC
   if (claims.iss !== 'https://access.line.me' || claims.aud !== config.channelId
     || typeof claims.sub !== 'string' || !LINE_USER_ID.test(claims.sub) || claims.nonce !== attempt.nonce
     || typeof claims.exp !== 'number' || !Number.isFinite(claims.exp) || claims.exp <= checkedAt / 1000
-    || typeof claims.iat !== 'number' || !Number.isFinite(claims.iat) || claims.iat > checkedAt / 1000 + 60) return authError('line_invalid_identity');
+    || typeof claims.iat !== 'number' || !Number.isFinite(claims.iat) || claims.iat > checkedAt / 1000 + 60) return fail('line_invalid_identity');
   const lineUserId = claims.sub;
   const userId = `line:${config.channelId}:${lineUserId}`;
   let displayName = (typeof claims.name === 'string' ? Array.from(claims.name.trim().replace(/[\u0000-\u001f\u007f]/g, '')).slice(0, 120).join('') : '') || 'ผู้ใช้ LINE';
@@ -289,6 +293,10 @@ async function finishLogin(request: Request, env: LineEnvironment, config: LineC
     .bind(await hash(sessionToken), userId, lineUserId, config.channelId, config.origin, displayName, email, completedAt, completedAt + SESSION_MS));
   await authDatabase('persist_session', () => env.DB!.batch(statements));
   return redirect(attempt.return_to, [cookieValue(OAUTH_COOKIE, '', 0), cookieValue(SESSION_COOKIE, sessionToken, SESSION_MS / 1000)]);
+  } catch (error) {
+    logAuthFailure(error, 'callback');
+    return fail('line_unavailable');
+  }
 }
 
 async function logout(request: Request, env: LineEnvironment): Promise<Response> {
@@ -313,14 +321,16 @@ export async function handleLineAuthRequest(request: Request, env: LineEnvironme
   if (path !== '/auth/line/start' && path !== '/auth/line/callback') return null;
   if (request.method !== 'GET') return jsonError(405, 'method_not_allowed', 'วิธีเรียกใช้งานไม่ถูกต้อง', 'GET');
   const config = lineConfiguration(env);
-  if (!config) return authError('line_not_configured');
-  if (new URL(request.url).origin !== config.origin) return authError('line_origin_invalid');
+  const requestedReturn = path === '/auth/line/start' ? new URL(request.url).searchParams.get('returnTo') ?? '/studio' : '/studio';
+  if (!config) return authError('line_not_configured', true, requestedReturn);
+  if (new URL(request.url).origin !== config.origin) return authError('line_origin_invalid', true, requestedReturn);
   try {
     return path === '/auth/line/start' ? await beginLogin(request, env, config, (deps.now ?? Date.now)())
       : await finishLogin(request, env, config, deps);
   } catch (error) {
     logAuthFailure(error, path === '/auth/line/start' ? 'begin_login' : 'callback');
-    return authError('line_unavailable');
+    return authError('line_unavailable', true, requestedReturn);
   }
 }
+
 

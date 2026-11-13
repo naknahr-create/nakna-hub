@@ -1,7 +1,7 @@
 "use client";
 
 import {useEffect, useId, useRef, useState, type CSSProperties, type FormEvent, type ReactNode} from 'react';
-import {Activity, ArrowDownLeft, ArrowLeft, ArrowUpRight, BarChart3, Check, ChevronLeft, ChevronRight, CircleHelp, ClipboardList, Clock3, CreditCard, Eye, FileText, Globe2, LayoutDashboard, Link2, LoaderCircle, LockKeyhole, MessageSquareText, MousePointer2, Pause, Play, RefreshCw, Search, ShieldCheck, Users, X} from 'lucide-react';
+import {Activity, ArrowDownLeft, ArrowUpRight, BarChart3, Check, ChevronLeft, ChevronRight, CircleHelp, ClipboardList, Clock3, CreditCard, Eye, FileText, Globe2, LayoutDashboard, Link2, LoaderCircle, LockKeyhole, LogOut, MessageSquareText, MousePointer2, Pause, Play, RefreshCw, Search, ShieldCheck, Users, X} from 'lucide-react';
 import type {AdminAccount, AdminAudit, AdminHub, AdminList, AdminOverview, AdminRange} from '../../lib/hub-admin-types';
 import {HubBrand} from './ui';
 import '../admin.css';
@@ -138,6 +138,9 @@ export default function HubAdmin() {
   const [actionError, setActionError] = useState('');
   const [notice, setNotice] = useState('');
   const [accessError, setAccessError] = useState<ApiError | null>(null);
+  const [sessionBusy, setSessionBusy] = useState(false);
+  const [sessionError, setSessionError] = useState('');
+  const [loginError, setLoginError] = useState(false);
   const overview = useRemote<AdminOverview>(`/api/operator?range=${range}`, revision);
   const authorized = !!overview.data && !accessError;
   const accountParams = new URLSearchParams({q: accountQuery, plan: accountPlan, page: String(accountPage)});
@@ -150,6 +153,16 @@ export default function HubAdmin() {
   const activeTab = tabs.find(item => item.value === tab)!;
   useEffect(() => {const requested = new URL(window.location.href).searchParams.get('tab');if (tabs.some(item => item.value === requested)) setTab(requested as AdminTab);}, []);
   useEffect(() => {if (!notice) return;const timer = setTimeout(() => setNotice(''), 6500);return () => clearTimeout(timer);}, [notice]);
+  useEffect(() => {setLoginError(new URL(window.location.href).searchParams.has('auth_error'));}, []);
+  async function endAdminSession(signInAgain = false) {
+    if (sessionBusy) return;
+    setSessionBusy(true);setSessionError('');
+    try {
+      const response = await fetch('/auth/logout', {method: 'POST', cache: 'no-store'});
+      if (!response.ok) throw new Error('ยังออกจากระบบไม่ได้ กรุณาลองอีกครั้ง');
+      window.location.assign(signInAgain ? '/auth/line/start?returnTo=%2Fadmin' : '/admin');
+    } catch (error) {setSessionError(error instanceof Error ? error.message : 'เชื่อมต่อไม่สำเร็จ');setSessionBusy(false);}
+  }
   function navigate(value: AdminTab) {setTab(value);const url = new URL(window.location.href);url.searchParams.set('tab', value);window.history.replaceState(null, '', url);}
   function openDialog(value: ActionDialog) {setActionError('');setDialog(value);}
   function refresh() {setRevision(value => value + 1);}
@@ -166,13 +179,14 @@ export default function HubAdmin() {
       else setActionError(error instanceof Error ? error.message : 'บันทึกไม่สำเร็จ กรุณาลองใหม่');
     } finally {setBusy(false);}
   }
+  if (overview.loading && !overview.data && !authError) return <div className="ha-access"><HubBrand /><section><LoadingState label="กำลังตรวจสิทธิ์เจ้าของระบบ" /></section></div>;
   if (authError) {
-    const signInUrl = authError.signInUrl?.startsWith('/') && !authError.signInUrl.startsWith('//') ? authError.signInUrl : '/studio';
-    return <div className="ha-access"><a href="/" aria-label="นากนะ HUB หน้าแรก"><HubBrand /></a><section><span className="ha-access-icon"><LockKeyhole size={30} aria-hidden="true" /></span><p className="ha-eyebrow">หลังบ้านเจ้าของระบบ</p><h1>{authError.status === 401 ? 'เข้าสู่ระบบด้วยบัญชีเจ้าของ' : 'หน้านี้สำหรับเจ้าของระบบ'}</h1><p>{authError.status === 401 ? 'เข้าสู่ระบบก่อน เพื่อดูภาพรวมและจัดการนากนะ HUB' : 'บัญชีที่ใช้อยู่ยังไม่มีสิทธิ์ดูแลแพลตฟอร์ม คุณยังจัดการฮับของตัวเองได้ในสตูดิโอ'}</p><a className="ha-button ha-button-primary" href={authError.status === 401 ? signInUrl : '/studio'}><ArrowLeft size={18} aria-hidden="true" />{authError.status === 401 ? 'เข้าสู่ระบบ' : 'กลับสตูดิโอของฉัน'}</a></section></div>;
+    const signInUrl = authError.signInUrl?.startsWith('/auth/line/start') ? '/auth/line/start?returnTo=%2Fadmin' : '/admin';
+    return <div className="ha-access"><a href="/admin" aria-label="หลังบ้าน นากนะ HUB"><HubBrand /></a><section><span className="ha-access-icon"><LockKeyhole size={30} aria-hidden="true" /></span><p className="ha-eyebrow">NAKNA HUB · OWNER CONSOLE</p><h1>{authError.status === 401 ? 'เข้าสู่หลังบ้านเจ้าของระบบ' : 'บัญชีนี้ไม่มีสิทธิ์เข้าหลังบ้าน'}</h1><p>{authError.status === 401 ? 'ใช้บัญชีที่ได้รับสิทธิ์ เพื่อดูภาพรวมและจัดการแพลตฟอร์ม นากนะ HUB' : 'หลังบ้านนี้เปิดให้เฉพาะผู้ดูแลแพลตฟอร์มที่ได้รับสิทธิ์เท่านั้น'}</p>{loginError && <p role="alert">การเข้าสู่ระบบยังไม่สำเร็จ กรุณาลองอีกครั้ง</p>}{sessionError && <p role="alert">{sessionError}</p>}{authError.status === 401 ? <a className="ha-button ha-button-primary" href={signInUrl}><ShieldCheck size={18} aria-hidden="true" />เข้าสู่ระบบด้วยบัญชีเจ้าของ</a> : <button className="ha-button ha-button-primary" disabled={sessionBusy} onClick={() => void endAdminSession(true)}>{sessionBusy ? <LoaderCircle size={18} className="ha-spin" aria-hidden="true" /> : <LogOut size={18} aria-hidden="true" />}เปลี่ยนบัญชีเข้าสู่ระบบ</button>}</section></div>;
   }
   return <div className="ha-shell"><a className="hub-skip" href="#ha-main">ข้ามไปเนื้อหาหลัก</a>
-    <aside className="ha-sidebar"><a className="ha-brand" href="/studio" aria-label="กลับสตูดิโอ นากนะ HUB"><HubBrand /></a><div className="ha-owner-label"><ShieldCheck size={18} aria-hidden="true" /><div><strong>เจ้าของระบบ</strong><span>จัดการนากนะ HUB</span></div></div><p className="ha-nav-label">หลังบ้านแพลตฟอร์ม</p><nav className="ha-navigation" aria-label="เมนูหลังบ้าน">{tabs.map(item => <button key={item.value} className={tab === item.value ? 'is-active' : ''} aria-current={tab === item.value ? 'page' : undefined} title={item.description} onClick={() => navigate(item.value)}><item.icon size={20} aria-hidden="true" /><span>{item.label}</span>{item.value === 'accounts' && !!overview.data?.totals.upgradeRequests && <b>{numbers.format(overview.data.totals.upgradeRequests)}</b>}</button>)}</nav><div className="ha-sidebar-bottom"><a className="ha-button" href="/studio"><ArrowLeft size={18} aria-hidden="true" />กลับสตูดิโอ</a><p><ShieldCheck size={15} aria-hidden="true" />เข้าถึงได้เฉพาะบัญชีที่ได้รับสิทธิ์</p></div></aside>
-    <div className="ha-workspace"><header className="ha-topbar"><a className="ha-mobile-brand" href="/studio" aria-label="กลับสตูดิโอ"><HubBrand compact /></a><div className="ha-breadcrumb"><span>หลังบ้าน</span><ChevronRight size={15} aria-hidden="true" /><strong>{activeTab.label}</strong></div><span className="ha-owner-badge"><ShieldCheck size={15} aria-hidden="true" />เจ้าของระบบ</span></header>
+    <aside className="ha-sidebar"><a className="ha-brand" href="/admin" aria-label="ภาพรวมหลังบ้าน นากนะ HUB"><HubBrand /></a><div className="ha-owner-label"><ShieldCheck size={18} aria-hidden="true" /><div><strong>เจ้าของระบบ</strong><span>จัดการนากนะ HUB</span></div></div><p className="ha-nav-label">หลังบ้านแพลตฟอร์ม</p><nav className="ha-navigation" aria-label="เมนูหลังบ้าน">{tabs.map(item => <button key={item.value} className={tab === item.value ? 'is-active' : ''} aria-current={tab === item.value ? 'page' : undefined} title={item.description} onClick={() => navigate(item.value)}><item.icon size={20} aria-hidden="true" /><span>{item.label}</span>{item.value === 'accounts' && !!overview.data?.totals.upgradeRequests && <b>{numbers.format(overview.data.totals.upgradeRequests)}</b>}</button>)}</nav><div className="ha-sidebar-bottom"><button type="button" className="ha-button" disabled={sessionBusy} onClick={() => void endAdminSession()}><LogOut size={18} aria-hidden="true" />{sessionBusy ? 'กำลังออกจากระบบ' : 'ออกจากระบบ'}</button>{sessionError && <p role="alert">{sessionError}</p>}<p><ShieldCheck size={15} aria-hidden="true" />เข้าถึงได้เฉพาะบัญชีที่ได้รับสิทธิ์</p></div></aside>
+    <div className="ha-workspace"><header className="ha-topbar"><a className="ha-mobile-brand" href="/admin" aria-label="ภาพรวมหลังบ้าน"><HubBrand compact /></a><div className="ha-breadcrumb"><span>หลังบ้าน</span><ChevronRight size={15} aria-hidden="true" /><strong>{activeTab.label}</strong></div><span className="ha-owner-badge"><ShieldCheck size={15} aria-hidden="true" />เจ้าของระบบ</span></header>
     <main className="ha-main" id="ha-main"><div className="ha-page-heading"><div><p className="ha-eyebrow">NAKNA HUB · OWNER SPACE</p><h1>{tab === 'overview' ? 'เห็นภาพรวม ดูแลได้ตรงจุด' : activeTab.label}</h1><p>{tab === 'overview' ? 'ติดตามการเติบโต สมาชิก และการใช้งานของทุกฮับในที่เดียว' : tab === 'accounts' ? 'ดูสถานะสมาชิกและบันทึกเรื่องที่ต้องดูแลของแต่ละบัญชี' : tab === 'hubs' ? 'ตรวจสอบฮับที่เผยแพร่ และพักหรือคืนการเผยแพร่เมื่อจำเป็น' : 'ตรวจสอบว่าใครจัดการอะไร เมื่อไร และด้วยเหตุผลใด'}</p></div><button className="ha-button" onClick={refresh} disabled={overview.loading || current.loading} title="โหลดข้อมูลล่าสุดของหลังบ้าน"><RefreshCw size={18} className={overview.loading || current.loading ? 'ha-spin' : ''} aria-hidden="true" /><span>รีเฟรชข้อมูล</span></button></div>
       {overview.loading && <LoadingState label="กำลังตรวจสิทธิ์และโหลดภาพรวม" />}{overview.error && <ErrorState error={overview.error} retry={refresh} />}
       {authorized && overview.data && <>
@@ -190,7 +204,7 @@ export default function HubAdmin() {
         </section>}
         {tab === 'audit' && <section className="ha-panel ha-management"><div className="ha-panel-heading"><div><h2>บันทึกการจัดการ <span className="ha-count">{audit.data ? numbers.format(audit.data.total) : '—'}</span></h2><p>เรียงจากรายการล่าสุด · เวลาไทย</p></div><span className="ha-badge ha-badge-neutral"><ShieldCheck size={14} aria-hidden="true" />ตรวจสอบย้อนหลัง</span></div>{audit.loading ? <LoadingState /> : audit.error ? <ErrorState error={audit.error} retry={refresh} /> : audit.data && <><AuditItems items={audit.data.items} /><Pagination list={audit.data} onPage={setAuditPage} /></>}</section>}
       </>}
-      <footer className="ha-footer"><span>นากนะ HUB · หลังบ้านเจ้าของระบบ</span><a href="/studio">กลับไปจัดการฮับของฉัน<ArrowUpRight size={15} aria-hidden="true" /></a></footer>
+      <footer className="ha-footer"><span>นากนะ HUB · หลังบ้านเจ้าของระบบ</span><span>พื้นที่จัดการแพลตฟอร์มสำหรับผู้ดูแล</span></footer>
     </main></div>
     {notice && <div className="ha-toast" role="status"><Check size={19} aria-hidden="true" /><span>{notice}</span><button onClick={() => setNotice('')} title="ปิดข้อความ" aria-label="ปิดข้อความ"><X size={18} aria-hidden="true" /></button></div>}
     {dialog && <AdminDialog key={dialog.kind + ('account' in dialog ? dialog.account.id : dialog.hub.id)} dialog={dialog} busy={busy} error={actionError} onClose={() => {if (!busy) setDialog(null);}} onSubmit={submitAction} />}

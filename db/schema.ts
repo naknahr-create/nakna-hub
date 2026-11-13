@@ -95,6 +95,7 @@ export const hubEvents = sqliteTable('hub_events', {
 ]);
 export const hubAssets = sqliteTable('hub_assets', {
   id: text('id').primaryKey(),
+  pageId: text('page_id').references(()=>hubPages.id),
   accountId: text('account_id').notNull().references(()=>hubAccounts.id),
   storageKey: text('storage_key').notNull().unique(),
   mimeType: text('mime_type').notNull(),
