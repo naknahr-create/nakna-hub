@@ -1,0 +1,26 @@
+.hmu-control{min-width:0;width:100%;color:var(--hs-ink,#17343b);font-size:14px;line-height:1.65}
+.hmu-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:32px;margin-bottom:8px}
+.hmu-label{font-weight:500;color:var(--hs-ink,#17343b)}
+.hmu-control .hmu-remove{display:inline-flex;align-items:center;gap:5px;min-height:38px;padding:6px 9px;border:0;border-radius:7px;color:#626f78;background:transparent;font-size:12px;line-height:1.5;cursor:pointer}
+.hmu-control .hmu-remove:hover:not(:disabled){color:#9d4639;background:#fff3ef}
+.hmu-control .hmu-dropzone{display:flex;align-items:center;gap:16px;width:100%;min-height:126px;padding:21px 23px;border:1px dashed #b5ced1;border-radius:12px;background:#f8fbfb;color:var(--hs-ink,#17343b);text-align:left;cursor:pointer;transition:background .15s,border-color .15s,box-shadow .15s}
+.hmu-control .hmu-dropzone:hover:not(:disabled),.hmu-control .hmu-dragging{background:#edf7f5;border-color:#04878a;box-shadow:0 0 0 3px #04878a0c}
+.hmu-control .hmu-dropzone:focus-visible,.hmu-control .hmu-remove:focus-visible{outline:3px solid #04878a;outline-offset:3px}
+.hmu-control button:disabled{cursor:default;opacity:.65}
+.hmu-control[aria-busy=true] .hmu-dropzone{opacity:1;border-style:solid;background:#f3f8f8}
+.hmu-upload-icon{display:grid;place-items:center;width:48px;height:48px;border-radius:13px;background:#e1f0ed;color:#087f83;flex-shrink:0}
+.hmu-copy{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
+.hmu-copy strong{font-size:14px;font-weight:500;line-height:1.6}
+.hmu-copy>span{font-size:12px;color:#5f7680;line-height:1.7;overflow-wrap:anywhere}
+.hmu-action-icon{display:grid;place-items:center;flex-shrink:0;width:32px;height:32px;color:#3c8182}
+.hmu-control .hmu-has-image{padding:12px;gap:18px;border-style:solid;background:#fbfdfd}
+.hmu-thumbnail{display:grid;place-items:center;width:144px;height:100px;flex-shrink:0;border-radius:8px;overflow:hidden;border:1px solid #e1e9eb;background:#eef3f4;color:#718b94}
+.hmu-thumbnail img{display:block;width:100%;height:100%;object-fit:contain}
+.hmu-control .hmu-hint{display:flex;flex-direction:column;gap:2px;margin:8px 0 0;color:#637984;font-size:11px;line-height:1.8}
+.hmu-control .hmu-status{display:flex;align-items:center;gap:6px;margin:7px 0 0;color:#2d735a;font-size:12px;line-height:1.7}
+.hmu-control .hmu-progress{color:#087c80}
+.hmu-control .hmu-error{padding:10px 12px;margin:9px 0 0;border:1px solid #eed1c5;border-radius:8px;background:#fff7f2;color:#9d4933;font-size:12px;line-height:1.7}
+.hmu-spin{animation:hmu-spin .9s linear infinite}
+@keyframes hmu-spin{to{transform:rotate(360deg)}}
+@media(max-width:560px){.hmu-control .hmu-dropzone{padding:18px 15px;gap:11px;min-height:116px}.hmu-control .hmu-has-image{flex-wrap:wrap;padding:12px}.hmu-thumbnail{width:100%;height:auto;aspect-ratio:16/9}.hmu-copy strong{font-size:13px}.hmu-control .hmu-hint{font-size:11px}.hmu-action-icon{width:27px}.hmu-upload-icon{width:40px;height:40px;border-radius:10px}}
+@media(prefers-reduced-motion:reduce){.hmu-control .hmu-dropzone{transition:none}.hmu-spin{animation-duration:2s}}

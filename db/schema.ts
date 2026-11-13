@@ -75,6 +75,7 @@ export const hubLinks = sqliteTable('hub_links', {
   description: text('description').notNull().default(''),
   url: text('url').notNull().default(''),
   icon: text('icon').notNull().default('link'),
+  contentJson: text('content_json').notNull().default('{}'),
   enabled: integer('enabled').notNull().default(1),
   featured: integer('featured').notNull().default(0),
   sortOrder: integer('sort_order').notNull().default(0),

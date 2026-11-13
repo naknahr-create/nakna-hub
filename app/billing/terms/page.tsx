@@ -16,7 +16,7 @@ export default function BillingTerms(){
       <section><h2>ราคาและสิทธิ์ที่ได้รับ</h2><div className="np-terms-table"><table><thead><tr><th>รายการ</th><th>Free</th><th>Pro</th></tr></thead><tbody>
         <tr><td>ค่าบริการ</td><td>0 บาท</td><td>149 บาท/เดือน หรือ 1,490 บาท/ปี</td></tr>
         <tr><td>ฮับที่เปิดใช้งาน</td><td>1 ฮับ</td><td>10 ฮับ</td></tr>
-        <tr><td>ลิงก์และหัวข้อรวมต่อฮับ</td><td>5 รายการ</td><td>100 รายการ</td></tr>
+        <tr><td>เนื้อหาทุกประเภทรวมต่อฮับ</td><td>5 รายการ</td><td>100 รายการ</td></tr>
         <tr><td>ไอคอนและรูปของคุณเอง</td><td>ใช้ได้</td><td>ใช้ได้</td></tr>
         <tr><td>ดูสถิติ รายงาน และส่งออก CSV</td><td>เก็บข้อมูลไว้ ดูได้เมื่ออัปเกรด</td><td>ใช้ได้</td></tr>
         <tr><td>สรุปรายวันผ่าน LINE</td><td>ไม่รวม</td><td>เลือกเปิดรับและตั้งเวลาได้</td></tr>

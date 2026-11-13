@@ -8,6 +8,8 @@ export type HubProfile = {
   tagline: string;
   bio: string;
   avatarUrl: string;
+  /** Uploaded cover used when sharing the published hub. */
+  shareImageUrl?: string;
   accent: string;
   /** A ready-made design, or `custom`/absent for the original appearance controls. */
   themeId?: string;
@@ -16,13 +18,26 @@ export type HubProfile = {
   background: 'sand' | 'mint' | 'lavender' | 'ink';
   showBranding: boolean;
 };
+export type HubContentType = 'link' | 'heading' | 'text' | 'image' | 'gallery' | 'service';
+export type HubBlockImage = {url: string; alt: string; caption?: string};
+export type HubBlockContent = {
+  imageUrl?: string;
+  alt?: string;
+  aspectRatio?: 'landscape' | 'square' | 'portrait' | 'auto';
+  fit?: 'cover' | 'contain';
+  images?: HubBlockImage[];
+  galleryLayout?: 'grid' | 'carousel';
+  buttonLabel?: string;
+  price?: string;
+};
 export type HubLink = {
   id: string;
-  type: 'link' | 'heading';
+  type: HubContentType;
   title: string;
   description: string;
   url: string;
   icon: string;
+  content?: HubBlockContent;
   enabled: boolean;
   featured: boolean;
   sortOrder: number;

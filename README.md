@@ -98,9 +98,19 @@ The Worker removes incoming `oai-authenticated-*` headers, verifies the Cloudfla
 | `/admin` | Separate operator dashboard: platform metrics, accounts, hubs, publication controls, support notes, and audit history |
 | `/h/:slug` | The currently published customer page |
 | `/go/:slug/:linkId` | Record an eligible click and redirect to the destination in the published snapshot |
-| `/media/:id` | Serve an authorized uploaded avatar |
+| `/media/:id` | Serve an authorized uploaded profile, icon, content or share image |
 
 Customer passwords are not stored by this application. LINE Login authenticates customers, with the optional Access fallback described above; published hub visitors do not need accounts.
+
+## Rich hub content
+
+The Studio **เนื้อหา** tab has one content picker for six block types: links, headings, multiline text, image/banner cards, galleries, and product/service cards. A gallery holds up to six images in a grid or manually scrolled carousel and counts as one block. Every unarchived block counts toward the existing Starter 5 / Pro 100 item limit, including disabled blocks. Archiving releases a slot while retaining its data. Duplicating creates a disabled draft block.
+
+Rich content uses the same renderer and theme variables in the Studio preview and public hub. Image, gallery, and service blocks may have an optional destination button. Public buttons use the existing tracked redirect; opening or enlarging a gallery image is not an outbound click. Existing owner, preview, bot and paid-analytics rules remain in effect.
+
+The image uploader accepts PNG, JPEG and WebP files up to 15 MB, resizes larger files in the browser, and submits a raster image of at most 2 MB and 1,600 pixels on its longest side. Rich images reference uploaded, page-authorized `/media/:id` assets. Draft media stays private until included in a published snapshot. **ออกแบบ → ภาพปกเวลาแชร์** sets an optional share image; public Open Graph and Twitter metadata uses only the published profile, with the published avatar as fallback. Social platforms may retain an older preview in their own cache.
+
+Apply `drizzle/0006_hub_rich_content.sql` before deploying this release. It adds the `hub_links.content_json` column without altering existing content. When applying through the D1 console, also record the successful migration in `d1_migrations` so a later Wrangler migration does not repeat the column addition.
 
 ## Daily LINE reports
 
@@ -123,14 +133,14 @@ Webhook requests are HMAC-verified using their original bytes before JSON parsin
 | GET | `/api/slugs?slug=...` | Signed-in slug validation and availability |
 | POST | `/api/pages` | Create a draft page within the customer's page quota |
 | GET / PATCH / DELETE | `/api/pages/:id` | Owner-only read, draft update or restoration, and page archival |
-| POST | `/api/pages/:id/links` | Owner-only link or heading creation |
+| POST | `/api/pages/:id/links` | Authorized editor creation of any supported content block |
 | PATCH / DELETE | `/api/pages/:id/links/:linkId` | Owner-only block update, restoration, or archival |
 | POST | `/api/pages/:id/reorder` | Owner-only complete block ordering |
 | POST | `/api/pages/:id/publish` | Owner-only publication of the current draft as one snapshot |
 | POST | `/api/pages/:id/unpublish` | Owner-only removal of the public snapshot |
 | GET | `/api/pages/:id/analytics?range=...` | Paid Pro + page-owner analytics for `today`, `7d`, `30d`, or `all` |
 | GET | `/api/pages/:id/export?range=...` | Paid Pro + page-owner CSV export for the same reporting range |
-| POST | `/api/uploads` | Signed-in avatar upload, attributed to the current account |
+| POST | `/api/uploads` | Signed-in page-authorized raster image upload, attributed to the owning account |
 | POST | `/api/account/upgrade` | Legacy manual upgrade request; does not charge or grant Pro |
 | GET | `/api/billing` | Current account's billing availability and subscription |
 | POST | `/api/billing/checkout` | Create/reuse an authenticated Stripe subscription checkout |
@@ -158,9 +168,9 @@ All state-changing customer and operator APIs enforce a same-origin request chec
 | --- | --- |
 | `hub_accounts` | One independent customer account per verified provider identity, with display identity and plan |
 | `hub_pages` | Account-owned slug, draft profile, draft revision, publication state, and current published snapshot |
-| `hub_links` | Page-owned link and heading blocks, ordering, enabled state, and archive state |
+| `hub_links` | Page-owned content blocks, typed content JSON, ordering, enabled state, and archive state |
 | `hub_events` | Page/link click events and page-view events |
-| `hub_assets` | Account-owned avatar metadata and private R2 object key |
+| `hub_assets` | Account-owned image metadata and private R2 object key |
 | `hub_upgrade_requests` | Legacy manual Pro request and resolution state |
 | `hub_billing_accounts` | Stripe customer binding, checkout reuse and concurrency lock |
 | `hub_billing_subscriptions` | Verified subscription status and paid entitlement end |

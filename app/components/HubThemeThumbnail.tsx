@@ -16,7 +16,7 @@ export function HubThemeThumbnail({profile,links=[],themeId}:{profile:HubProfile
   // Gallery tiles do not contact 24 third-party image hosts. Uploaded media is
   // served by our existing authorized endpoint; other avatars use initials.
   const avatar=/^\/media\/[A-Za-z0-9-]+$/.test(profile.avatarUrl)?profile.avatarUrl:'';
-  const currentLinks=links.filter(link=>link.type==='link'&&link.enabled&&!link.archived).sort((a,b)=>a.sortOrder-b.sortOrder).slice(0,3);
+  const currentLinks=links.filter(link=>link.type!=='heading'&&link.enabled&&!link.archived).sort((a,b)=>a.sortOrder-b.sortOrder).slice(0,3);
   const titles=currentLinks.length?currentLinks.map(link=>link.title):['เว็บไซต์ของฉัน','เรื่องราวและผลงาน','ติดต่อพูดคุย'];
   const style={...getHubThemeCssVars(appearance),'--hc-accent':appearance.accent} as CSSProperties;
 

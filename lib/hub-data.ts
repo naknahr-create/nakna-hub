@@ -2,10 +2,11 @@ import {resolveHubPageAccess,teamWriteGuard,recordTeamPageActivity,isHubEditorId
 import type {PageAccess} from './hub-team-types';
 import {getAuthConfiguration} from './hub-auth';
 import {imageAssetId} from './hub-link-media';
+import {HUB_GALLERY_LIMIT,hasBlockAction,isHubContentType,isRichContentType,readBlockContent} from './hub-content';
 import {applyHubTheme,getHubTheme} from './hub-themes';
 import {expireBillingEntitlement, hasAnalyticsEntitlement} from './hub-billing-entitlements';
 import {env} from 'cloudflare:workers';
-import type {AnalyticsData,AnalyticsRange,HubAccount,HubLink,HubPlan,HubProfile,HubTemplate,OperatorData,PageEditorData,PageSummary,PlanLimits,PublicHubData,WorkspaceData} from './hub-types';
+import type {AnalyticsData,AnalyticsRange,HubAccount,HubBlockContent,HubLink,HubPlan,HubProfile,HubTemplate,OperatorData,PageEditorData,PageSummary,PlanLimits,PublicHubData,WorkspaceData} from './hub-types';
 
 export class HubError extends Error {
   constructor(public status:number,message:string,public extra:Record<string,unknown>={}) {super(message);}
@@ -13,7 +14,7 @@ export class HubError extends Error {
 type Identity={userId:string;email:string;displayName:string};
 export type AccountRow={id:string;user_id:string;display_name:string;email:string;plan:HubPlan;created_at:number;updated_at:number};
 type PageRow={id:string;account_id:string;slug:string;profile_json:string;revision:number;published_revision:number;snapshot_json:string|null;published:number;archived:number;created_at:number;updated_at:number;published_at:number|null};
-type LinkRow={id:string;page_id:string;type:'link'|'heading';title:string;description:string;url:string;icon:string;enabled:number;featured:number;sort_order:number;archived:number;created_at:number};
+type LinkRow={id:string;page_id:string;type:HubLink['type'];title:string;description:string;url:string;icon:string;content_json?:string;enabled:number;featured:number;sort_order:number;archived:number;created_at:number};
 type Snapshot={profile:HubProfile;links:HubLink[];revision:number};
 type AssetRow={id:string;account_id:string;page_id:string|null;storage_key:string;mime_type:string;size:number;created_at:number};
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -99,17 +100,45 @@ function clientRevision(value:unknown,page:PageRow):void{
   if(!Number.isSafeInteger(value)||Number(value)<1)throw new HubError(409,'โหลดข้อมูลล่าสุดก่อนบันทึก เพื่อไม่ให้ทับงานของผู้ร่วมงาน',{code:'revision_required'});
   if(value!==page.revision)throw new HubError(409,'มีผู้แก้ไขฮับนี้แล้ว งานที่คุณกำลังพิมพ์ยังอยู่ กรุณาโหลดข้อมูลล่าสุดก่อนบันทึก',{code:'revision_conflict'});
 }
+// Both predicates reference the selected page `p` and a one-row `media` CTE.
+// Exact JSON paths keep uploaded files private until an enabled published block
+// (or published profile/cover) actually references them.
+const DRAFT_MEDIA_REFERENCE=`(
+  json_extract(p.profile_json,'$.avatarUrl')=media.url
+  OR json_extract(p.profile_json,'$.shareImageUrl')=media.url
+  OR EXISTS(SELECT 1 FROM hub_links l WHERE l.page_id=p.id AND (
+    l.icon=media.icon OR json_extract(l.content_json,'$.imageUrl')=media.url
+    OR EXISTS(SELECT 1 FROM json_each(l.content_json,'$.images') image WHERE json_extract(image.value,'$.url')=media.url)
+  ))
+)`;
+const PUBLISHED_MEDIA_REFERENCE=`(
+  json_extract(p.snapshot_json,'$.profile.avatarUrl')=media.url
+  OR json_extract(p.snapshot_json,'$.profile.shareImageUrl')=media.url
+  OR EXISTS(SELECT 1 FROM json_each(p.snapshot_json,'$.links') l
+    WHERE json_extract(l.value,'$.enabled')=1 AND COALESCE(json_extract(l.value,'$.archived'),0)=0 AND (
+      (json_extract(l.value,'$.type')='link' AND json_extract(l.value,'$.icon')=media.icon)
+      OR (json_extract(l.value,'$.type') IN ('image','service') AND json_extract(l.value,'$.content.imageUrl')=media.url)
+      OR (json_extract(l.value,'$.type')='gallery' AND EXISTS(
+        SELECT 1 FROM json_each(l.value,'$.content.images') image WHERE json_extract(image.value,'$.url')=media.url
+      ))
+    )
+  )
+)`;
 async function assetUsable(assetId:string,ownerId:string,pageId?:string,actorId?:string):Promise<boolean>{
   if(!actorId||actorId===ownerId)return !!await db().prepare('SELECT id FROM hub_assets WHERE id=? AND account_id=?').bind(assetId,ownerId).first();
   if(!pageId)return false;
-  return !!await db().prepare(`SELECT a.id FROM hub_assets a WHERE a.id=? AND a.account_id=? AND (a.page_id=? OR EXISTS(SELECT 1 FROM hub_pages p WHERE p.id=? AND p.account_id=a.account_id AND (json_extract(p.profile_json,'$.avatarUrl')=? OR EXISTS(SELECT 1 FROM hub_links l WHERE l.page_id=p.id AND l.icon=?) OR json_extract(p.snapshot_json,'$.profile.avatarUrl')=? OR EXISTS(SELECT 1 FROM json_each(p.snapshot_json,'$.links') l WHERE json_extract(l.value,'$.icon')=?))))`).bind(assetId,ownerId,pageId,pageId,'/media/'+assetId,'image:'+assetId,'/media/'+assetId,'image:'+assetId).first();
+  return !!await db().prepare(`WITH media AS (SELECT ? AS url,? AS icon)
+    SELECT a.id FROM hub_assets a CROSS JOIN media WHERE a.id=? AND a.account_id=? AND (
+      a.page_id=? OR EXISTS(SELECT 1 FROM hub_pages p WHERE p.id=? AND p.account_id=a.account_id
+        AND (${DRAFT_MEDIA_REFERENCE} OR ${PUBLISHED_MEDIA_REFERENCE}))
+    )`).bind('/media/'+assetId,'image:'+assetId,assetId,ownerId,pageId,pageId).first();
 }
 function profileOf(page:PageRow,plan:HubPlan):HubProfile{const p=JSON.parse(page.profile_json) as HubProfile;return {...p,showBranding:plan==='pro'?p.showBranding:true};}
-function fromLink(row:LinkRow):HubLink{return {id:row.id,type:row.type,title:row.title,description:row.description,url:row.url,icon:row.icon,enabled:!!row.enabled,featured:!!row.featured,sortOrder:row.sort_order,archived:!!row.archived};}
+function fromLink(row:LinkRow):HubLink{const content=readBlockContent(row.content_json);return {id:row.id,type:row.type,title:row.title,description:row.description,url:row.url,icon:row.icon,...(content?{content}:{}),enabled:!!row.enabled,featured:!!row.featured,sortOrder:row.sort_order,archived:!!row.archived};}
 async function linksFor(pageId:string,includeArchived=true):Promise<HubLink[]>{const {results}=await db().prepare('SELECT * FROM hub_links WHERE page_id=?'+(includeArchived?'':' AND archived=0')+' ORDER BY sort_order,created_at,id').bind(pageId).all<LinkRow>();return results.map(fromLink);}
 async function pageSummary(page:PageRow,plan:HubPlan,analyticsAccess:boolean):Promise<PageSummary>{
   const [links,events,control]=await Promise.all([
-    db().prepare("SELECT COUNT(*) AS n FROM hub_links WHERE page_id=? AND archived=0 AND type='link'").bind(page.id).first<{n:number}>(),
+    db().prepare("SELECT COUNT(*) AS n FROM hub_links WHERE page_id=? AND archived=0").bind(page.id).first<{n:number}>(),
     analyticsAccess?db().prepare('SELECT type,COUNT(*) AS n FROM hub_events WHERE page_id=? GROUP BY type').bind(page.id).all<{type:string;n:number}>():Promise.resolve({results:[]}),
     db().prepare('SELECT suspended,reason FROM hub_page_controls WHERE page_id=?').bind(page.id).first<{suspended:number;reason:string}>(),
   ]);const profile=profileOf(page,plan);
@@ -121,7 +150,7 @@ export async function getWorkspace(request:Request):Promise<WorkspaceData>{
   const [rows,archivedRows,usage,upgrade,info]=await Promise.all([
     db().prepare('SELECT * FROM hub_pages WHERE account_id=? AND archived=0 ORDER BY updated_at DESC,id').bind(account.id).all<PageRow>(),
     db().prepare('SELECT * FROM hub_pages WHERE account_id=? AND archived=1 ORDER BY updated_at DESC,id').bind(account.id).all<PageRow>(),
-    db().prepare("SELECT COUNT(*) AS n FROM hub_links l JOIN hub_pages p ON p.id=l.page_id WHERE p.account_id=? AND p.archived=0 AND l.archived=0 AND l.type='link'").bind(account.id).first<{n:number}>(),
+    db().prepare("SELECT COUNT(*) AS n FROM hub_links l JOIN hub_pages p ON p.id=l.page_id WHERE p.account_id=? AND p.archived=0 AND l.archived=0").bind(account.id).first<{n:number}>(),
     db().prepare('SELECT account_id FROM hub_upgrade_requests WHERE account_id=? AND resolved_at IS NULL').bind(account.id).first(),
     accountDTO(request,account),
   ]);
@@ -141,7 +170,7 @@ export async function checkSlug(request:Request):Promise<{available:boolean;reas
   const exists=await db().prepare('SELECT id FROM hub_pages WHERE slug=?').bind(slug).first();return exists?{available:false,reason:'ชื่อลิงก์นี้ถูกใช้แล้ว'}:{available:true};
 }
 function initialProfile(name:string,slug:string,template:HubTemplate):HubProfile{
-  return {name,handle:'@'+slug,tagline:'',bio:'',avatarUrl:'',accent:'#04878a',theme:'light',layout:template==='shop'?'grid':template==='business'?'editorial':'stack',background:template==='creator'?'lavender':template==='shop'?'sand':'mint',showBranding:true};
+  return {name,handle:'@'+slug,tagline:'',bio:'',avatarUrl:'',shareImageUrl:'',accent:'#04878a',theme:'light',layout:template==='shop'?'grid':template==='business'?'editorial':'stack',background:template==='creator'?'lavender':template==='shop'?'sand':'mint',showBranding:true};
 }
 export async function createPage(request:Request):Promise<PageEditorData>{
   const account=await requireAccount(request);sameOrigin(request);const data=await body(request);keys(data,['name','slug','template']);
@@ -172,15 +201,24 @@ async function validateAvatar(value:unknown,account:AccountRow,pageId?:string,ac
   }
   const checked=validateUrl(url);if(!checked.startsWith('https://'))throw new HubError(400,'ลิงก์รูปโปรไฟล์ต้องใช้ https://');return checked;
 }
+async function validateUploadedImage(value:unknown,account:AccountRow,pageId?:string,actorId?:string,label='รูปภาพ',required=true):Promise<string>{
+  const url=text(value,label,80,required);if(!url)return '';
+  const assetId=url.startsWith('/media/')?url.slice(7):'';
+  if(!UUID.test(assetId))throw new HubError(400,`${label}ต้องเป็นรูปที่อัปโหลดในฮับนี้`);
+  if(!await assetUsable(assetId,account.id,pageId,actorId))throw new HubError(400,'คุณไม่มีสิทธิ์ใช้รูปนี้ กรุณาอัปโหลดรูปของคุณ');
+  return '/media/'+assetId.toLowerCase();
+}
+
 async function validateProfile(input:unknown,current:HubProfile,account:AccountRow,pageId?:string,actorId?:string):Promise<HubProfile>{
   if(!input||typeof input!=='object'||Array.isArray(input))throw new HubError(400,'ข้อมูลโปรไฟล์ไม่ถูกต้อง');const data=input as Record<string,unknown>;
-  keys(data,['name','handle','tagline','bio','avatarUrl','accent','themeId','theme','layout','background','showBranding']);let profile={...current};
+  keys(data,['name','handle','tagline','bio','avatarUrl','shareImageUrl','accent','themeId','theme','layout','background','showBranding']);let profile={...current};
   if('themeId'in data){
     if(typeof data.themeId!=='string'||data.themeId!=='custom'&&!getHubTheme(data.themeId))throw new HubError(400,'ไม่พบธีมนี้ กรุณาเลือกธีมจากคลัง');
     profile=data.themeId==='custom'?{...profile,themeId:'custom'}:applyHubTheme(profile,data.themeId);
   }
   for(const field of ['name','handle','tagline','bio'] as const)if(field in data)profile[field]=text(data[field],field==='name'?'ชื่อหน้า':'ข้อความ',field==='bio'?280:field==='tagline'?120:80,field==='name');
   if('avatarUrl'in data)profile.avatarUrl=await validateAvatar(data.avatarUrl,account,pageId,actorId);
+  if('shareImageUrl'in data)profile.shareImageUrl=await validateUploadedImage(data.shareImageUrl,account,pageId,actorId,'ภาพปกเวลาแชร์',false);
   if('accent'in data){if(typeof data.accent!=='string'||!/^#[0-9a-f]{6}$/i.test(data.accent))throw new HubError(400,'รหัสสีต้องเป็น #RRGGBB');profile.accent=data.accent;}
   if('theme'in data){if(data.theme!=='light'&&data.theme!=='dark')throw new HubError(400,'ธีมไม่ถูกต้อง');profile.theme=data.theme;}
   if('layout'in data){if(!['stack','grid','editorial'].includes(String(data.layout)))throw new HubError(400,'เลย์เอาต์ไม่ถูกต้อง');profile.layout=data.layout as HubProfile['layout'];}
@@ -213,7 +251,7 @@ export async function archivePage(request:Request,id:string):Promise<void>{
   const account=await requireAccount(request);sameOrigin(request);await ownPage(account,id);
   const result=await db().prepare('UPDATE hub_pages SET archived=1,published=0,snapshot_json=NULL,revision=revision+1,updated_at=? WHERE id=? AND account_id=? AND archived=0').bind(Date.now(),id,account.id).run();if(!result.meta.changes)throw new HubError(404,'ไม่พบหน้านี้');
 }
-const LINK_KEYS=['type','title','description','url','icon','enabled','featured','sortOrder','archived'] as const;
+const LINK_KEYS=['type','title','description','url','icon','content','enabled','featured','sortOrder','archived'] as const;
 async function validateLinkIcon(value:unknown,account:AccountRow,pageId?:string,actorId?:string):Promise<string>{
   const icon=text(value,'ไอคอน',80,true),assetId=imageAssetId(icon);
   if(assetId){
@@ -223,16 +261,65 @@ async function validateLinkIcon(value:unknown,account:AccountRow,pageId?:string,
   if(!/^[a-zA-Z0-9_-]{1,40}$/.test(icon))throw new HubError(400,'ไอคอนไม่ถูกต้อง');
   return icon;
 }
+function contentText(value:unknown,label:string,max:number,required=false):string{
+  const clean=text(value,label,max,required);
+  if(/<\/?[a-z][^>]*>/i.test(clean))throw new HubError(400,`${label}รองรับข้อความธรรมดา ไม่รองรับโค้ด HTML`);
+  return clean;
+}
+async function validateBlockContent(value:unknown,type:HubLink['type'],title:string,account:AccountRow,pageId?:string,actorId?:string):Promise<HubBlockContent|undefined>{
+  if(value===undefined)value={};
+  if(!value||typeof value!=='object'||Array.isArray(value))throw new HubError(400,'รายละเอียดเนื้อหาไม่ถูกต้อง');
+  const input=value as Record<string,unknown>;
+  const allowed=type==='gallery'?['images','galleryLayout','aspectRatio','fit','buttonLabel']
+    :type==='image'?['imageUrl','alt','aspectRatio','fit','buttonLabel']
+    :type==='service'?['imageUrl','alt','aspectRatio','fit','buttonLabel','price']:[];
+  keys(input,allowed);
+  if(!['image','gallery','service'].includes(type))return undefined;
+  const content:HubBlockContent={};
+  if(type==='image'||type==='service'){
+    const url=await validateUploadedImage(input.imageUrl??'',account,pageId,actorId,'รูปภาพ',type==='image');
+    if(url)content.imageUrl=url;
+    content.alt=contentText(input.alt??title,'คำอธิบายรูป',240)||title;
+  }
+  if(type==='gallery'){
+    if(!Array.isArray(input.images)||input.images.length<1||input.images.length>HUB_GALLERY_LIMIT)throw new HubError(400,`เพิ่มรูปในแกลเลอรี 1–${HUB_GALLERY_LIMIT} รูป`);
+    content.images=[];
+    for(const entry of input.images){
+      if(!entry||typeof entry!=='object'||Array.isArray(entry))throw new HubError(400,'รูปในแกลเลอรีไม่ถูกต้อง');
+      const image=entry as Record<string,unknown>;keys(image,['url','alt','caption']);
+      const url=await validateUploadedImage(image.url,account,pageId,actorId,'รูปในแกลเลอรี');
+      const alt=contentText(image.alt??title,'คำอธิบายรูป',240)||title;
+      const caption=contentText(image.caption??'','คำบรรยายรูป',300);
+      content.images.push({url,alt,...(caption?{caption}:{})});
+    }
+    if(new Set(content.images.map(image=>image.url)).size!==content.images.length)throw new HubError(400,'มีรูปซ้ำในแกลเลอรี กรุณาเลือกรูปอื่น');
+    if('galleryLayout'in input&&(typeof input.galleryLayout!=='string'||!['grid','carousel'].includes(input.galleryLayout)))throw new HubError(400,'รูปแบบแกลเลอรีไม่ถูกต้อง');
+    content.galleryLayout=(input.galleryLayout??'grid') as 'grid'|'carousel';
+  }
+  if('aspectRatio'in input&&(typeof input.aspectRatio!=='string'||!['landscape','square','portrait','auto'].includes(input.aspectRatio)))throw new HubError(400,'สัดส่วนรูปไม่ถูกต้อง');
+  if('fit'in input&&(typeof input.fit!=='string'||!['cover','contain'].includes(input.fit)))throw new HubError(400,'การแสดงรูปไม่ถูกต้อง');
+  content.aspectRatio=(input.aspectRatio??(type==='gallery'?'square':'landscape')) as HubBlockContent['aspectRatio'];
+  content.fit=(input.fit??'contain') as HubBlockContent['fit'];
+  content.buttonLabel=contentText(input.buttonLabel??'','ข้อความปุ่ม',60);
+  if(type==='service')content.price=contentText(input.price??'','ราคา',80);
+  return content;
+}
 async function validateLink(data:Record<string,unknown>,account:AccountRow,existing?:HubLink,pageId?:string,actorId?:string):Promise<Omit<HubLink,'id'>>{
-  keys(data,LINK_KEYS);const link:Omit<HubLink,'id'>=existing?{type:existing.type,title:existing.title,description:existing.description,url:existing.url,icon:existing.icon,enabled:existing.enabled,featured:existing.featured,sortOrder:existing.sortOrder,archived:existing.archived}:{type:'link',title:'',description:'',url:'',icon:'auto',enabled:true,featured:false,sortOrder:0,archived:false};
-  if('type'in data){if(data.type!=='link'&&data.type!=='heading')throw new HubError(400,'ประเภทบล็อกไม่ถูกต้อง');link.type=data.type;}
-  for(const field of ['title','description'] as const)if(field in data)link[field]=text(data[field],field==='title'?'ชื่อบล็อก':'คำอธิบาย',field==='title'?100:220,field==='title');
-  if(!link.title)throw new HubError(400,'กรอกชื่อบล็อก');
+  keys(data,LINK_KEYS);const link:Omit<HubLink,'id'>=existing?{type:existing.type,title:existing.title,description:existing.description,url:existing.url,icon:existing.icon,...(existing.content?{content:existing.content}:{}),enabled:existing.enabled,featured:existing.featured,sortOrder:existing.sortOrder,archived:existing.archived}:{type:'link',title:'',description:'',url:'',icon:'auto',enabled:true,featured:false,sortOrder:0,archived:false};
+  if('type'in data){if(!isHubContentType(data.type))throw new HubError(400,'ประเภทบล็อกไม่ถูกต้อง');link.type=data.type;}
+  const rich=isRichContentType(link.type);
+  for(const field of ['title','description'] as const)link[field]=(rich?contentText:text)(field in data?data[field]:link[field],field==='title'?'ชื่อรายการ':'คำอธิบาย',field==='title'?100:rich?2000:220,field==='title');
+  if(!link.title)throw new HubError(400,'กรอกชื่อรายการ');
+  if(link.type==='text'&&!link.description)throw new HubError(400,'กรอกข้อความที่ต้องการแสดง');
   link.icon=await validateLinkIcon('icon'in data?data.icon:link.icon,account,pageId,actorId);
   if('url'in data)link.url=text(data.url,'ลิงก์ปลายทาง',2048);
-  if(link.type==='link')link.url=validateUrl(link.url);else {link.url='';link.featured=false;}
+  if(link.type==='link')link.url=validateUrl(link.url);
+  else if(['image','gallery','service'].includes(link.type)){if(link.url)link.url=validateUrl(link.url);}
+  else {link.url='';link.featured=false;}
+  const content=await validateBlockContent('content'in data?data.content:existing?.type===link.type?link.content:undefined,link.type,link.title,account,pageId,actorId);
+  if(content)link.content=content;else delete link.content;
   for(const field of ['enabled','featured','archived'] as const)if(field in data){if(typeof data[field]!=='boolean')throw new HubError(400,'สถานะบล็อกไม่ถูกต้อง');link[field]=data[field] as boolean;}
-  if(link.type==='heading')link.featured=false;
+  if(link.type==='heading'||link.type==='text')link.featured=false;
   if('sortOrder'in data){if(!Number.isInteger(data.sortOrder)||(data.sortOrder as number)<0||(data.sortOrder as number)>100000)throw new HubError(400,'ลำดับไม่ถูกต้อง');link.sortOrder=data.sortOrder as number;}
   return link;
 }
@@ -241,17 +328,17 @@ export async function createLink(request:Request,pageId:string):Promise<HubLink>
   const max=await db().prepare('SELECT MAX(sort_order) AS n FROM hub_links WHERE page_id=?').bind(pageId).first<{n:number|null}>();if(!('sortOrder'in data))link.sortOrder=(max?.n??-1)+1;
   const id=crypto.randomUUID(),now=Date.now();
   const results=await db().batch([
-    db().prepare("INSERT INTO hub_links (id,page_id,type,title,description,url,icon,enabled,featured,sort_order,archived,created_at) SELECT ?,?,?,?,?,?,?,?,?,?,0,? WHERE EXISTS(SELECT 1 FROM hub_pages WHERE id=? AND account_id=? AND archived=0 AND revision=? AND "+teamWriteGuard()+") AND (SELECT COUNT(*) FROM hub_links WHERE page_id=? AND archived=0)<CASE (SELECT plan FROM hub_accounts WHERE id=?) WHEN 'pro' THEN 100 ELSE 5 END").bind(id,pageId,link.type,link.title,link.description,link.url,link.icon,+link.enabled,+link.featured,link.sortOrder,now,pageId,account.id,page.revision,actor.id,actor.id,pageId,account.id),
+    db().prepare("INSERT INTO hub_links (id,page_id,type,title,description,url,icon,content_json,enabled,featured,sort_order,archived,created_at) SELECT ?,?,?,?,?,?,?,?,?,?,?,0,? WHERE EXISTS(SELECT 1 FROM hub_pages WHERE id=? AND account_id=? AND archived=0 AND revision=? AND "+teamWriteGuard()+") AND (SELECT COUNT(*) FROM hub_links WHERE page_id=? AND archived=0)<CASE (SELECT plan FROM hub_accounts WHERE id=?) WHEN 'pro' THEN 100 ELSE 5 END").bind(id,pageId,link.type,link.title,link.description,link.url,link.icon,JSON.stringify(link.content??{}),+link.enabled,+link.featured,link.sortOrder,now,pageId,account.id,page.revision,actor.id,actor.id,pageId,account.id),
     db().prepare('UPDATE hub_pages SET revision=revision+1,updated_at=? WHERE id=? AND account_id=? AND EXISTS(SELECT 1 FROM hub_links WHERE id=? AND page_id=?)').bind(now,pageId,account.id,id,pageId),
   ]);
-  if(!results[0].meta.changes)throw new HubError(409,'บันทึกไม่ได้ จำนวนบล็อกเต็ม หรือข้อมูลและสิทธิ์เปลี่ยนไป กรุณาโหลดใหม่',{code:'link_write_conflict'});await recordTeamPageActivity(actor,account.id,pageId,'เพิ่มลิงก์หรือหัวข้อ');return {id,...link};
+  if(!results[0].meta.changes)throw new HubError(409,'บันทึกไม่ได้ จำนวนบล็อกเต็ม หรือข้อมูลและสิทธิ์เปลี่ยนไป กรุณาโหลดใหม่',{code:'link_write_conflict'});await recordTeamPageActivity(actor,account.id,pageId,'เพิ่มเนื้อหาในฮับ');return {id,...link};
 }
 export async function updateLink(request:Request,pageId:string,linkId:string):Promise<HubLink>{
   const actor=await requireAccount(request);sameOrigin(request);const {page,owner:account}=await pageContext(actor,pageId,'edit');const existing=await db().prepare('SELECT * FROM hub_links WHERE id=? AND page_id=?').bind(linkId,pageId).first<LinkRow>();if(!existing)throw new HubError(404,'ไม่พบบล็อกนี้');
   const data=await body(request);clientRevision(data.revision,page);delete data.revision;if(!Object.keys(data).length)throw new HubError(400,'ไม่มีข้อมูลให้แก้ไข');const link=await validateLink(data,account,fromLink(existing),pageId,actor.id);
   const restoring=existing.archived===1&&!link.archived;
   const results=await db().batch([
-    db().prepare("UPDATE hub_links SET type=?,title=?,description=?,url=?,icon=?,enabled=?,featured=?,sort_order=?,archived=? WHERE id=? AND page_id=? AND EXISTS(SELECT 1 FROM hub_pages WHERE id=? AND account_id=? AND archived=0 AND revision=? AND "+teamWriteGuard()+") AND (?=0 OR (SELECT COUNT(*) FROM hub_links WHERE page_id=? AND archived=0)<CASE (SELECT plan FROM hub_accounts WHERE id=?) WHEN 'pro' THEN 100 ELSE 5 END)").bind(link.type,link.title,link.description,link.url,link.icon,+link.enabled,+link.featured,link.sortOrder,+link.archived,linkId,pageId,pageId,account.id,page.revision,actor.id,actor.id,+restoring,pageId,account.id),
+    db().prepare("UPDATE hub_links SET type=?,title=?,description=?,url=?,icon=?,content_json=?,enabled=?,featured=?,sort_order=?,archived=? WHERE id=? AND page_id=? AND EXISTS(SELECT 1 FROM hub_pages WHERE id=? AND account_id=? AND archived=0 AND revision=? AND "+teamWriteGuard()+") AND (?=0 OR (SELECT COUNT(*) FROM hub_links WHERE page_id=? AND archived=0)<CASE (SELECT plan FROM hub_accounts WHERE id=?) WHEN 'pro' THEN 100 ELSE 5 END)").bind(link.type,link.title,link.description,link.url,link.icon,JSON.stringify(link.content??{}),+link.enabled,+link.featured,link.sortOrder,+link.archived,linkId,pageId,pageId,account.id,page.revision,actor.id,actor.id,+restoring,pageId,account.id),
     db().prepare('UPDATE hub_pages SET revision=revision+1,updated_at=? WHERE id=? AND account_id=? AND changes()>0').bind(Date.now(),pageId,account.id),
   ]);
   if(!results[0].meta.changes)throw new HubError(409,'ร่างหรือสิทธิ์มีการเปลี่ยนแปลง หรือจำนวนบล็อกเต็ม กรุณาโหลดใหม่ก่อนแก้ไข');await recordTeamPageActivity(actor,account.id,pageId,'แก้ไขลิงก์หรือรูปภาพ');return {id:linkId,...link};
@@ -277,8 +364,9 @@ export async function publishPage(request:Request,id:string):Promise<PageEditorD
   const actor=await requireAccount(request);sameOrigin(request);const {page,owner:account}=await pageContext(actor,id,'publish'),data=await body(request,true);keys(data,['revision']);clientRevision(data.revision,page);
   if(await db().prepare('SELECT page_id FROM hub_page_controls WHERE page_id=? AND suspended=1').bind(id).first())throw new HubError(403,'ฮับนี้ถูกพักการเผยแพร่โดยผู้ดูแล กรุณาติดต่อผู้ดูแลก่อนเผยแพร่อีกครั้ง',{code:'hub_suspended'});
   const profile=profileOf(page,account.plan),links=(await linksFor(id,false)).filter(l=>l.enabled);
-  if(!links.some(l=>l.type==='link'))throw new HubError(400,'เพิ่มลิงก์ที่เปิดใช้งานอย่างน้อย 1 รายการก่อนเผยแพร่');
-  for(const link of links)if(link.type==='link'){validateUrl(link.url);await validateLinkIcon(link.icon,account,id,actor.id);}
+  if(!links.some(l=>l.type!=='heading'))throw new HubError(400,'เพิ่มเนื้อหาที่เปิดใช้งานอย่างน้อย 1 รายการก่อนเผยแพร่');
+  for(const link of links){const {id:_id,...payload}=link;await validateLink(payload,account,link,id,actor.id);}
+  if(profile.shareImageUrl)await validateUploadedImage(profile.shareImageUrl,account,id,actor.id,'ภาพปกเวลาแชร์');
   const snapshot:Snapshot={profile,links,revision:page.revision},now=Date.now();
   const result=await db().prepare('UPDATE hub_pages SET snapshot_json=?,published=1,published_revision=?,published_at=?,updated_at=? WHERE id=? AND account_id=? AND archived=0 AND revision=? AND NOT EXISTS(SELECT 1 FROM hub_page_controls c WHERE c.page_id=hub_pages.id AND c.suspended=1) AND '+teamWriteGuard('hub_pages','publish')).bind(JSON.stringify(snapshot),page.revision,now,now,id,account.id,page.revision,actor.id,actor.id).run();
   if(!result.meta.changes)throw new HubError(409,'ร่างหรือสิทธิ์เปลี่ยนไประหว่างเผยแพร่ กรุณาโหลดใหม่');await recordTeamPageActivity(actor,account.id,id,'เผยแพร่ฮับ');return editorData(actor,await ownPage(account,id));
@@ -327,7 +415,7 @@ export async function recordView(request:Request):Promise<void>{
   const source=data.source===undefined?undefined:text(data.source,'แหล่งที่มา',160),page=await publicPage(data.pageId,true);await recordEvent(request,page,'view',data.id,null,source);
 }
 export async function goToLink(request:Request,slug:string,linkId:string):Promise<Response>{
-  const page=await publicPage(slug),snapshot=snapshotOf(page),link=snapshot.links.find(l=>l.id===linkId&&l.type==='link'&&l.enabled&&!l.archived);
+  const page=await publicPage(slug),snapshot=snapshotOf(page),link=snapshot.links.find(l=>l.id===linkId&&hasBlockAction(l)&&l.enabled&&!l.archived);
   if(!link)throw new HubError(404,'ไม่พบลิงก์นี้ในหน้าที่เผยแพร่');const target=validateUrl(link.url);
   try{await recordEvent(request,page,'click',crypto.randomUUID(),link.id);}catch(error){console.error('HUB click recording failed',error instanceof Error?error.message:'Unknown error');}
   return new Response(null,{status:302,headers:{Location:target,'Cache-Control':'no-store, max-age=0','Referrer-Policy':'strict-origin-when-cross-origin','X-Robots-Tag':'noindex, nofollow'}});
@@ -342,16 +430,16 @@ export async function analytics(request:Request,pageId:string):Promise<Analytics
   const requestedLink=params.get('linkId');let selected:LinkRow|null=null;
   if(requestedLink!==null){
     if(!UUID.test(requestedLink)||params.getAll('linkId').length!==1)throw new HubError(400,'ลิงก์ที่เลือกไม่ถูกต้อง');
-    selected=await db().prepare("SELECT l.* FROM hub_links l WHERE l.id=? AND l.page_id=? AND (l.type='link' OR EXISTS(SELECT 1 FROM hub_events e WHERE e.link_id=l.id AND e.page_id=l.page_id AND e.type='click'))").bind(requestedLink,pageId).first<LinkRow>();
+    selected=await db().prepare("SELECT l.* FROM hub_links l WHERE l.id=? AND l.page_id=? AND ((l.type IN ('link','image','gallery','service') AND l.url<>'') OR EXISTS(SELECT 1 FROM hub_events e WHERE e.link_id=l.id AND e.page_id=l.page_id AND e.type='click'))").bind(requestedLink,pageId).first<LinkRow>();
     if(!selected)throw new HubError(404,'ไม่พบลิงก์นี้ในฮับของคุณ');
   }
   const [totals,ranking,daily,devices,sources,active]=await Promise.all([
     db().prepare('SELECT type,COUNT(*) AS n FROM hub_events WHERE page_id=? AND created_at>=? AND created_at<=? GROUP BY type').bind(pageId,start,now).all<{type:string;n:number}>(),
-    db().prepare("SELECT l.id,l.title,l.url,l.icon,l.enabled,l.archived,COUNT(e.id) AS clicks FROM hub_links l LEFT JOIN hub_events e ON e.link_id=l.id AND e.page_id=l.page_id AND e.type='click' AND e.created_at>=? AND e.created_at<=? WHERE l.page_id=? AND (l.type='link' OR EXISTS(SELECT 1 FROM hub_events old WHERE old.link_id=l.id AND old.page_id=l.page_id AND old.type='click')) GROUP BY l.id ORDER BY clicks DESC,l.sort_order,l.id").bind(start,now,pageId).all<{id:string;title:string;url:string;icon:string;enabled:number;archived:number;clicks:number}>(),
+    db().prepare("SELECT l.id,l.title,l.url,l.icon,l.enabled,l.archived,COUNT(e.id) AS clicks FROM hub_links l LEFT JOIN hub_events e ON e.link_id=l.id AND e.page_id=l.page_id AND e.type='click' AND e.created_at>=? AND e.created_at<=? WHERE l.page_id=? AND ((l.type IN ('link','image','gallery','service') AND l.url<>'') OR EXISTS(SELECT 1 FROM hub_events old WHERE old.link_id=l.id AND old.page_id=l.page_id AND old.type='click')) GROUP BY l.id ORDER BY clicks DESC,l.sort_order,l.id").bind(start,now,pageId).all<{id:string;title:string;url:string;icon:string;enabled:number;archived:number;clicks:number}>(),
     db().prepare("SELECT date(created_at/1000,'unixepoch','+7 hours') AS date,SUM(CASE WHEN type='click' THEN 1 ELSE 0 END) AS clicks,SUM(CASE WHEN type='view' THEN 1 ELSE 0 END) AS views FROM hub_events WHERE page_id=? AND created_at>=? AND created_at<=? GROUP BY date ORDER BY date").bind(pageId,start,now).all<{date:string;clicks:number;views:number}>(),
     db().prepare("SELECT device AS name,COUNT(*) AS count FROM hub_events WHERE page_id=? AND type='click' AND created_at>=? AND created_at<=? GROUP BY device ORDER BY count DESC").bind(pageId,start,now).all<{name:string;count:number}>(),
     db().prepare("SELECT source AS name,COUNT(*) AS count FROM hub_events WHERE page_id=? AND type='view' AND created_at>=? AND created_at<=? GROUP BY source ORDER BY count DESC").bind(pageId,start,now).all<{name:string;count:number}>(),
-    db().prepare("SELECT COUNT(*) AS n FROM hub_links WHERE page_id=? AND archived=0 AND enabled=1 AND type='link'").bind(pageId).first<{n:number}>(),
+    db().prepare("SELECT COUNT(*) AS n FROM hub_links WHERE page_id=? AND archived=0 AND enabled=1 AND type IN ('link','image','gallery','service') AND url<>''").bind(pageId).first<{n:number}>(),
   ]);
   const totalClicks=totals.results.find(t=>t.type==='click')?.n??0,totalViews=totals.results.find(t=>t.type==='view')?.n??0,lookup=new Map(daily.results.map(d=>[d.date,d]));
   const days:AnalyticsData['daily']=[];if(range==='all')days.push(...daily.results);else{const first=new Date(start+25200000).toISOString().slice(0,10),last=new Date(now+25200000).toISOString().slice(0,10);for(let date=first;date<=last;date=new Date(Date.parse(date+'T00:00:00Z')+86400000).toISOString().slice(0,10))days.push(lookup.get(date)??{date,clicks:0,views:0});}
@@ -405,13 +493,21 @@ export async function serveAsset(request:Request,id:string):Promise<Response>{
   const asset=await db().prepare('SELECT * FROM hub_assets WHERE id=?').bind(id).first<AssetRow>();if(!asset||!env.BUCKET)throw new HubError(404,'ไม่พบรูปภาพ');
   const user=identity(request);let allowed=false;
   if(user)allowed=!!await db().prepare('SELECT id FROM hub_accounts WHERE id=? AND user_id=?').bind(asset.account_id,user.userId).first();
-  if(!allowed&&user){const candidate=await db().prepare("SELECT p.id,a.id AS actor_id FROM hub_accounts a JOIN hub_team_members m ON m.account_id=a.id JOIN hub_teams t ON t.id=m.team_id JOIN hub_team_pages tp ON tp.team_id=t.id JOIN hub_pages p ON p.id=tp.page_id AND p.account_id=t.owner_account_id WHERE a.user_id=? AND m.status='active' AND t.archived=0 AND p.archived=0 AND p.account_id=? AND (p.id=? OR json_extract(p.profile_json,'$.avatarUrl')=? OR EXISTS(SELECT 1 FROM hub_links l WHERE l.page_id=p.id AND l.icon=?)) LIMIT 1").bind(user.userId,asset.account_id,asset.page_id,'/media/'+id,'image:'+id).first<{id:string;actor_id:string}>();if(candidate)allowed=await assetUsable(id,asset.account_id,candidate.id,candidate.actor_id);}
-  if(!allowed)allowed=!!await db().prepare(`SELECT p.id FROM hub_pages p WHERE p.account_id=? AND p.published=1 AND p.archived=0 AND NOT EXISTS(SELECT 1 FROM hub_page_controls c WHERE c.page_id=p.id AND c.suspended=1) AND (
-    json_extract(p.snapshot_json,'$.profile.avatarUrl')=? OR EXISTS(
-      SELECT 1 FROM json_each(p.snapshot_json,'$.links') l
-      WHERE json_extract(l.value,'$.type')='link' AND json_extract(l.value,'$.enabled')=1
-      AND COALESCE(json_extract(l.value,'$.archived'),0)=0 AND json_extract(l.value,'$.icon')=?
-    )) LIMIT 1`).bind(asset.account_id,'/media/'+id,'image:'+id).first();
+  if(!allowed&&user){
+    const candidate=await db().prepare(`WITH media AS (SELECT ? AS url,? AS icon)
+      SELECT p.id,a.id AS actor_id FROM hub_accounts a
+      JOIN hub_team_members m ON m.account_id=a.id JOIN hub_teams t ON t.id=m.team_id
+      JOIN hub_team_pages tp ON tp.team_id=t.id JOIN hub_pages p ON p.id=tp.page_id AND p.account_id=t.owner_account_id
+      CROSS JOIN media
+      WHERE a.user_id=? AND m.status='active' AND t.archived=0 AND p.archived=0 AND p.account_id=?
+      AND (p.id=? OR ${DRAFT_MEDIA_REFERENCE} OR ${PUBLISHED_MEDIA_REFERENCE}) LIMIT 1`)
+      .bind('/media/'+id,'image:'+id,user.userId,asset.account_id,asset.page_id).first<{id:string;actor_id:string}>();
+    if(candidate)allowed=await assetUsable(id,asset.account_id,candidate.id,candidate.actor_id);
+  }
+  if(!allowed)allowed=!!await db().prepare(`WITH media AS (SELECT ? AS url,? AS icon)
+    SELECT p.id FROM hub_pages p CROSS JOIN media WHERE p.account_id=? AND p.published=1 AND p.archived=0
+      AND NOT EXISTS(SELECT 1 FROM hub_page_controls c WHERE c.page_id=p.id AND c.suspended=1)
+      AND ${PUBLISHED_MEDIA_REFERENCE} LIMIT 1`).bind('/media/'+id,'image:'+id,asset.account_id).first();
   if(!allowed)throw new HubError(404,'ไม่พบรูปภาพ');const object=await env.BUCKET.get(asset.storage_key);if(!object)throw new HubError(404,'ไม่พบรูปภาพ');
   return new Response(request.method==='HEAD'?null:object.body,{headers:{'Content-Type':asset.mime_type,'Content-Length':String(object.size),'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Content-Disposition':'inline; filename="image.'+(asset.mime_type==='image/jpeg'?'jpg':asset.mime_type==='image/png'?'png':'webp')+'"'}});
 }
