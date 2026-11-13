@@ -117,7 +117,7 @@ const PUBLISHED_MEDIA_REFERENCE=`(
   OR EXISTS(SELECT 1 FROM json_each(p.snapshot_json,'$.links') l
     WHERE json_extract(l.value,'$.enabled')=1 AND COALESCE(json_extract(l.value,'$.archived'),0)=0 AND (
       (json_extract(l.value,'$.type')='link' AND json_extract(l.value,'$.icon')=media.icon)
-      OR (json_extract(l.value,'$.type') IN ('image','service') AND (json_extract(l.value,'$.content.imageUrl')=media.url OR EXISTS (SELECT 1 FROM json_each(l.value,'$.content.images') image WHERE json_extract(image.value,'$.url')=media.url)))
+      OR (json_extract(l.value,'$.type') IN ('image','service') AND json_extract(l.value,'$.content.imageUrl')=media.url)
       OR (json_extract(l.value,'$.type')='gallery' AND EXISTS(
         SELECT 1 FROM json_each(l.value,'$.content.images') image WHERE json_extract(image.value,'$.url')=media.url
       ))
@@ -272,7 +272,7 @@ async function validateBlockContent(value:unknown,type:HubLink['type'],title:str
   const input=value as Record<string,unknown>;
   const allowed=type==='gallery'?['images','galleryLayout','aspectRatio','fit','buttonLabel']
     :type==='image'?['imageUrl','alt','aspectRatio','fit','buttonLabel']
-    :type==='service'?['imageUrl','alt','images','aspectRatio','fit','buttonLabel','price']:[];
+    :type==='service'?['imageUrl','alt','aspectRatio','fit','buttonLabel','price']:[];
   keys(input,allowed);
   if(!['image','gallery','service'].includes(type))return undefined;
   const content:HubBlockContent={};
@@ -280,21 +280,6 @@ async function validateBlockContent(value:unknown,type:HubLink['type'],title:str
     const url=await validateUploadedImage(input.imageUrl??'',account,pageId,actorId,'รูปภาพ',type==='image');
     if(url)content.imageUrl=url;
     content.alt=contentText(input.alt??title,'คำอธิบายรูป',240)||title;
-  }
-  if(type==='service'&&input.images!==undefined){
-    if(!Array.isArray(input.images)||input.images.length>6)throw new HubError(400,'เพิ่มรูปสินค้าได้สูงสุด 6 รูปเพิ่มเติม');
-    content.images=[];
-    for(const entry of input.images){
-      if(!entry||typeof entry!=='object'||Array.isArray(entry))throw new HubError(400,'รูปสินค้าไม่ถูกต้อง');
-      const image=entry as Record<string,unknown>;
-      keys(image,['url','alt','caption']);
-      const url=await validateUploadedImage(image.url,account,pageId,actorId,'รูปเพิ่มเติมของสินค้า');
-      const alt=contentText(image.alt??title,'คำอธิบายรูป',240)||title;
-      const caption=contentText(image.caption??'','คำบรรยายรูป',300);
-      content.images.push({url,alt,...(caption?{caption}:{})});
-    }
-    const all=[content.imageUrl,...content.images.map(image=>image.url)].filter(Boolean);
-    if(new Set(all).size!==all.length)throw new HubError(400,'มีรูปสินค้าซ้ำ กรุณาเลือกรูปอื่น');
   }
   if(type==='gallery'){
     if(!Array.isArray(input.images)||input.images.length<1||input.images.length>HUB_GALLERY_LIMIT)throw new HubError(400,`เพิ่มรูปในแกลเลอรี 1–${HUB_GALLERY_LIMIT} รูป`);
