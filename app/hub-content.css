@@ -143,19 +143,3 @@
 .hc .hc-card-arrows button:focus-visible,.hc .hc-card-dots button:focus-visible,.hc .hc-card-rail:focus-visible{outline:2px solid var(--hc-accent);outline-offset:3px}
 @media(max-width:450px){.hc .hc-card-slide{flex-basis:87%}.hc .hc-card-rail{gap:12px}}
 @media(prefers-reduced-motion:reduce){.hc .hc-card-rail{scroll-behavior:auto}}
-
-/* Product photos scroll inside one service card; separate products stack normally. */
-.hc .hcb-product-photos{position:relative;min-width:0}
-.hc .hcb-product-photo-track{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;scrollbar-width:none;touch-action:pan-x pan-y}
-.hc .hcb-product-photo-track::-webkit-scrollbar{display:none}
-.hc .hcb-product-photo{flex:0 0 100%;min-width:0;scroll-snap-align:start;scroll-snap-stop:always}
-.hc .hcb-product-photo>a{display:block}
-.hc .hcb-product-photo-count{position:absolute;top:11px;right:12px;background:#142d35b8;color:white;border-radius:99px;padding:4px 10px;font-size:11px;line-height:1.6;pointer-events:none}
-.hc .hcb-product-photo-prev,.hc .hcb-product-photo-next{position:absolute;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:36px;height:36px;border:1px solid #ffffff70;border-radius:50%;background:#fffdf9ea;color:#20373c;box-shadow:0 2px 10px #142c3220;cursor:pointer}
-.hc .hcb-product-photo-prev{left:10px}.hc .hcb-product-photo-next{right:10px}
-.hc .hcb-product-photo-prev:disabled,.hc .hcb-product-photo-next:disabled{opacity:.3;cursor:default}
-.hc .hcb-product-photo-dots{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:6px;background:#142d3570;padding:7px 9px;border-radius:99px}
-.hc .hcb-product-photo-dots button{width:6px;height:6px;border:0;border-radius:99px;background:#ffffff82;padding:0;cursor:pointer}
-.hc .hcb-product-photo-dots button[aria-current=true]{width:17px;background:white}
-.hc .hcb-product-photos button:focus-visible{outline:3px solid var(--hc-accent);outline-offset:3px}
-@media(max-width:450px){.hc .hcb-product-photo-prev,.hc .hcb-product-photo-next{width:31px;height:31px}}
