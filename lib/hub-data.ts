@@ -2,6 +2,7 @@ import {resolveHubPageAccess,teamWriteGuard,recordTeamPageActivity,isHubEditorId
 import type {PageAccess} from './hub-team-types';
 import {getAuthConfiguration} from './hub-auth';
 import {imageAssetId} from './hub-link-media';
+import {applyHubTheme,getHubTheme} from './hub-themes';
 import {expireBillingEntitlement, hasAnalyticsEntitlement} from './hub-billing-entitlements';
 import {env} from 'cloudflare:workers';
 import type {AnalyticsData,AnalyticsRange,HubAccount,HubLink,HubPlan,HubProfile,HubTemplate,OperatorData,PageEditorData,PageSummary,PlanLimits,PublicHubData,WorkspaceData} from './hub-types';
@@ -173,7 +174,11 @@ async function validateAvatar(value:unknown,account:AccountRow,pageId?:string,ac
 }
 async function validateProfile(input:unknown,current:HubProfile,account:AccountRow,pageId?:string,actorId?:string):Promise<HubProfile>{
   if(!input||typeof input!=='object'||Array.isArray(input))throw new HubError(400,'ข้อมูลโปรไฟล์ไม่ถูกต้อง');const data=input as Record<string,unknown>;
-  keys(data,['name','handle','tagline','bio','avatarUrl','accent','theme','layout','background','showBranding']);const profile={...current};
+  keys(data,['name','handle','tagline','bio','avatarUrl','accent','themeId','theme','layout','background','showBranding']);let profile={...current};
+  if('themeId'in data){
+    if(typeof data.themeId!=='string'||data.themeId!=='custom'&&!getHubTheme(data.themeId))throw new HubError(400,'ไม่พบธีมนี้ กรุณาเลือกธีมจากคลัง');
+    profile=data.themeId==='custom'?{...profile,themeId:'custom'}:applyHubTheme(profile,data.themeId);
+  }
   for(const field of ['name','handle','tagline','bio'] as const)if(field in data)profile[field]=text(data[field],field==='name'?'ชื่อหน้า':'ข้อความ',field==='bio'?280:field==='tagline'?120:80,field==='name');
   if('avatarUrl'in data)profile.avatarUrl=await validateAvatar(data.avatarUrl,account,pageId,actorId);
   if('accent'in data){if(typeof data.accent!=='string'||!/^#[0-9a-f]{6}$/i.test(data.accent))throw new HubError(400,'รหัสสีต้องเป็น #RRGGBB');profile.accent=data.accent;}

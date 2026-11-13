@@ -196,7 +196,7 @@ Archiving a block changes the draft while preserving the existing public snapsho
 | --- | --- | --- |
 | Unarchived pages per account | 1 | 10 |
 | Unarchived blocks per page | 5 | 100 |
-| Layouts, profile styling, avatar, link icons/images | Included | Included |
+| 24 ready-made themes, layouts, profile styling, avatar, link icons/images | Included | Included |
 | Analytics, rankings, source/device breakdown, and CSV | Locked; events are still collected | Included |
 | Daily LINE analytics report | Locked | Included with LINE setup, friendship, and opt-in |
 | Hide NAKNA HUB footer branding | No | Yes |
@@ -244,3 +244,9 @@ The old screenshot reference `docs/nakna-hub-homepage.jpg` is absent from this r
 - [LINE Messaging API retries](https://developers.line.biz/en/docs/messaging-api/retrying-api-request/)
 - [LINE webhook signatures](https://developers.line.biz/en/docs/messaging-api/verify-webhook-signature/)
 - [LINE Messaging API pricing](https://developers.line.biz/en/docs/messaging-api/pricing/)
+
+### Ready-made theme collection
+
+The Studio Design tab offers 24 original presets across glass, minimal, bold, elegant, playful, and nature collections. Selecting a preset previews its complete palette, surfaces, borders, layout, and decoration with the customer’s own content. Save creates a draft; publishing uses the existing snapshot workflow. Theme selection preserves identity, uploaded media, links, and branding entitlement.
+
+Presets live in `lib/hub-themes.ts`. The optional validated `profile.themeId` is stored in the existing profile/snapshot JSON, so no migration is required. Missing or `custom` IDs retain the previous appearance. Both the public hub and Studio preview use the same renderer; palette-only card thumbnails never load analytics. Advanced background or light/dark changes switch back to custom, while accent and layout can refine a preset. All decorative artwork is authored CSS with no third-party wallpapers, logos, or image dependencies.

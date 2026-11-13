@@ -4,6 +4,8 @@ import {ArrowUpRight,ArrowRight,MoveUpRight,Sparkles} from 'lucide-react';
 import type {HubProfile,HubLink} from '../../lib/hub-types';
 import {HubBrand} from './ui';
 import {HubLinkIcon} from './HubLinkIcon';
+import {getHubTheme,getHubThemeCssVars} from '../../lib/hub-themes';
+import '../hub-themes.css';
 
 export function HubCanvas({profile,links,slug='',preview=false,compact=false,onDemoClick}:{profile:HubProfile;links:HubLink[];slug?:string;preview?:boolean;compact?:boolean;onDemoClick?:(title:string)=>void}){
  const [source,setSource]=useState('');
@@ -11,12 +13,17 @@ export function HubCanvas({profile,links,slug='',preview=false,compact=false,onD
  useEffect(()=>setImageFailed(false),[profile.avatarUrl]);
  useEffect(()=>{if(preview)return;let ref='';try{const r=new URL(document.referrer);if(r.origin!==location.origin)ref=r.hostname;}catch{}setSource((new URLSearchParams(location.search).get('utm_source')||ref).slice(0,100));},[preview]);
  const visible=links.filter(l=>l.enabled&&!l.archived).sort((a,b)=>a.sortOrder-b.sortOrder);
+ const themePreset=getHubTheme(profile.themeId);
  const accent=profile.accent||'#04878a';
- const rgb=accent.replace('#','');
- const light=(.299*parseInt(rgb.slice(0,2),16)+.587*parseInt(rgb.slice(2,4),16)+.114*parseInt(rgb.slice(4,6),16))>160;
+ const luminance=(color:string)=>{const [r,g,b]=[1,3,5].map(i=>{const c=parseInt(color.slice(i,i+2),16)/255;return c<=.04045?c/12.92:((c+.055)/1.055)**2.4;});return .2126*r+.7152*g+.0722*b;};
+ const accentLuminance=luminance(accent);
+ const darkContrast=(accentLuminance+.05)/(luminance('#173536')+.05);
+ const whiteContrast=1.05/(accentLuminance+.05);
+ const accentInk=darkContrast>=whiteContrast?'#173536':'#ffffff';
  const initials=[...profile.name.trim()].slice(0,2).join('')||'N';
  const href=(l:HubLink)=>preview?l.url:`/go/${encodeURIComponent(slug)}/${encodeURIComponent(l.id)}${source?'?src='+encodeURIComponent(source):''}`;
- return <div className={`hc hc-${profile.layout} hc-bg-${profile.background} hc-${profile.theme} ${compact?'hc-compact':''}`} style={{'--hc-accent':accent,'--hc-accent-ink':light?'#173536':'#ffffff'} as CSSProperties}>
+ return <div className={`hc hc-${profile.layout} hc-bg-${profile.background} hc-${profile.theme} ${compact?'hc-compact':''} ${themePreset?`hc-themed hc-style-${themePreset.style}`:''}`} data-theme={themePreset?.id} style={{...getHubThemeCssVars(profile),'--hc-accent':accent,'--hc-accent-ink':accentInk} as CSSProperties}>
+   {themePreset&&<div className="hc-theme-art" aria-hidden="true"><i/><i/><i/></div>}
    <div className="hc-inner"><section className="hc-profile">
      <div className="hc-topline"><span>{profile.handle?(profile.handle.startsWith('@')?profile.handle:'@'+profile.handle):slug?'@'+slug:'YOUR OWN SPACE'}</span><span className="hc-orbit" aria-hidden="true"><i/><i/><i/></span></div>
      <div className="hc-profile-main"><div className="hc-avatar">{profile.avatarUrl&&!imageFailed?<img src={profile.avatarUrl} alt={profile.name} onError={()=>setImageFailed(true)}/>:<span>{initials}</span>}</div><div className="hc-identity-copy">{profile.tagline&&<p className="hc-tagline">{profile.tagline}</p>}<h1>{profile.name||'ชื่อของคุณ'}</h1>{profile.bio&&<p className="hc-bio">{profile.bio}</p>}</div></div>

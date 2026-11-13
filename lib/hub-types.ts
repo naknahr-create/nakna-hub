@@ -9,6 +9,8 @@ export type HubProfile = {
   bio: string;
   avatarUrl: string;
   accent: string;
+  /** A ready-made design, or `custom`/absent for the original appearance controls. */
+  themeId?: string;
   theme: 'light' | 'dark';
   layout: 'stack' | 'grid' | 'editorial';
   background: 'sand' | 'mint' | 'lavender' | 'ink';

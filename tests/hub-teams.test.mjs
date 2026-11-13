@@ -38,6 +38,7 @@ const {authenticateHubRequest} = await import('../lib/hub-auth.ts');
 const hub = await import('../lib/hub-data.ts');
 const teams = await import('../lib/hub-teams.ts');
 const {getBillingStatus} = await import('../lib/hub-billing.ts');
+const {HUB_THEMES} = await import('../lib/hub-themes.ts');
 const ORIGIN = 'https://hub.example.com', CHANNEL = '1234567890';
 const ACTORS = ['a', 'b', 'c', 'd'];
 const identity = actor => `line:${CHANNEL}:U${actor.repeat(32)}`;
@@ -491,4 +492,90 @@ test('shared editors use the hub owner limit regardless of the editor own paid p
   assert.equal((await readPage(p.page.id, 'b')).access.plan, 'pro');
   assert.equal((await readPage(p.page.id, 'b')).links.filter(item => !item.archived).length, 6);
   assert.equal((await workspace('a')).limits.maxLinksPerPage, 100);
+});
+
+test('ready-made theme persists as a draft, preserves content and media, and reaches the public hub only on publish', async () => {
+  setup(); const p = await page(), id = p.page.id;
+  const asset = await upload(id);
+  const originalLink = await link(id, {title: 'My original link', icon: 'image:' + asset.url.slice(7)});
+  const save = async profile => hub.updatePage(await request('/api/pages/' + id,
+    {method: 'PATCH', body: {profile, revision: await revision(id)}}), id);
+  await save({name: 'My brand', handle: '@my-brand', bio: 'My own introduction', avatarUrl: asset.url});
+  await publish(id);
+  const publicHub = () => request('/api/hubs/' + p.page.slug, {actor: null}).then(r => hub.getPublicHub(r, p.page.slug));
+  const legacy = await publicHub();
+  assert.equal(legacy.profile.themeId, undefined, 'legacy profiles do not receive a new style implicitly');
+  const preset = HUB_THEMES.find(theme => theme.category === 'glass');
+  assert.ok(preset);
+  const saved = await save({themeId: preset.id});
+  const expected = {...legacy.profile, themeId: preset.id, ...preset.profile};
+  assert.deepEqual(saved.profile, expected, 'themeId-only applies the complete design without replacing personal content');
+  assert.deepEqual((await readPage(id)).profile, expected);
+  assert.equal(saved.page.hasUnpublishedChanges, true);
+  assert.deepEqual((await publicHub()).profile, legacy.profile, 'choosing and saving a theme cannot change the published snapshot');
+  await publish(id);
+  const published = await publicHub();
+  assert.deepEqual(published.profile, expected);
+  assert.equal(published.links[0].id, originalLink.id);
+  assert.equal(published.links[0].title, 'My original link');
+  assert.equal(published.links[0].icon, originalLink.icon);
+  assert.equal(published.profile.showBranding, true);
+});
+
+test('theme presets support validated appearance overrides and returning to custom styling', async () => {
+  setup(); const p = await page(), id = p.page.id, preset = HUB_THEMES[0];
+  const save = async profile => hub.updatePage(await request('/api/pages/' + id,
+    {method: 'PATCH', body: {profile, revision: await revision(id)}}), id);
+  const chosen = await save({themeId: preset.id, accent: '#123456', layout: 'grid'});
+  assert.equal(chosen.profile.themeId, preset.id);
+  assert.equal(chosen.profile.accent, '#123456');
+  assert.equal(chosen.profile.layout, 'grid');
+  const edited = await save({bio: 'Only my introduction changed'});
+  assert.equal(edited.profile.themeId, preset.id);
+  assert.equal(edited.profile.accent, '#123456', 'later partial saves do not reset appearance overrides');
+  const custom = await save({themeId: 'custom', theme: 'dark', background: 'ink', accent: '#654321'});
+  assert.equal(custom.profile.themeId, 'custom');
+  assert.equal(custom.profile.theme, 'dark');
+  assert.equal(custom.profile.background, 'ink');
+  assert.equal(custom.profile.accent, '#654321');
+  assert.equal(custom.profile.bio, 'Only my introduction changed');
+  assert.deepEqual((await readPage(id)).profile, custom.profile);
+});
+
+test('unrecognized themes and injected design properties are rejected without changing the stored draft', async () => {
+  setup(); const p = await page(), id = p.page.id, before = await readPage(id);
+  const save = profile => request('/api/pages/' + id,
+    {method: 'PATCH', body: {profile, revision: before.revision}}).then(r => hub.updatePage(r, id));
+  for (const themeId of [null, {}, [], '', 'unknown-theme', 'constructor', '__proto__', 'url(https://evil.example/track)']) {
+    await assert.rejects(save({themeId}), error => error.status === 400);
+  }
+  await assert.rejects(save({themeId: HUB_THEMES[0].id, backgroundImage: 'url(https://evil.example/track)'}), error => error.status === 400);
+  await assert.rejects(save({themeId: HUB_THEMES[0].id, accent: 'url(https://evil.example/track)'}), error => error.status === 400);
+  const after = await readPage(id);
+  assert.deepEqual(after.profile, before.profile);
+  assert.equal(after.revision, before.revision);
+});
+
+test('theme edits respect shared editor permissions and the owner branding entitlement', async () => {
+  const {db, p, a, b, t} = await sharing(), id = p.page.id;
+  const save = async (profile, actor = 'b') => hub.updatePage(await request('/api/pages/' + id,
+    {actor, method: 'PATCH', body: {profile, revision: await revision(id, actor)}}), id);
+  paid(db, b.id);
+  const chosen = await save({themeId: HUB_THEMES[0].id});
+  assert.equal(chosen.profile.themeId, HUB_THEMES[0].id);
+  assert.equal(chosen.access.plan, 'starter');
+  assert.equal(chosen.profile.showBranding, true);
+  await assert.rejects(save({themeId: HUB_THEMES[1].id, showBranding: false}),
+    error => error.status === 403 && error.extra?.code === 'pro_required');
+  assert.equal((await readPage(id)).profile.themeId, HUB_THEMES[0].id);
+  await assert.rejects(publish(id, 'b'), deny);
+  paid(db, a.id);
+  await save({showBranding: false}, 'a');
+  assert.equal((await save({themeId: HUB_THEMES[1].id})).profile.showBranding, false,
+    'switching designs preserves branding removal already authorized by the owner plan');
+  const member = await memberId(t.id);
+  await teams.updateTeamMember(await request('/api/teams/' + t.id + '/members/' + member,
+    {method: 'PATCH', body: {action: 'update', role: 'viewer', canPublish: false}}), t.id, member);
+  await assert.rejects(save({themeId: HUB_THEMES[0].id}), deny);
+  assert.equal((await readPage(id)).profile.themeId, HUB_THEMES[1].id);
 });

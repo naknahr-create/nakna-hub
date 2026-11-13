@@ -1,9 +1,10 @@
 'use client';
-import {useCallback,useEffect,useRef,useState} from 'react';
+import {useCallback,useEffect,useRef,useState,type CSSProperties} from 'react';
 import {Share2,Copy,Check,LoaderCircle,ArrowUpRight,ArrowLeft,Link2,X,ShieldCheck,Info} from 'lucide-react';
 import type {PublicHubData} from '../../lib/hub-types';
 import {HubCanvas} from './HubCanvas';
 import {HubBrand} from './ui';
+import {getHubTheme,getHubThemeCssVars} from '../../lib/hub-themes';
 export default function PublicHub({slug,initialData}:{slug:string;initialData?:PublicHubData}){
  const [data,setData]=useState<PublicHubData|null>(initialData??null),[error,setError]=useState(''),[loading,setLoading]=useState(!initialData),[shareOpen,setShareOpen]=useState(false),[copied,setCopied]=useState(false),[privacy,setPrivacy]=useState(false),[pageUrl,setPageUrl]=useState('');
  const eventId=useRef(''),eventSent=useRef(false),input=useRef<HTMLInputElement>(null),dialog=useRef<HTMLDivElement>(null);
@@ -15,7 +16,8 @@ export default function PublicHub({slug,initialData}:{slug:string;initialData?:P
  async function share(){if(navigator.share)try{await navigator.share({title:data?.profile.name||'นากนะ HUB',url:pageUrl});return;}catch(e){if((e as Error).name==='AbortError')return;}setCopied(false);setShareOpen(true);}
  if(loading)return <div className="hub-state-page"><HubBrand/><LoaderCircle className="hub-spin" size={24}/><p>กำลังเปิดฮับ…</p></div>;
  if(error||!data)return <div className="hub-state-page"><a href="/"><HubBrand/></a><div className="hub-state-card"><span className="hub-state-icon"><Link2 size={30}/></span><h1>ยังเปิดฮับนี้ไม่ได้</h1><p>{error}</p><button className="hub-btn hub-btn-primary" onClick={load}>ลองอีกครั้ง</button><a href="/" className="hub-text-link"><ArrowLeft size={16}/>กลับหน้านากนะ HUB</a></div></div>;
- return <div className={`hub-public hp-${data.profile.background} hp-${data.profile.theme}`}>
+ const themePreset=getHubTheme(data.profile.themeId);
+ return <div className={`hub-public hp-${data.profile.background} hp-${data.profile.theme} ${themePreset?`hp-themed hp-style-${themePreset.style}`:''}`} data-theme={themePreset?.id} style={themePreset?{...getHubThemeCssVars(data.profile),'--hc-accent':data.profile.accent} as CSSProperties:undefined}>
    <a href="#your-hub" className="hub-skip">ข้ามไปที่ลิงก์</a><div className="hub-public-actions">{data.isOwner&&<a href={'/studio?page='+encodeURIComponent(data.pageId)} className="hub-public-owner">จัดการฮับ<ArrowUpRight size={15}/></a>}<button aria-label="แชร์หน้านี้" onClick={share}><Share2 size={19}/></button></div>
    {data.isOwner&&<aside className="hub-owner-notice" aria-label="หมายเหตุสำหรับเจ้าของฮับ"><Info size={19} aria-hidden="true"/><div><strong>คุณกำลังดูฮับของตัวเอง</strong><p>การเข้าชมและคลิกจากบัญชีเจ้าของจะไม่นับในสถิติ</p><details><summary>วิธีทดสอบสถิติ</summary><p>คัดลอกลิงก์ฮับ แล้วเปิดในหน้าต่างไม่ระบุตัวตนที่ไม่ได้เข้าสู่ระบบ จากนั้นคลิกลิงก์และกลับมารีเฟรชสถิติ</p></details></div></aside>}
    <main id="your-hub"><HubCanvas profile={data.profile} links={data.links} slug={data.slug}/></main><div className="hub-public-privacy"><button onClick={()=>setPrivacy(true)}>เกี่ยวกับความเป็นส่วนตัว</button></div>
