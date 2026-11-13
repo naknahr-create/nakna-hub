@@ -39,7 +39,6 @@ export function HubCardCarousel({blocks,href,onDemoClick}:{blocks:HubLink[];href
     <span className="hc-card-floating-count" aria-live="polite">{current+1} / {blocks.length}</span>
     <button className="hc-card-float-arrow hc-card-float-prev" type="button" aria-label="สินค้าก่อนหน้า" aria-controls={railId} disabled={current===0} onClick={()=>move(current-1)}><ChevronLeft size={19}/></button>
     <button className="hc-card-float-arrow hc-card-float-next" type="button" aria-label="สินค้าถัดไป" aria-controls={railId} disabled={current===blocks.length-1} onClick={()=>move(current+1)}><ChevronRight size={19}/></button>
-    <div className="hc-card-minimal-dots" aria-label="เลือกสินค้า">{blocks.map((block,index)=><button key={block.id} type="button" aria-label={`ดูสินค้า ${index+1}: ${block.title}`} aria-current={index===current?'true':undefined} onClick={()=>move(index)}/>)}</div>
   </>}
  </div>;
 }
