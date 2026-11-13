@@ -13,3 +13,10 @@
 .hce-product-image-row>div{display:flex;gap:4px}
 .hs-shell .hce-product-image-row button{height:34px;width:34px;display:grid;place-items:center;border:1px solid #dce7e9;border-radius:7px;background:white}
 .hs-shell .hce-product-image-row button:disabled{opacity:.35}
+
+/* Dedicated action appears inside each existing product editor. */
+.hs-shell .hs-add-next-product{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;min-height:46px;margin-top:18px;padding:12px;border:1px dashed #72aeb0;border-radius:10px;background:#f1faf9;color:#066e72;font-size:14px;font-weight:600;cursor:pointer}
+.hs-shell .hs-add-next-product:hover:not(:disabled){background:#e2f5f3;border-style:solid}
+.hs-shell .hs-add-next-product:disabled{opacity:.45;cursor:default}
+.hs-shell .hs-add-next-product:focus-visible{outline:3px solid #04878a;outline-offset:3px}
+.hs-shell .hs-inline-product-form{margin:12px 0 20px;border:1px solid #81b9b9;box-shadow:0 5px 18px #17343b09}
