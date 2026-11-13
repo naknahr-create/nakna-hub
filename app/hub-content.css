@@ -143,3 +143,20 @@
 .hc .hc-card-arrows button:focus-visible,.hc .hc-card-dots button:focus-visible,.hc .hc-card-rail:focus-visible{outline:2px solid var(--hc-accent);outline-offset:3px}
 @media(max-width:450px){.hc .hc-card-slide{flex-basis:87%}.hc .hc-card-rail{gap:12px}}
 @media(prefers-reduced-motion:reduce){.hc .hc-card-rail{scroll-behavior:auto}}
+
+
+/* Refined single-card carousel: controls float on the image, never under the card. */
+.hc .hc-card-carousel{position:relative;isolation:isolate}
+.hc .hc-card-rail{gap:0;padding:0;scroll-padding-inline:0}
+.hc .hc-card-slide,.hc .hc-card-slide:only-child{flex:0 0 100%;max-width:100%;width:100%}
+.hc .hc-card-floating-count{position:absolute;top:13px;right:14px;z-index:4;display:inline-flex;align-items:center;justify-content:center;min-width:39px;padding:4px 9px;border:1px solid #ffffff7a;border-radius:99px;background:#142d3578;color:#fff;font-size:11px;line-height:1.45;font-variant-numeric:tabular-nums;pointer-events:none;backdrop-filter:blur(8px)}
+.hc .hc-card-float-arrow{position:absolute;z-index:4;top:clamp(86px,19%,165px);display:grid;place-items:center;width:34px;height:34px;border:1px solid #ffffffbd;border-radius:50%;background:#ffffffde;color:#24383f;box-shadow:0 2px 9px #142c3221;cursor:pointer;transition:background .18s ease,opacity .18s ease}
+.hc .hc-card-float-prev{left:10px}.hc .hc-card-float-next{right:10px}
+.hc .hc-card-float-arrow:hover:not(:disabled){background:#fff}
+.hc .hc-card-float-arrow:disabled{opacity:0;pointer-events:none}
+.hc .hc-card-minimal-dots{position:absolute;z-index:4;top:clamp(165px,34%,290px);left:50%;transform:translateX(-50%);display:flex;align-items:center;justify-content:center;gap:5px;padding:6px 9px;border-radius:99px;background:#142d355f;backdrop-filter:blur(5px)}
+.hc .hc-card-minimal-dots button{width:6px;height:6px;padding:0;border:0;border-radius:99px;background:#ffffff85;cursor:pointer}
+.hc .hc-card-minimal-dots button[aria-current=true]{width:15px;background:white}
+.hc .hc-card-float-arrow:focus-visible,.hc .hc-card-minimal-dots button:focus-visible{outline:3px solid var(--hc-accent);outline-offset:3px}
+@media(max-width:450px){.hc .hc-card-slide,.hc .hc-card-slide:only-child{flex-basis:100%}.hc .hc-card-float-arrow{width:30px;height:30px;top:clamp(55px,18%,110px)}.hc .hc-card-minimal-dots{top:clamp(110px,32%,210px)}.hc .hc-card-floating-count{top:10px;right:10px}}
+@media(prefers-reduced-motion:reduce){.hc .hc-card-float-arrow{transition:none}}

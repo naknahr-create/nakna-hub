@@ -29,10 +29,16 @@ export function HubCardCarousel({blocks,href,onDemoClick}:{blocks:HubLink[];href
   });
   setCurrent(closest);
  }
- return <div className="hc-card-carousel" aria-label="การ์ดสินค้าและบริการ">
-  <div className="hc-card-rail" id={railId} ref={rail} onScroll={update} tabIndex={blocks.length>1?0:undefined} aria-label="ปัดซ้ายหรือขวาเพื่อดูการ์ดเพิ่มเติม">
-   {blocks.map(block=><div className="hc-card-slide" key={block.id}><HubContentBlock block={block} href={href(block)} onDemoClick={onDemoClick}/></div>)}
+ return <div className="hc-card-carousel" aria-label="สินค้าและบริการ">
+  <div className="hc-card-rail" id={railId} ref={rail} onScroll={update}
+       onKeyDown={event=>{if(event.key==='ArrowRight'){event.preventDefault();move(current+1);}else if(event.key==='ArrowLeft'){event.preventDefault();move(current-1);}}}
+       tabIndex={blocks.length>1?0:undefined} aria-roledescription="carousel" aria-label="ปัดซ้ายหรือขวาเพื่อดูสินค้าถัดไป">
+   {blocks.map((block,index)=><div className="hc-card-slide" role="group" aria-roledescription="slide" aria-label={`สินค้า ${index+1} จาก ${blocks.length}: ${block.title}`} key={block.id}><HubContentBlock block={block} href={href(block)} onDemoClick={onDemoClick}/></div>)}
   </div>
-  {blocks.length>1&&<div className="hc-card-navigation"><span className="hc-card-counter" aria-live="polite">{current+1} / {blocks.length}</span><div className="hc-card-dots" aria-label="เลือกการ์ด">{blocks.map((block,index)=><button key={block.id} type="button" aria-label={`ไปการ์ดที่ ${index+1}`} aria-current={index===current?'true':undefined} onClick={()=>move(index)}/>)}</div><div className="hc-card-arrows"><button type="button" aria-label="การ์ดก่อนหน้า" aria-controls={railId} disabled={current===0} onClick={()=>move(current-1)}><ChevronLeft size={19}/></button><button type="button" aria-label="การ์ดถัดไป" aria-controls={railId} disabled={current===blocks.length-1} onClick={()=>move(current+1)}><ChevronRight size={19}/></button></div></div>}
+  {blocks.length>1&&<>
+    <span className="hc-card-floating-count" aria-live="polite">{current+1} / {blocks.length}</span>
+    <button className="hc-card-float-arrow hc-card-float-prev" type="button" aria-label="สินค้าก่อนหน้า" aria-controls={railId} disabled={current===0} onClick={()=>move(current-1)}><ChevronLeft size={19}/></button>
+    <button className="hc-card-float-arrow hc-card-float-next" type="button" aria-label="สินค้าถัดไป" aria-controls={railId} disabled={current===blocks.length-1} onClick={()=>move(current+1)}><ChevronRight size={19}/></button>
+  </>}
  </div>;
 }
