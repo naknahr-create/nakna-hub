@@ -89,6 +89,35 @@ function Gallery({images,title,layout}:{images:HubBlockImage[];title:string;layo
   </>;
 }
 
+function ProductPhotos({images,alt,ratio,fit,href,onNavigate}:{images:HubBlockImage[];alt:string;ratio:string;fit:'cover'|'contain';href?:string;onNavigate:(event:MouseEvent<HTMLAnchorElement>)=>void}){
+ const [current,setCurrent]=useState(0);
+ const rail=useRef<HTMLDivElement>(null);
+ const railId=useId();
+ useEffect(()=>{setCurrent(0);rail.current?.scrollTo({left:0});},[images.map(image=>image.url).join('|')]);
+ function move(index:number){
+  const track=rail.current;
+  if(!track)return;
+  const next=Math.max(0,Math.min(images.length-1,index));
+  const child=track.children[next] as HTMLElement;
+  const first=track.children[0] as HTMLElement;
+  if(child)track.scrollTo({left:child.offsetLeft-first.offsetLeft,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+  setCurrent(next);
+ }
+ function sync(){
+  const track=rail.current;if(!track)return;
+  const first=track.children[0] as HTMLElement|undefined;if(!first)return;
+  let selected=0,distance=Infinity;
+  Array.from(track.children).forEach((child,index)=>{const delta=Math.abs((child as HTMLElement).offsetLeft-first.offsetLeft-track.scrollLeft);if(delta<distance){distance=delta;selected=index;}});
+  setCurrent(selected);
+ }
+ return <div className="hcb-product-photos">
+  <div className="hcb-product-photo-track" ref={rail} id={railId} onScroll={sync} aria-label={`รูปสินค้า ${alt}`}>
+   {images.map((image,index)=><div className="hcb-product-photo" key={image.url}>{href?<a href={href} target="_blank" rel="noopener" aria-label={`ดูรายละเอียด ${alt} (รูปที่ ${index+1})`} onClick={onNavigate}><ContentImage url={image.url} alt={image.alt||alt} ratio={ratio} fit={fit}/></a>:<ContentImage url={image.url} alt={image.alt||alt} ratio={ratio} fit={fit}/>}</div>)}
+  </div>
+  {images.length>1&&<><div className="hcb-product-photo-count" aria-live="polite">{current+1} / {images.length}</div><button type="button" className="hcb-product-photo-prev" aria-label="รูปสินค้าก่อนหน้า" aria-controls={railId} disabled={current===0} onClick={()=>move(current-1)}><ChevronLeft size={20}/></button><button type="button" className="hcb-product-photo-next" aria-label="รูปสินค้าถัดไป" aria-controls={railId} disabled={current===images.length-1} onClick={()=>move(current+1)}><ChevronRight size={20}/></button><div className="hcb-product-photo-dots">{images.map((image,index)=><button key={image.url} type="button" aria-label={`ดูรูปสินค้า ${index+1}`} aria-current={index===current?'true':undefined} onClick={()=>move(index)}/>)}</div></>}
+ </div>;
+}
+
 export function HubContentBlock({block,href,onDemoClick}:ContentBlockProps){
   const content=block.content||{};
   const titleId=useId();
@@ -102,7 +131,7 @@ export function HubContentBlock({block,href,onDemoClick}:ContentBlockProps){
 
   return <article className={`hcb hcb-${block.type} ${block.featured?'hcb-featured':''}`} aria-labelledby={titleId} data-block-type={block.type}>
     {block.featured&&<span className="hcb-featured-label"><Sparkles size={12} aria-hidden="true"/>แนะนำ</span>}
-    {photo&&<div className="hcb-cover">{hasAction?<a href={href} target="_blank" rel="noopener" aria-label={`${actionLabel}: ${block.title} เปิดในแท็บใหม่`} onClick={navigate}>{photo}</a>:photo}</div>}
+    {block.type==='service'&&Boolean(content.imageUrl||images.length)?<div className="hcb-cover"><ProductPhotos images={[...(content.imageUrl?[{url:content.imageUrl,alt:content.alt||block.title}]:[]),...images].filter((image,index,all)=>all.findIndex(item=>item.url===image.url)===index)} alt={block.title} ratio={content.aspectRatio||'landscape'} fit={content.fit||'contain'} href={hasAction?href:undefined} onNavigate={navigate}/></div>:photo&&<div className="hcb-cover">{hasAction?<a href={href} target="_blank" rel="noopener" aria-label={`${actionLabel}: ${block.title} เปิดในแท็บใหม่`} onClick={navigate}>{photo}</a>:photo}</div>}
     <div className="hcb-body">
       <h2 id={titleId} className="hcb-title">{block.title}</h2>
       {block.description&&<div className="hcb-description">{block.description.split(/\n\s*\n/).filter(Boolean).map((paragraph,index)=><p key={index}>{paragraph}</p>)}</div>}

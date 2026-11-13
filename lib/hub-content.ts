@@ -22,7 +22,8 @@ export function blockImageUrls(block: Pick<HubLink,'type'|'content'>): string[] 
   const content = block.content;
   if (!content) return [];
   if (block.type === 'gallery') return (content.images ?? []).map(image => image.url).filter(Boolean);
-  return ['image','service'].includes(block.type) && content.imageUrl ? [content.imageUrl] : [];
+  if(block.type==='service')return [content.imageUrl,...(content.images??[]).map(image=>image.url)].filter((url):url is string=>!!url);
+  return block.type==='image'&&content.imageUrl ? [content.imageUrl] : [];
 }
 
 /** Legacy records have no content object; new records are validated before storage. */
