@@ -1,4 +1,5 @@
 import { authenticateHubRequest } from "../lib/hub-auth";
+import { canonicalHubRedirect } from "../lib/hub-canonical";
 import { handleLineAuthRequest } from "../lib/line-auth";
 import { runLineDigests } from "../lib/line-digest";
 import handler from "vinext/server/fetch-handler";
@@ -7,6 +8,8 @@ import type { ConnectorBinding } from "../lib/connector-contract.mjs";
 
 const worker = {
   async fetch(request: Request, env: Cloudflare.Env, ctx: ExecutionContext<{ CONNECTORS?: ConnectorBinding }>) {
+    const canonicalResponse = canonicalHubRedirect(request, env.APP_ORIGIN);
+    if (canonicalResponse) return canonicalResponse;
     const authResponse = await handleLineAuthRequest(request, env);
     if (authResponse) return authResponse;
     request = await authenticateHubRequest(request, env);
@@ -41,3 +44,4 @@ const worker = {
 };
 
 export default worker;
+

@@ -1,6 +1,10 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "nakna-hub",
+  "workers_dev": true,
+  "routes": [
+    { "pattern": "hub.naknahr.com", "custom_domain": true }
+  ],
   "main": "./dist/server/index.js",
   "compatibility_date": "2026-05-15",
   "compatibility_flags": [
@@ -43,7 +47,7 @@
     "command": "npm run build"
   },
   "vars": {
-    "APP_ORIGIN": "https://nakna-hub.nakna.workers.dev"
+    "APP_ORIGIN": "https://hub.naknahr.com"
   },
   "triggers": {
     "crons": [
@@ -51,3 +55,4 @@
     ]
   }
 }
+
