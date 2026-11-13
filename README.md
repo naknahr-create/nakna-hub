@@ -1,6 +1,6 @@
 # นากนะ HUB
 
-A multi-customer link hub product under the NAKNA brand, using the primary color `#04878a`. Each signed-in customer owns an independent account, creates branded pages, edits drafts, publishes selected versions, and reads their own click analytics. The landing page presents the product; customer pages use `/h/:slug`.
+A multi-customer link hub product under the NAKNA brand, using the primary color `#04878a`. Each signed-in customer owns an independent account, creates branded pages, edits drafts, publishes selected versions, and unlocks click analytics with paid Pro access. Event collection continues on every plan. The landing page presents the product; customer pages use `/h/:slug`.
 
 ## Standalone Cloudflare deployment
 
@@ -8,14 +8,14 @@ This repository targets **Cloudflare Workers with Vinext**, D1, and R2. Start wi
 
 The public landing page and published customer hubs can run without an authentication provider. **LINE Login is the primary customer sign-in.** Customers can separately opt in to daily analytics messages through the NAKNA HUB LINE Official Account. Follow [การเชื่อม LINE และรายงานประจำวัน](docs/LINE_SETUP_TH.md) to configure the channels, migration, secrets, and webhook. Management remains blocked until a supported login provider is configured; deploying this repository does not create LINE channels or enable message delivery.
 
-Starter is free (1 hub / 20 blocks). Pro is 149 THB/month or 1,490 THB/year (10 hubs / 100 blocks per hub and optional public-footer branding removal). Stripe Checkout, Customer Portal, signed webhooks, and paid entitlement expiry are implemented. **New purchases remain disabled until the actual Stripe account, live prices, secrets, webhook and runtime gate are configured.** See [Stripe setup and pricing decisions](docs/STRIPE_SETUP_TH.md). Deploying source alone does not connect a Stripe merchant account.
+Starter is free (1 hub / 20 blocks). Pro is 149 THB/month or 1,490 THB/year (10 hubs / 100 blocks per hub, analytics, CSV, daily LINE reports, and optional public-footer branding removal). Stripe Checkout, Customer Portal, signed webhooks, and paid entitlement expiry are implemented. **New purchases remain disabled until the actual Stripe account, live prices, secrets, webhook and runtime gate are configured.** See [Stripe setup and pricing decisions](docs/STRIPE_SETUP_TH.md). Deploying source alone does not connect a Stripe merchant account.
 
 ### Runtime and resources
 
 - Node.js >= 22.13.0; install the committed dependency versions with `npm ci`.
 - Vinext / React builds a native Worker using `@cloudflare/vite-plugin`. Keep `package-lock.json` committed.
 - D1 binding `DB` uses `nakna-hub-db`; R2 binding `BUCKET` uses `nakna-hub-assets`. `wrangler.jsonc` records the D1 ID for the current account. Change it when deploying to a different account.
-- Drizzle schema is in `db/schema.ts`, `db/line-auth-schema.ts`, and `db/line-digest-schema.ts`, and `db/hub-billing-schema.ts`; versioned SQL migrations and their snapshots are in `drizzle/`. Apply the migrations to the target D1 database before serving database-backed requests.
+- Drizzle schema is in `db/schema.ts`, `db/line-auth-schema.ts`, and `db/line-digest-schema.ts`, `db/hub-billing-schema.ts`, and `db/hub-admin-schema.ts`; versioned SQL migrations and their snapshots are in `drizzle/`. Apply the migrations to the target D1 database before serving database-backed requests.
 - `keep_vars: true` preserves dashboard-managed runtime variables across deploys. Authentication variables belong in the Worker's runtime settings, not only the build environment. Keep credentials out of Git.
 
 The existing Cloudflare Workers Builds default deploy command is supported:
@@ -94,8 +94,8 @@ The Worker removes incoming `oai-authenticated-*` headers, verifies the Cloudfla
 | Route | Purpose |
 | --- | --- |
 | `/` | NAKNA HUB product landing page and visual examples |
-| `/studio` | Signed-in workspace, page editor, preview, analytics, account plans, and operator panel when authorized |
-| `/admin` | Compatibility redirect to `/studio` |
+| `/studio` | Signed-in workspace, page editor, preview, Pro analytics, account settings, and billing |
+| `/admin` | Separate operator dashboard: platform metrics, accounts, hubs, publication controls, support notes, and audit history |
 | `/h/:slug` | The currently published customer page |
 | `/go/:slug/:linkId` | Record an eligible click and redirect to the destination in the published snapshot |
 | `/media/:id` | Serve an authorized uploaded avatar |
@@ -104,7 +104,7 @@ Customer passwords are not stored by this application. LINE Login authenticates 
 
 ## Daily LINE reports
 
-Reports are off for new accounts. In **บัญชีและ LINE**, a connected customer adds the Official Account as a friend, chooses a time in 15-minute increments, enables reports, and saves. The default is 09:00 Asia/Bangkok. Each report covers the previous complete Thai calendar day across that customer's hubs: view events, click events, click change from the preceding day, the three most-clicked links, and the busiest click hour. Counts are events, not unique people. A zero-activity day remains explicit rather than fabricating insights.
+Reports require current paid Pro access and are off for new accounts. In **บัญชีและ LINE**, an eligible connected customer adds the Official Account as a friend, chooses a time in 15-minute increments, enables reports, and saves. The default is 09:00 Asia/Bangkok. Each report covers the previous complete Thai calendar day across that customer's hubs: view events, click events, click change from the preceding day, the three most-clicked links, and the busiest click hour. Counts are events, not unique people. A zero-activity day remains explicit rather than fabricating insights. Expiry pauses reporting while preserving the stored preference; opting out remains available without Pro.
 
 `LINE_DIGEST_ENABLED=true` is a separate platform gate; it is absent/off by default. A quarter-hour Cron Trigger calls the Worker scheduled handler. A durable D1 outbox allows one daily report per account/date, immutable payloads, leased sends, persisted LINE retry keys, and bounded retries within 23 hours. Each tick handles at most 100 queued deliveries with five concurrent pushes; larger populations can be processed on subsequent ticks. It is not a promise of exact-time delivery or unlimited sending capacity. Monitor D1/Worker limits and LINE message quota as the service grows.
 
@@ -119,7 +119,7 @@ Webhook requests are HMAC-verified using their original bytes before JSON parsin
 | GET | `/api/auth/config` | Public provider availability and local URLs; no credentials |
 | GET | `/auth/line/start`, `/auth/line/callback` | Browser-bound LINE OAuth flow at the Worker entry |
 | POST | `/auth/logout` | Same-origin session revocation and cookie clearing |
-| GET | `/api/workspace` | Current customer's account, page summaries, usage, plan limits, and upgrade-request status |
+| GET | `/api/workspace` | Current account, explicit entitlements, summaries, usage, and limits; protected counters are null without paid access |
 | GET | `/api/slugs?slug=...` | Signed-in slug validation and availability |
 | POST | `/api/pages` | Create a draft page within the customer's page quota |
 | GET / PATCH / DELETE | `/api/pages/:id` | Owner-only read, draft update or restoration, and page archival |
@@ -128,8 +128,8 @@ Webhook requests are HMAC-verified using their original bytes before JSON parsin
 | POST | `/api/pages/:id/reorder` | Owner-only complete block ordering |
 | POST | `/api/pages/:id/publish` | Owner-only publication of the current draft as one snapshot |
 | POST | `/api/pages/:id/unpublish` | Owner-only removal of the public snapshot |
-| GET | `/api/pages/:id/analytics?range=...` | Owner-only analytics for `today`, `7d`, `30d`, or `all` |
-| GET | `/api/pages/:id/export?range=...` | Owner-only CSV export for the same reporting range |
+| GET | `/api/pages/:id/analytics?range=...` | Paid Pro + page-owner analytics for `today`, `7d`, `30d`, or `all` |
+| GET | `/api/pages/:id/export?range=...` | Paid Pro + page-owner CSV export for the same reporting range |
 | POST | `/api/uploads` | Signed-in avatar upload, attributed to the current account |
 | POST | `/api/account/upgrade` | Legacy manual upgrade request; does not charge or grant Pro |
 | GET | `/api/billing` | Current account's billing availability and subscription |
@@ -137,11 +137,15 @@ Webhook requests are HMAC-verified using their original bytes before JSON parsin
 | POST | `/api/billing/portal` | Open the current customer's Stripe portal |
 | POST | `/api/billing/sync` | Reconcile current Stripe state after checkout/portal return |
 | POST | `/api/billing/webhook` | Signature-verified Stripe events; no customer session required |
-| GET | `/api/operator` | Operator-only account summaries and upgrade requests |
-| PATCH | `/api/operator/accounts/:id` | Operator-only manual plan change |
+| GET | `/api/operator?range=...` | Operator-only platform metrics, date series, leading hubs, and estimated paid subscription value |
+| GET | `/api/operator/accounts?q=...&plan=...&page=...` | Operator-only searchable, paginated accounts and billing status |
+| PATCH | `/api/operator/accounts/:id` | Operator-only support note update or upgrade-request resolution; plan changes are rejected |
+| GET | `/api/operator/hubs?q=...&status=...&page=...` | Operator-only searchable, paginated hubs |
+| PATCH | `/api/operator/hubs/:id` | Operator-only suspension/restoration with a required reason and atomic audit entry |
+| GET | `/api/operator/audit?page=...` | Operator-only action history |
 | GET / PATCH | `/api/line/settings` | Current customer's connection, opt-in, and send time |
-| GET | `/api/line/preview` | Current customer's previous-day report; does not send |
-| POST | `/api/line/test` | Confirmed test for the current account; requires `{ "reportDate": "YYYY-MM-DD" }` |
+| GET | `/api/line/preview` | Paid Pro customer's previous-day report; does not send |
+| POST | `/api/line/test` | Confirmed test for the paid Pro account; requires `{ "reportDate": "YYYY-MM-DD" }` |
 | POST | `/api/line/webhook` | Signed LINE follow/unfollow events; no customer session required |
 | GET | `/api/hubs/:slug` | Published profile and blocks; no draft or private account data |
 | POST | `/api/events` | Same-origin page-view event for an existing published page |
@@ -162,6 +166,9 @@ All state-changing customer and operator APIs enforce a same-origin request chec
 | `hub_billing_subscriptions` | Verified subscription status and paid entitlement end |
 | `hub_billing_webhook_events` | Processed Stripe event IDs |
 | `hub_operators` | Bound platform-operator identity |
+| `hub_page_controls` | Reversible operator publication restrictions, separate from drafts and snapshots |
+| `hub_account_support` | Private operator support notes |
+| `hub_operator_audit` | Operator actions, targets, reasons, and timestamps |
 | `hub_line_auth_attempts` | Expiring, single-use browser-bound OAuth attempts |
 | `hub_line_sessions` | Hashed opaque login sessions bound to origin and Login channel |
 | `hub_line_connections` | Verified LINE user ID and timestamped friendship state |
@@ -169,7 +176,7 @@ All state-changing customer and operator APIs enforce a same-origin request chec
 | `hub_line_deliveries` | Durable message outbox, retry keys, leases, and acceptance status |
 | `hub_line_webhook_receipts` | Deduplication of signed follow/unfollow events |
 
-Management reads and writes first resolve the account from the authenticated identity and then verify page ownership. Link queries additionally constrain the page ID. Analytics and CSV require the same ownership check; changing an ID in a URL does not grant access. Operator permissions cover the platform summary and plan changes; ordinary page-editing APIs still require the page owner.
+Management reads and writes first resolve the account from the authenticated identity and then verify page ownership. Link queries additionally constrain the page ID. Analytics and CSV require both ownership and a current paid entitlement; changing an ID in a URL does not grant access. Operators can read platform statistics and manage publication/support records. Ordinary page-editing APIs still require the page owner; operators cannot grant paid access through the application. See [Owner dashboard operations](docs/OWNER_ADMIN_TH.md).
 
 Legacy `deal_*` tables remain intact for migration continuity. They are not customer templates, account seeds, or the active data source for NAKNA HUB. New customer accounts start with an empty workspace. Landing-page examples are presentation fixtures, not customer analytics.
 
@@ -189,16 +196,20 @@ Archiving a block changes the draft while preserving the existing public snapsho
 | --- | --- | --- |
 | Unarchived pages per account | 1 | 10 |
 | Unarchived blocks per page | 20 | 100 |
-| Layouts, profile styling, avatar, and analytics | Included | Included |
+| Layouts, profile styling, avatar, link icons/images | Included | Included |
+| Analytics, rankings, source/device breakdown, and CSV | Locked; events are still collected | Included |
+| Daily LINE analytics report | Locked | Included with LINE setup, friendship, and opt-in |
 | Hide NAKNA HUB footer branding | No | Yes |
 
 Blocks include both links and headings. Disabled blocks still count until archived; draft pages count toward the page limit. Quotas are enforced in server-side SQL when creating or restoring data, not only by disabled UI controls. Link updates use a draft-revision guard to reject stale writes.
 
-Operator-initiated manual downgrades require the account to fit Starter limits. Stripe-managed expiry is independent: it restores Starter and public branding when the paid entitlement ends, even if the account contains more pages or links. Existing content and published snapshots are preserved; creation and restoration still enforce Starter limits. Starter branding is enforced when reading public data, even if an older Pro snapshot hid it. The public terms describe this preservation policy.
+Stripe-managed expiry locks analytics and CSV, pauses LINE reports, and restores Starter and public branding when the paid entitlement ends, even if the account contains more pages or links. Existing content and published snapshots are preserved; creation and restoration still enforce Starter limits. Starter branding is enforced when reading public data, even if an older Pro snapshot hid it. The public terms describe this preservation policy.
+
+Analytics access requires a Pro account, a managed Stripe billing record, and a live `active` or `past_due` subscription with a verified `paid_until` in the future. Cancellation at period end retains access through the paid window. A manually edited plan, test-mode subscription, unpaid trial, or Checkout success URL does not grant access. Protected customer APIs return HTTP 403 with `analytics_pro_required`; workspace/editor counters return null. LINE preview, test, queue creation, and dispatch enforce the same entitlement. Collected events are retained for a future upgrade.
 
 ## Avatars and media access
 
-Customers can upload PNG, JPEG, or WebP avatars up to 2 MiB per file. The server checks the upload size, declared MIME type, and file signature, then stores the object under an account-specific R2 key. Draft uploaded media is readable by its owning account. Other visitors can read an uploaded avatar only while a currently published, unarchived page from that account references it in its snapshot. Media responses use `Cache-Control: no-store`.
+Customers can upload PNG, JPEG, or WebP avatars up to 2 MiB per file. The server checks the upload size, declared MIME type, and file signature, then stores the object under an account-specific R2 key. Draft uploaded media is readable by its owning account. Other visitors can read uploaded media only while a currently published, unarchived, unsuspended page from that account references it in its snapshot. Media responses use `Cache-Control: no-store`.
 
 Profile validation prevents one account from assigning another account's private `/media/:id` asset. External avatar URLs must use HTTPS. Link destinations allow HTTP, HTTPS, and validated `mailto:` URLs; dangerous schemes, embedded credentials, local hostnames, and literal private-network IP addresses are rejected.
 
@@ -214,7 +225,7 @@ All reporting ranges use Asia/Bangkok (UTC+7). Today starts at local midnight; t
 
 The standalone pipeline is validated with the pinned dependencies: native Vinext build, Wrangler deployment dry-run, D1 migrations, and local runtime checks. Authentication, account isolation, report calculations, retry behavior, and webhook processing also have automated tests using mocked LINE HTTP responses. These checks do not validate real channel credentials or prove a real message was delivered. Verify a real LINE sign-in, add-friend flow, one explicitly requested test report, and the next scheduled opt-in report on the final hostname after configuration.
 
-The public landing-page examples are design fixtures, not live customer statistics. Checkout and recurring billing remain unimplemented. LINE channel availability controls who can authorize the app; the application creates an independent account on first verified use and does not provide customer passwords. Message delivery remains disabled until the provider resources and runtime configuration are completed.
+The public landing-page examples are design fixtures, not live customer statistics. Checkout and recurring billing are implemented and require the configured Stripe runtime. LINE channel availability controls who can authorize the app; the application creates an independent account on first verified use and does not provide customer passwords. Message delivery requires provider resources, runtime configuration, paid Pro access, friendship, and customer opt-in.
 
 The old screenshot reference `docs/nakna-hub-homepage.jpg` is absent from this repository, so no image preview is embedded here. This has no effect on the app's `public/` assets or its build.
 

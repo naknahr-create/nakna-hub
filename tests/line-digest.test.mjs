@@ -2,11 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync, readdirSync} from 'node:fs';
-import {
+import {registerHooks} from 'node:module';
+registerHooks({resolve(specifier,context,next){if(specifier==='./hub-billing-entitlements')return {url:new URL('../lib/hub-billing-entitlements.ts',import.meta.url).href,shortCircuit:true};return next(specifier,context);}});
+const {
   bangkokDay, reportWindow, parseSendTime, differenceLabel, digestConfigured,
-  getLineSettings, updateLineSettings, buildDigestReport, sendLineTest as sendApprovedLineTest,
-  runLineDigests as dispatchDigests, classifyLineResponse,
-} from '../lib/line-digest.ts';
+  getLineSettings, updateLineSettings, buildDigestReport, sendLineTest: sendApprovedLineTest,
+  runLineDigests: dispatchDigests, classifyLineResponse,
+} = await import('../lib/line-digest.ts');
 import {handleLineWebhook, verifyLineWebhook} from '../lib/line-webhook.ts';
 
 // All database operations are real SQLite SQL. Every outbound LINE request is mocked.
@@ -40,8 +42,12 @@ function setup({enabled=true}={}) {
   const env={DB,APP_ORIGIN:'https://hub.example.com',LINE_LOGIN_CHANNEL_ID:'12345',LINE_MESSAGING_CHANNEL_ACCESS_TOKEN:'TEST_TOKEN_NOT_REAL',LINE_MESSAGING_CHANNEL_SECRET:'TEST_SECRET_NOT_REAL',LINE_OFFICIAL_ACCOUNT_URL:'https://line.me/R/ti/p/@naknahub',LINE_DIGEST_ENABLED:enabled?'true':'false'};
   for(const [id,line] of [['a',LINE_A],['b',LINE_B]]) {
     const uid=`line:12345:${line}`;
-    DB.sql.prepare("INSERT INTO hub_accounts VALUES (?,?,?,'','starter',?,?)").run(id,uid,id==='a'?'นอต':'คนอื่น',NOW-DAY,NOW-DAY);
+    DB.sql.prepare("INSERT INTO hub_accounts VALUES (?,?,?,'','pro',?,?)").run(id,uid,id==='a'?'นอต':'คนอื่น',NOW-DAY,NOW-DAY);
     DB.sql.prepare('INSERT INTO hub_line_connections VALUES (?,?,?,?,?,?,?)').run(uid,line,'12345','following',NOW-DAY,NOW-DAY,NOW-DAY);
+    DB.sql.prepare('INSERT INTO hub_billing_accounts(account_id,managed,updated_at) VALUES (?,1,?)').run(id,NOW-DAY);
+    DB.sql.prepare("INSERT INTO hub_billing_subscriptions(stripe_subscription_id,account_id,stripe_customer_id,stripe_price_id,billing_interval,status,current_period_end,paid_until,cancel_at_period_end,livemode,updated_at) VALUES (?,?,?,?,'month','active',?,?,0,1,?)")
+      .run('sub_'+id,id,'cus_'+id,'price_month',NOW+30*DAY,NOW+30*DAY,NOW-DAY);
+
     DB.sql.prepare('INSERT INTO hub_pages(id,account_id,slug,profile_json,created_at,updated_at) VALUES (?,?,?,?,?,?)').run('page-'+id,id,'hub-'+id,JSON.stringify({name:'HUB '+id}),NOW-DAY,NOW-DAY);
     DB.sql.prepare('INSERT INTO hub_links(id,page_id,title,created_at) VALUES (?,?,?,?)').run('link-'+id,'page-'+id,id==='a'?'หน้าร้านของฉัน':'ข้อมูลลับของบัญชี B',NOW-DAY);
   }
@@ -60,6 +66,44 @@ async function webhook(env,events,now=NOW) {
   return handleLineWebhook(new Request('https://hub.example.com/api/line/webhook',{method:'POST',body,headers:{'x-line-signature':await sign(body,env.LINE_MESSAGING_CHANNEL_SECRET)}}),env,now);
 }
 function followEvent(type,timestamp=NOW,id=crypto.randomUUID(),line=LINE_A) {return {type,timestamp,webhookEventId:id,source:{type:'user',userId:line}};}
+
+test('free LINE accounts cannot preview, test-send or opt in, but can opt out of their saved preference',async()=>{
+  const env=setup();await enable(env);event(env,'a','click');
+  env.DB.sql.prepare("UPDATE hub_accounts SET plan='starter' WHERE id='a'").run();
+  const settings=await getLineSettings(env,'a',NOW);
+  assert.equal(settings.entitlement,false);assert.equal(settings.subscribed,true);assert.equal(settings.enabled,false);
+  const denied=e=>e.status===403&&e.code==='analytics_pro_required';
+  await assert.rejects(buildDigestReport(env,'a',NOW),denied);
+  await assert.rejects(updateLineSettings(env,'a',{enabled:true,time:'09:00'},NOW),denied);
+  let requests=0;await assert.rejects(sendLineTest(env,'a',NOW,async()=>{requests++;return new Response('{}');}),denied);
+  assert.equal(requests,0);
+  const result=await runLineDigests(env,NOW,async()=>{requests++;return new Response('{}');});
+  assert.equal(result.queued,0);assert.equal(requests,0);
+  const off=await updateLineSettings(env,'a',{enabled:false,time:'09:00'},NOW);assert.equal(off.subscribed,false);
+  assert.equal(env.DB.sql.prepare("SELECT COUNT(*) AS n FROM hub_events WHERE type='click'").get().n,1,'paywall preserves collected history');
+});
+test('expired paid access cancels a previously queued report before outbound delivery',async()=>{
+  const env=setup();await enable(env);event(env,'a','view');
+  const first=await runLineDigests(env,NOW,async()=>new Response('{}',{status:500}));assert.equal(first.retry,1);
+  env.DB.sql.prepare("UPDATE hub_billing_subscriptions SET paid_until=? WHERE account_id='a'").run(NOW+1);
+  let requests=0;await runLineDigests(env,NOW+15*60000,async()=>{requests++;return new Response('{}');});
+  assert.equal(requests,0);assert.equal(env.DB.sql.prepare("SELECT status FROM hub_line_deliveries WHERE account_id='a'").get().status,'cancelled');
+  assert.equal((await getLineSettings(env,'a',NOW+15*60000)).entitlement,false);
+});
+test('scheduled reports exclude live-unpaid, test-mode and canceled subscription records',async()=>{
+  for(const patch of ["livemode=0","status='canceled'","paid_until=0"]){
+    const env=setup();await enable(env);env.DB.sql.exec("UPDATE hub_billing_subscriptions SET "+patch+" WHERE account_id='a'");
+    let requests=0;const result=await runLineDigests(env,NOW,async()=>{requests++;return new Response('{}');});
+    assert.equal(result.queued,0);assert.equal(requests,0);
+  }
+});
+test('delayed Cron checks paid access at actual dispatch time rather than stale scheduled time',async()=>{
+  const env=setup();await enable(env);
+  env.DB.sql.prepare("UPDATE hub_billing_subscriptions SET paid_until=? WHERE account_id='a'").run(NOW+60000);
+  let requests=0;
+  const result=await dispatchDigests(env,NOW,async()=>{requests++;return new Response('{}');},()=>NOW+2*DAY);
+  assert.equal(result.queued,0);assert.equal(requests,0);
+});
 
 test('complete report day follows Bangkok midnight, including year changes',()=>{
   assert.equal(bangkokDay(Date.parse('2026-12-31T17:00:00Z')).date,'2027-01-01');

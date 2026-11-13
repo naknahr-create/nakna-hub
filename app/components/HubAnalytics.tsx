@@ -1,9 +1,10 @@
 "use client";
 
-import {useEffect, useId, useRef, useState} from "react";
+import {useCallback, useEffect, useId, useRef, useState} from "react";
 import {ArrowDownToLine, ArrowUpRight, BarChart3, ChevronRight, Eye, Info, Link2, LoaderCircle, MousePointer2, RefreshCw, ShieldCheck, Sparkles, X} from "lucide-react";
 import type {AnalyticsData, AnalyticsRange, PageSummary} from "../../lib/hub-types";
 import {HubLinkIcon} from "./HubLinkIcon";
+import HubAnalyticsUpgrade from "./HubAnalyticsUpgrade";
 import "../analytics.css";
 
 const number = new Intl.NumberFormat("th-TH");
@@ -40,18 +41,22 @@ function chartDays<T extends TrendDay>(daily: T[], range: AnalyticsRange): Trend
     return byDate.get(date) ?? {date, clicks: 0, views: 0};
   });
 }
+type AnalyticsError = Error & {code?: string};
+function analyticsError(message: string, code?: string): AnalyticsError {return Object.assign(new Error(message), {code});}
+function requiresPro(error: unknown): boolean {return !!error && typeof error === "object" && "code" in error && error.code === "analytics_pro_required";}
 async function getAnalytics(pageId: string, range: AnalyticsRange, signal: AbortSignal, linkId?: string): Promise<AnalyticsData> {
   const query = new URLSearchParams({range});
   if (linkId) query.set("linkId", linkId);
   const response = await fetch(`/api/pages/${encodeURIComponent(pageId)}/analytics?${query}`, {cache: "no-store", signal});
-  const result = await response.json().catch(() => null) as AnalyticsData & {error?: string} | null;
-  if (!response.ok || !result) throw new Error(result?.error || "โหลดสถิติไม่สำเร็จ กรุณาลองอีกครั้ง");
+  const result = await response.json().catch(() => null) as AnalyticsData & {error?: string; code?: string} | null;
+  if (!response.ok || !result) throw analyticsError(result?.error || "โหลดสถิติไม่สำเร็จ กรุณาลองอีกครั้ง", result?.code);
   return result;
 }
 
-export default function HubAnalytics({page, notify, initialLinkId}: {
-  page: PageSummary; notify: (message: string) => void; initialLinkId?: string;
+export default function HubAnalytics({page, notify, initialLinkId, onAccountRefresh, onUpgrade}: {
+  page: PageSummary; notify: (message: string) => void; initialLinkId?: string; onAccountRefresh: () => Promise<unknown>; onUpgrade: () => void;
 }) {
+  const [accessLost, setAccessLost] = useState(false);
   const [range, setRange] = useState<AnalyticsRange>("7d");
   const [refresh, setRefresh] = useState(0);
   const [result, setResult] = useState<{key: string; data: AnalyticsData | null; error: string; updatedAt: number}>({key: "", data: null, error: "", updatedAt: 0});
@@ -72,18 +77,27 @@ export default function HubAnalytics({page, notify, initialLinkId}: {
   const detail = detailResult.key === detailKey ? detailResult.detail : null;
   const detailError = detailResult.key === detailKey ? detailResult.error : "";
   const detailRef = useRef<HTMLElement>(null);
+  const handleAccessLost = useCallback(() => {
+    setAccessLost(true);
+    setResult({key: "", data: null, error: "", updatedAt: 0});
+    setDetailResult({key: "", detail: null, error: ""});
+    void onAccountRefresh().catch(() => {});
+  }, [onAccountRefresh]);
 
   useEffect(() => {
+    if (accessLost) return;
     const controller = new AbortController();
     void getAnalytics(page.id, range, controller.signal).then(value => {
       if (!controller.signal.aborted) setResult({key: queryKey, data: value, error: "", updatedAt: Date.now()});
     }).catch((cause: unknown) => {
-      if (!controller.signal.aborted) setResult({key: queryKey, data: null, error: cause instanceof Error ? cause.message : "โหลดสถิติไม่สำเร็จ", updatedAt: 0});
+      if (controller.signal.aborted) return;
+      if (requiresPro(cause)) {handleAccessLost(); return;}
+      setResult({key: queryKey, data: null, error: cause instanceof Error ? cause.message : "โหลดสถิติไม่สำเร็จ", updatedAt: 0});
     });
     return () => controller.abort();
-  }, [page.id, range, queryKey]);
+  }, [page.id, range, queryKey, accessLost, handleAccessLost]);
   useEffect(() => {
-    if (!selectedId) return;
+    if (!selectedId || accessLost) return;
     const controller = new AbortController();
     void getAnalytics(page.id, range, controller.signal, selectedId).then(value => {
       if (!controller.signal.aborted) {
@@ -91,23 +105,26 @@ export default function HubAnalytics({page, notify, initialLinkId}: {
         setDetailResult({key: detailKey, detail: value.selectedLink, error: ""});
       }
     }).catch((cause: unknown) => {
-      if (!controller.signal.aborted) setDetailResult({key: detailKey, detail: null, error: cause instanceof Error ? cause.message : "โหลดสถิติลิงก์ไม่สำเร็จ"});
+      if (controller.signal.aborted) return;
+      if (requiresPro(cause)) {handleAccessLost(); return;}
+      setDetailResult({key: detailKey, detail: null, error: cause instanceof Error ? cause.message : "โหลดสถิติลิงก์ไม่สำเร็จ"});
     });
     return () => controller.abort();
-  }, [page.id, range, selectedId, detailKey]);
+  }, [page.id, range, selectedId, detailKey, accessLost, handleAccessLost]);
   useEffect(() => {
     if (selectedId) detailRef.current?.scrollIntoView({behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start"});
   }, [selectedId, loading]);
 
   async function exportCsv(linkId?: string) {
+    if (accessLost) return;
     setExporting(true); setExportError("");
     try {
       const query = new URLSearchParams({range});
       if (linkId) query.set("linkId", linkId);
       const response = await fetch(`/api/pages/${encodeURIComponent(page.id)}/export?${query}`, {cache: "no-store"});
       if (!response.ok) {
-        const result = await response.json().catch(() => ({})) as {error?: string};
-        throw new Error(result.error || "ส่งออกรายงานไม่สำเร็จ");
+        const result = await response.json().catch(() => ({})) as {error?: string; code?: string};
+        throw analyticsError(result.error || "ส่งออกรายงานไม่สำเร็จ", result.code);
       }
       const objectUrl = URL.createObjectURL(await response.blob());
       const anchor = document.createElement("a");
@@ -116,9 +133,11 @@ export default function HubAnalytics({page, notify, initialLinkId}: {
       anchor.hidden = true; document.body.appendChild(anchor); anchor.click(); anchor.remove();
       setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
       notify("เริ่มดาวน์โหลดรายงาน CSV แล้ว");
-    } catch (cause) {setExportError(cause instanceof Error ? cause.message : "ส่งออกรายงานไม่สำเร็จ");}
+    } catch (cause) {if (requiresPro(cause)) handleAccessLost(); else setExportError(cause instanceof Error ? cause.message : "ส่งออกรายงานไม่สำเร็จ");}
     finally {setExporting(false);}
   }
+
+  if (accessLost) return <HubAnalyticsUpgrade expired onUpgrade={onUpgrade}/>;
 
   const top = data?.ranking.find(row => row.clicks > 0);
   const largest = Math.max(1, ...(data?.ranking.map(row => row.clicks) ?? []));

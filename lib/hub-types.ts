@@ -31,22 +31,24 @@ export type PageSummary = {
   title: string;
   profile: HubProfile;
   published: boolean;
+  suspended: boolean;
+  suspensionReason: string | null;
   archived: boolean;
   updatedAt: number;
   publishedAt: number | null;
   linkCount: number;
-  totalClicks: number;
-  totalViews: number;
+  totalClicks: number | null;
+  totalViews: number | null;
   hasUnpublishedChanges: boolean;
 };
-export type HubAccount = {id: string; displayName: string; email: string; plan: HubPlan; isOperator: boolean};
+export type HubAccount = {id: string; displayName: string; email: string; plan: HubPlan; isOperator: boolean; entitlements: {analytics: boolean; lineDigest: boolean}};
 export type PlanLimits = {maxPages: number; maxLinksPerPage: number};
 export type WorkspaceData = {
   account: HubAccount;
   limits: PlanLimits;
   pages: PageSummary[];
   archivedPages: PageSummary[];
-  usage: {pages: number; links: number; totalClicks: number};
+  usage: {pages: number; links: number; totalClicks: number | null};
   upgradeRequested: boolean;
 };
 export type PageEditorData = {page: PageSummary; profile: HubProfile; links: HubLink[]; revision: number};

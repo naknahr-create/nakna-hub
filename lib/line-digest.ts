@@ -1,3 +1,5 @@
+import {hasAnalyticsEntitlement} from './hub-billing-entitlements';
+
 /** LINE report delivery. No browser-supplied destination is accepted by this module. */
 export type LineDigestEnvironment = {
   DB?: D1Database;
@@ -16,6 +18,8 @@ export class LineDigestError extends Error {
   }
 }
 export type LineSettings = {
+  entitlement: boolean;
+  subscribed: boolean;
   configured: boolean;
   connected: boolean;
   friendStatus: 'friend' | 'blocked' | 'unknown';
@@ -102,20 +106,24 @@ async function connectionFor(env: LineDigestEnvironment, accountId: string): Pro
 export async function getLineSettings(env: LineDigestEnvironment, accountId: string, now = Date.now()): Promise<LineSettings> {
   const db = database(env);
   await ensurePreference(db, accountId, now);
-  const [preference, connection, latest, accepted] = await Promise.all([
+  const [preference, connection, latest, accepted, entitlement] = await Promise.all([
     db.prepare('SELECT * FROM hub_line_preferences WHERE account_id=?').bind(accountId).first<Preference>(),
     connectionFor(env, accountId),
     db.prepare('SELECT status,last_error FROM hub_line_deliveries WHERE account_id=? ORDER BY created_at DESC,id DESC LIMIT 1').bind(accountId).first<{status: string; last_error: string | null}>(),
     db.prepare("SELECT MAX(accepted_at) AS sent_at FROM hub_line_deliveries WHERE account_id=? AND status='accepted'").bind(accountId).first<{sent_at: number | null}>(),
+    hasAnalyticsEntitlement(db, accountId, now),
   ]);
   return {
     configured: digestConfigured(env), connected: !!connection,
     friendStatus: connection?.friend_status === 'following' ? 'friend' : connection?.friend_status === 'not_following' ? 'blocked' : 'unknown',
-    enabled: !!preference?.enabled,
+    entitlement, subscribed: !!preference?.enabled, enabled: !!preference?.enabled && entitlement,
     time: `${String(preference?.send_hour ?? 9).padStart(2, '0')}:${String(preference?.send_minute ?? 0).padStart(2, '0')}`,
     timezone: 'Asia/Bangkok', officialAccountUrl: officialAccountUrl(env.LINE_OFFICIAL_ACCOUNT_URL),
     lastSentAt: accepted?.sent_at ?? null, lastStatus: latest?.status ?? null,
   };
+}
+async function requireDigestEntitlement(env: LineDigestEnvironment, accountId: string, now: number): Promise<void> {
+  if (!await hasAnalyticsEntitlement(database(env), accountId, now)) throw new LineDigestError(403, 'สมัคร Pro เพื่อดูสถิติและรับสรุปผ่าน LINE', 'analytics_pro_required');
 }
 function ensureCanSend(env: LineDigestEnvironment, connection: Connection | null): asserts connection is Connection {
   if (!digestConfigured(env)) throw new LineDigestError(503, 'ระบบส่งสรุป LINE ยังไม่พร้อม ผู้ดูแลต้องเชื่อมบัญชี LINE Official Account ก่อน', 'line_not_configured');
@@ -130,7 +138,7 @@ export async function updateLineSettings(env: LineDigestEnvironment, accountId: 
   }
   const time = parseSendTime(value.time);
   const db = database(env);
-  if (value.enabled) ensureCanSend(env, await connectionFor(env, accountId));
+  if (value.enabled) {await requireDigestEntitlement(env, accountId, now); ensureCanSend(env, await connectionFor(env, accountId));}
   await db.prepare(`INSERT INTO hub_line_preferences(account_id,enabled,send_hour,send_minute,updated_at) VALUES (?,?,?,?,?)
     ON CONFLICT(account_id) DO UPDATE SET enabled=excluded.enabled,send_hour=excluded.send_hour,send_minute=excluded.send_minute,updated_at=excluded.updated_at`)
     .bind(accountId, Number(value.enabled), time.hour, time.minute, now).run();
@@ -149,6 +157,7 @@ export function differenceLabel(current: number, previous: number): string {
   return `${base} (${change > 0 ? '+' : '-'}${(Math.abs(change) / previous * 100).toFixed(1)}%)`;
 }
 export async function buildDigestReport(env: LineDigestEnvironment, accountId: string, now = Date.now()): Promise<DigestReport> {
+  await requireDigestEntitlement(env, accountId, now);
   const db = database(env), period = reportWindow(now);
   const [totals, ranking, busiest] = await Promise.all([
     db.prepare(`SELECT
@@ -225,11 +234,12 @@ async function claimJob(db: D1Database, id: string, now: number): Promise<Job | 
 async function sendJob(env: LineDigestEnvironment, id: string, now: number, fetcher: Fetcher, clock: () => number = Date.now): Promise<'accepted' | 'retry' | 'failed' | 'skipped'> {
   const db = database(env), job = await claimJob(db, id, now);
   if (!job) return 'skipped';
-  const [connection, preference] = await Promise.all([
+  const [connection, preference, entitled] = await Promise.all([
     connectionFor(env, job.account_id),
     db.prepare('SELECT enabled FROM hub_line_preferences WHERE account_id=?').bind(job.account_id).first<{enabled: number}>(),
+    hasAnalyticsEntitlement(db, job.account_id, now),
   ]);
-  if (!digestConfigured(env) || connection?.friend_status !== 'following' || connection.line_user_id !== job.line_user_id || (job.kind === 'daily' && !preference?.enabled)) {
+  if (!entitled || !digestConfigured(env) || connection?.friend_status !== 'following' || connection.line_user_id !== job.line_user_id || (job.kind === 'daily' && !preference?.enabled)) {
     await db.prepare("UPDATE hub_line_deliveries SET status='cancelled',last_error='not_eligible',lease_token=NULL,lease_until=NULL WHERE id=? AND lease_token=?")
       .bind(job.id, job.lease_token).run();
     return 'skipped';
@@ -263,6 +273,7 @@ export async function sendLineTest(env: LineDigestEnvironment, accountId: string
   if (typeof approvedReportDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(approvedReportDate) || approvedReportDate !== reportWindow(now).date) {
     throw new LineDigestError(409, 'วันที่สรุปเปลี่ยนแล้ว กรุณาเปิดตัวอย่างล่าสุดและยืนยันส่งอีกครั้ง', 'preview_expired');
   }
+  await requireDigestEntitlement(env, accountId, now);
   const connection = await connectionFor(env, accountId);
   ensureCanSend(env, connection);
   const db = database(env);
@@ -292,14 +303,17 @@ export async function runLineDigests(env: LineDigestEnvironment, scheduledTime =
     .bind(now, now - RETRY_WINDOW, MAX_ATTEMPTS, BATCH_SIZE).run();
   const due = await db.prepare(`SELECT a.id AS account_id,c.user_id,c.line_user_id,c.friend_status FROM hub_line_preferences p
     JOIN hub_accounts a ON a.id=p.account_id JOIN hub_line_connections c ON c.user_id=a.user_id
-    WHERE p.enabled=1 AND c.friend_status='following' AND c.login_channel_id=?
+    WHERE p.enabled=1 AND a.plan='pro' AND c.friend_status='following' AND c.login_channel_id=?
+      AND EXISTS(SELECT 1 FROM hub_billing_accounts b WHERE b.account_id=a.id AND b.managed=1)
+      AND EXISTS(SELECT 1 FROM hub_billing_subscriptions s WHERE s.account_id=a.id AND s.livemode=1 AND s.status IN ('active','past_due') AND s.paid_until>?)
       AND p.send_hour*60+p.send_minute<=? AND p.updated_at<=?+(p.send_hour*60+p.send_minute)*60000
       AND NOT EXISTS(SELECT 1 FROM hub_line_deliveries d WHERE d.account_id=a.id AND d.report_date=? AND d.kind='daily')
     ORDER BY p.send_hour,p.send_minute,a.id LIMIT ?`)
-    .bind(env.LINE_LOGIN_CHANNEL_ID, day.minutes, day.start, reportDate, BATCH_SIZE).all<Connection & {account_id: string}>();
+    .bind(env.LINE_LOGIN_CHANNEL_ID, now, day.minutes, day.start, reportDate, BATCH_SIZE).all<Connection & {account_id: string}>();
   // Build immutable account-scoped messages before enqueueing. No analytics or recipient comes from the client.
   for (const row of due.results) {
-    if (await enqueue(env, row.account_id, row, 'daily', now)) result.queued++;
+    try {if (await enqueue(env, row.account_id, row, 'daily', now)) result.queued++;}
+    catch (error) {if (error instanceof LineDigestError && error.code === 'analytics_pro_required') {result.skipped++;continue;}throw error;}
   }
   const jobs = await db.prepare(`SELECT id FROM hub_line_deliveries WHERE
     (status IN ('pending','retry') AND next_attempt_at<=?) OR (status='sending' AND lease_until<?)

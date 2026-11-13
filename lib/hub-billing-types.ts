@@ -18,4 +18,4 @@ export type BillingStatus = {
 };
 
 export const HUB_BILLING_PRICES = {monthly: 149, yearly: 1490, currency: 'THB'} as const;
-export const HUB_BILLING_TERMS_VERSION = '2026-11-13';
+export const HUB_BILLING_TERMS_VERSION = '2026-11-13-pro-analytics';

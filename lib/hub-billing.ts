@@ -1,6 +1,6 @@
 import {env} from 'cloudflare:workers';
 import {db, HubError, requireAccount, sameOrigin, type AccountRow} from './hub-data';
-import {expireBillingEntitlement} from './hub-billing-entitlements';
+import {expireBillingEntitlement, hasAnalyticsEntitlement} from './hub-billing-entitlements';
 import {HUB_BILLING_PRICES, HUB_BILLING_TERMS_VERSION, type BillingInterval, type BillingStatus} from './hub-billing-types';
 
 // Pin the wire format: Basil places billing periods on subscription items.
@@ -259,17 +259,17 @@ async function synchronize(config: Configuration, lease: Lease, receipt?: Receip
 }
 async function statusFor(account: AccountRow, config: Configuration): Promise<BillingStatus> {
   await expireBillingEntitlement(db(), account.id);
-  const [billing, subscription, current] = await Promise.all([
+  const [billing, subscription, analyticsAccess] = await Promise.all([
     db().prepare('SELECT * FROM hub_billing_accounts WHERE account_id=?').bind(account.id).first<BillingRow>(),
     db().prepare(`SELECT * FROM hub_billing_subscriptions WHERE account_id=? ORDER BY CASE WHEN status IN ('active','past_due') THEN 0 ELSE 1 END,updated_at DESC,stripe_subscription_id DESC LIMIT 1`)
       .bind(account.id).first<SubscriptionRow>(),
-    db().prepare('SELECT plan FROM hub_accounts WHERE id=?').bind(account.id).first<{plan: 'starter' | 'pro'}>(),
+    hasAnalyticsEntitlement(db(), account.id),
   ]);
   return {configured: config.ready && config.enabled, mode: config.mode,
     message: config.ready && config.enabled ? null : config.mode === 'test'
       ? 'ระบบชำระเงินอยู่ระหว่างทดสอบ ยังไม่เปิดรับชำระเงินจริง'
       : 'แพ็กเกจ Pro กำลังเตรียมเปิดให้สมัคร คุณยังใช้ Starter ฟรีได้ตามปกติ',
-    plan: current?.plan ?? account.plan, canManage: config.ready && !!billing?.stripe_customer_id,
+    plan: analyticsAccess ? 'pro' : 'starter', canManage: config.ready && !!billing?.stripe_customer_id,
     subscription: subscription ? {status: subscription.status, interval: subscription.billing_interval,
       currentPeriodEnd: subscription.paid_until || subscription.current_period_end, cancelAtPeriodEnd: !!subscription.cancel_at_period_end} : null,
     prices: HUB_BILLING_PRICES, terms: {autoRenew: true, cancelAtPeriodEnd: true}};
@@ -312,8 +312,7 @@ export async function createCheckout(request: Request): Promise<{url: string}> {
   const interval = data.interval, config = configuration(); requireReady(config, true);
   const lease = await acquire(account.id);
   try {
-    const current = await db().prepare('SELECT plan FROM hub_accounts WHERE id=?').bind(account.id).first<{plan: string}>();
-    if (current?.plan === 'pro') throw new HubError(409, 'บัญชีนี้ใช้ Pro อยู่แล้ว จัดการสมาชิกได้ในหน้าการชำระเงิน', {code: 'already_subscribed'});
+    if (await hasAnalyticsEntitlement(db(), account.id)) throw new HubError(409, 'บัญชีนี้ใช้ Pro อยู่แล้ว จัดการสมาชิกได้ในหน้าการชำระเงิน', {code: 'already_subscribed'});
     await validatePortalConfiguration(config);
     const customer = await ensureCustomer(config, lease);
     const subscriptions = await synchronize(config, lease);

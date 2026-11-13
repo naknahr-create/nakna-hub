@@ -157,7 +157,7 @@ test('checkout creates correct monthly/annual card-only subscriptions and reuses
   const create = state.requests.find(r => r.path === '/v1/checkout/sessions' && r.method === 'POST');
   assert.equal(create.form.get('line_items[0][price]'), 'price_monthly'); assert.equal(create.form.get('line_items[0][quantity]'), '1');
   assert.equal(create.form.get('payment_method_types[0]'), 'card'); assert.equal(create.form.has('subscription_data[trial_period_days]'), false);
-  assert.equal(create.form.get('subscription_data[metadata][terms_version]'), '2026-11-13');
+  assert.equal(create.form.get('subscription_data[metadata][terms_version]'), '2026-11-13-pro-analytics');
   assert.equal(create.form.get('success_url'), ORIGIN + '/studio?billing=success');
   const annual = await checkout('year'); assert.notEqual(annual.url, first.url); assert.equal(state.sessions.size, 2);
   assert.equal([...state.sessions.values()][0].status, 'expired');
@@ -317,7 +317,7 @@ test('disabling new purchases preserves portal/cancellation processing and legac
   subscription.status = 'canceled'; await receiveStripeWebhook(signedEvent(subscription.customer, {eventId: 'evt_disabledcancel'}));
   assert.equal(sql.prepare('SELECT plan FROM hub_accounts WHERE id=?').get(owner.id).plan, 'starter');
   await assert.rejects(checkout(), error => error.status === 503);
-  assert.equal(await expireBillingEntitlement(testEnv.DB, legacy.id), false); assert.equal((await getBillingStatus(await request('/api/billing', {actor: 'b'}))).plan, 'pro');
+  assert.equal(await expireBillingEntitlement(testEnv.DB, legacy.id), false); assert.equal((await getBillingStatus(await request('/api/billing', {actor: 'b'}))).plan, 'starter');
 });
 
 test('provider redirects are never followed and do not leak the secret to another host', async () => {

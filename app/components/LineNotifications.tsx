@@ -2,10 +2,13 @@
 
 import {useCallback, useEffect, useState} from "react";
 import {ArrowUpRight, Bell, BellOff, Check, ChevronDown, Clock3, Eye, LoaderCircle, MessageCircle, RefreshCw, Send, ShieldCheck, X} from "lucide-react";
+import HubAnalyticsUpgrade from "./HubAnalyticsUpgrade";
 import "../line-notifications.css";
 
 type LineSettings = {
   configured: boolean;
+  entitlement: boolean;
+  subscribed: boolean;
   connected: boolean;
   friendStatus: "friend" | "blocked" | "unknown";
   enabled: boolean;
@@ -36,7 +39,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   try {body = await response.json();} catch {throw new Error("ยังโหลดข้อมูลไม่ได้ กรุณาลองอีกครั้ง");}
   if (!response.ok) {
     const error = body && typeof body === "object" && "error" in body ? body.error : null;
-    throw new Error(typeof error === "string" ? error : "ยังทำรายการไม่ได้ กรุณาลองอีกครั้ง");
+    const code = body && typeof body === "object" && "code" in body ? body.code : null;
+    throw Object.assign(new Error(typeof error === "string" ? error : "ยังทำรายการไม่ได้ กรุณาลองอีกครั้ง"), {code});
   }
   return body as T;
 }
@@ -56,7 +60,7 @@ function sentLabel(timestamp: number) {
   }).format(new Date(timestamp));
 }
 
-export default function LineNotifications() {
+export default function LineNotifications({hasAccess, onUpgrade, onAccountRefresh}: {hasAccess: boolean; onUpgrade: () => void; onAccountRefresh: () => Promise<unknown>}) {
   const [settings, setSettings] = useState<LineSettings | null>(null);
   const [enabled, setEnabled] = useState(false);
   const [time, setTime] = useState("09:00");
@@ -82,11 +86,30 @@ export default function LineNotifications() {
   }, []);
   useEffect(() => {void load();}, [load]);
 
-  const ready = !!(settings?.configured && settings.connected && settings.friendStatus === "friend");
+  const entitled = hasAccess && settings?.entitlement !== false;
+  const ready = !!(entitled && settings?.configured && settings.connected && settings.friendStatus === "friend");
   const dirty = !!settings && (enabled !== settings.enabled || time !== settings.time);
   const friendUrl = accountUrl(settings?.officialAccountUrl ?? null);
   const hour = time.split(":")[0] || "09";
   const minute = time.split(":")[1] || "00";
+
+  function handleError(cause: unknown) {
+    if (cause && typeof cause === "object" && "code" in cause && cause.code === "analytics_pro_required") {
+      setSettings(previous => previous ? {...previous, entitlement: false, enabled: false} : previous);
+      setPreview(null); setPreviewOpen(false); setSendConfirm(false); setEnabled(false);
+      void onAccountRefresh().catch(() => {});
+    }
+    setError(cause instanceof Error ? cause.message : "ยังทำรายการไม่ได้ กรุณาลองอีกครั้ง");
+  }
+
+  async function unsubscribe() {
+    if (busy || !settings?.subscribed) return;
+    setBusy("save"); setError(""); setNotice("");
+    try {
+      const data = await request<LineSettings>("/api/line/settings", {method: "PATCH", body: JSON.stringify({enabled: false, time: settings.time})});
+      setSettings(data); setEnabled(false); setNotice("ปิดการรับสรุป LINE แล้ว");
+    } catch (cause) {handleError(cause);} finally {setBusy(null);}
+  }
 
   async function save() {
     if (busy || !dirty) return;
@@ -97,16 +120,16 @@ export default function LineNotifications() {
       });
       setSettings(data); setEnabled(data.enabled); setTime(data.time);
       setNotice(data.enabled ? `เปิดสรุปรายวันแล้ว ส่งเวลา ${data.time} น. ตามเวลาไทย` : "ปิดสรุปรายวันแล้ว เปิดใหม่ได้ทุกเมื่อ");
-    } catch (e) {setError((e as Error).message);} finally {setBusy(null);}
+    } catch (e) {handleError(e);} finally {setBusy(null);}
   }
 
   async function showPreview(forSending = false) {
-    if (busy) return;
+    if (busy || !entitled) return;
     setBusy("preview"); setError(""); setNotice(""); setNoticePending(false); setSendConfirm(false); setPreviewSendStatus("unsent");
     try {
       const data = await request<LinePreview>("/api/line/preview");
       setPreview(data); setPreviewOpen(true); setSendConfirm(forSending);
-    } catch (e) {setError((e as Error).message);} finally {setBusy(null);}
+    } catch (e) {handleError(e);} finally {setBusy(null);}
   }
 
   async function sendTest() {
@@ -122,22 +145,26 @@ export default function LineNotifications() {
       } else {
         setError(result.message || "ยังส่งข้อความไม่สำเร็จ กรุณาลองอีกครั้งภายหลัง");
       }
-    } catch (e) {setError((e as Error).message);} finally {setBusy(null);}
+    } catch (e) {handleError(e);} finally {setBusy(null);}
   }
 
-  const statusLabel = !settings ? loading ? "กำลังตรวจสอบ" : "ยังโหลดไม่ได้" : !settings.configured ? "กำลังเตรียมบริการ"
+  const statusLabel = !settings ? loading ? "กำลังตรวจสอบ" : "ยังโหลดไม่ได้" : !entitled ? "สำหรับสมาชิก Pro" : !settings.configured ? "กำลังเตรียมบริการ"
     : !settings.connected ? "ยังไม่ได้เชื่อม LINE" : settings.friendStatus !== "friend" ? "รอเพิ่มเพื่อน"
     : settings.enabled ? "เปิดสรุปรายวันแล้ว" : "พร้อมใช้งาน";
 
   return <section className="ln-panel" aria-labelledby="line-notifications-title">
     <header className="ln-header">
       <span className="ln-brand-icon" aria-hidden="true"><MessageCircle size={25}/></span>
-      <div><p className="ln-eyebrow">การแจ้งเตือน</p><h2 id="line-notifications-title">สรุปสถิติผ่าน LINE</h2><p>{settings && !settings.configured ? "ดูสถานะบริการ และตั้งค่าการรับสรุปเมื่อพร้อมใช้งาน" : "ยอดเข้าชม คลิก และลิงก์ยอดนิยม ในแชตของคุณ"}</p></div>
+      <div><p className="ln-eyebrow">การแจ้งเตือน</p><h2 id="line-notifications-title">สรุปสถิติผ่าน LINE</h2><p>{!entitled ? "รายงานรายวันสำหรับสมาชิก Pro ตั้งเวลาและจัดการการรับข้อความได้เอง" : settings && !settings.configured ? "ดูสถานะบริการ และตั้งค่าการรับสรุปเมื่อพร้อมใช้งาน" : "ยอดเข้าชม คลิก และลิงก์ยอดนิยม ในแชตของคุณ"}</p></div>
       <span className={`ln-status ${ready ? "ln-status-ready" : ""}`}><i/>{statusLabel}</span>
     </header>
 
     {loading && !settings ? <div className="ln-loading"><LoaderCircle className="hs-spin" size={22}/><span>กำลังโหลดการตั้งค่า LINE</span></div> : <>
-      {settings && <>
+      {!entitled && <>
+        <HubAnalyticsUpgrade variant="line" onUpgrade={onUpgrade}/>
+        {settings?.subscribed && <div className="ln-pro-optout"><p><strong>การส่งรายงานพักไว้จนกว่าจะมีสิทธิ์ Pro</strong>คุณเคยเปิดรับสรุปเวลา {settings.time} น. ไว้ หากกลับมาใช้ Pro ระบบจะใช้การตั้งค่านี้ต่อ หรือเลือกปิดการรับสรุปได้ที่นี่</p><button type="button" className="ln-button ln-secondary" disabled={!!busy} onClick={() => void unsubscribe()}>{busy === "save" ? <LoaderCircle size={16} className="hs-spin"/> : <BellOff size={16}/>}ปิดการรับสรุป</button></div>}
+      </>}
+      {settings && entitled && <>
         {!ready && <div className="ln-connection-note">
           <ShieldCheck size={19}/>
           <div><strong>{!settings.configured ? "บริการสรุปผ่าน LINE ยังไม่เปิดใช้งาน" : !settings.connected ? "ใช้กับบัญชีที่เข้าสู่ระบบด้วย LINE" : "เพิ่มเพื่อนเพื่อรับสรุปของคุณ"}</strong>
@@ -165,13 +192,13 @@ export default function LineNotifications() {
       {error && <div className="ln-feedback ln-error" role="alert"><span>{error}</span>{!settings && <button type="button" className="ln-link-button" disabled={loading} onClick={() => void load()}><RefreshCw size={14}/>ลองอีกครั้ง</button>}</div>}
       {notice && <div className={`ln-feedback ${noticePending ? "ln-pending" : "ln-success"}`} role="status">{noticePending ? <Clock3 size={16}/> : <Check size={16}/>}<span>{notice}</span></div>}
 
-      {previewOpen && preview && <div className="ln-preview" aria-label="ตัวอย่างสรุปรายวัน">
+      {entitled && previewOpen && preview && <div className="ln-preview" aria-label="ตัวอย่างสรุปรายวัน">
         <div className="ln-preview-heading"><div><span>ตัวอย่างข้อความ</span><p>{preview.periodLabel || `ข้อมูลวันที่ ${preview.reportDate}`} · {previewSendStatus === "accepted" ? "LINE รับคำขอส่งแล้ว" : previewSendStatus === "retry" ? "รอ LINE รับข้อความ" : "ยังไม่ได้ส่ง"}</p></div><button type="button" className="ln-close" aria-label="ปิดตัวอย่างข้อความ" disabled={busy === "send"} onClick={() => {setPreviewOpen(false); setSendConfirm(false);}}><X size={18}/></button></div>
         <div className="ln-message"><span className="ln-message-avatar" aria-hidden="true">น</span><div><strong>นากนะ HUB</strong><p>{preview.text}</p></div></div>
         {sendConfirm && <div className="ln-send-confirm"><p>ส่งสรุปนี้ 1 ข้อความไปยัง LINE ที่คุณใช้เข้าสู่ระบบ<br/><span>การส่งตัวอย่างไม่เปิดสรุปรายวันอัตโนมัติ</span></p><div><button type="button" className="ln-button ln-secondary" disabled={!!busy} onClick={() => setSendConfirm(false)}>ยกเลิก</button><button type="button" className="ln-button ln-line-button" disabled={!!busy || !ready} onClick={() => void sendTest()}>{busy === "send" ? <LoaderCircle className="hs-spin" size={15}/> : <Send size={15}/>}ยืนยันส่ง 1 ข้อความ</button></div></div>}
       </div>}
 
-      {settings && <footer className="ln-footnote"><span>ยอดคลิกนับเป็นครั้ง ไม่ใช่จำนวนคน · เปิดหรือปิดรับสรุปได้ทุกเมื่อ</span>{settings.lastSentAt && <span>LINE รับคำขอส่งล่าสุด {sentLabel(settings.lastSentAt)} น.</span>}{settings.lastStatus && ["failed", "retry", "pending"].includes(settings.lastStatus) && <span>การส่งล่าสุดยังไม่สำเร็จ ลองดูสถิติในสตูดิโอได้ก่อน</span>}</footer>}
+      {settings && entitled && <footer className="ln-footnote"><span>ยอดคลิกนับเป็นครั้ง ไม่ใช่จำนวนคน · เปิดหรือปิดรับสรุปได้ทุกเมื่อ</span>{settings.lastSentAt && <span>LINE รับคำขอส่งล่าสุด {sentLabel(settings.lastSentAt)} น.</span>}{settings.lastStatus && ["failed", "retry", "pending"].includes(settings.lastStatus) && <span>การส่งล่าสุดยังไม่สำเร็จ ลองดูสถิติในสตูดิโอได้ก่อน</span>}</footer>}
     </>}
   </section>;
 }

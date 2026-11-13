@@ -93,7 +93,13 @@ async function request(path, {actor = 'a', method = 'GET', body, headers = {}} =
   }), testEnv);
 }
 async function page(actor = 'a') {
-  return createPage(await request('/api/pages', {actor, method: 'POST', body: {name: 'Hub ' + actor, slug: 'owner-' + actor, template: 'creator'}}));
+  const result=await createPage(await request('/api/pages', {actor, method: 'POST', body: {name: 'Hub ' + actor, slug: 'owner-' + actor, template: 'creator'}}));
+  const account=testEnv.DB.sql.prepare('SELECT account_id FROM hub_pages WHERE id=?').get(result.page.id).account_id;
+  testEnv.DB.sql.prepare("UPDATE hub_accounts SET plan='pro' WHERE id=?").run(account);
+  testEnv.DB.sql.prepare('INSERT INTO hub_billing_accounts(account_id,managed,updated_at) VALUES (?,1,?)').run(account,Date.now());
+  testEnv.DB.sql.prepare("INSERT INTO hub_billing_subscriptions(stripe_subscription_id,account_id,stripe_customer_id,stripe_price_id,billing_interval,status,current_period_end,paid_until,cancel_at_period_end,livemode,updated_at) VALUES (?,?,?,?,'month','active',?,?,0,1,?)")
+    .run('sub_'+actor,account,'cus_'+actor,'price_month',Date.now()+86400000,Date.now()+86400000,Date.now());
+  return result;
 }
 async function link(pageId, options = {}, actor = 'a') {
   return createLink(await request('/api/pages/' + pageId + '/links', {actor, method: 'POST', body: {

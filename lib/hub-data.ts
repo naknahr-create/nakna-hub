@@ -1,6 +1,6 @@
 import {getAuthConfiguration} from './hub-auth';
 import {imageAssetId} from './hub-link-media';
-import {expireBillingEntitlement} from './hub-billing-entitlements';
+import {expireBillingEntitlement, hasAnalyticsEntitlement} from './hub-billing-entitlements';
 import {env} from 'cloudflare:workers';
 import type {AnalyticsData,AnalyticsRange,HubAccount,HubLink,HubPlan,HubProfile,HubTemplate,OperatorData,PageEditorData,PageSummary,PlanLimits,PublicHubData,WorkspaceData} from './hub-types';
 
@@ -78,7 +78,8 @@ export async function requireAccount(request:Request):Promise<AccountRow>{
   if(account.email!==user.email||account.display_name!==user.displayName){await db().prepare('UPDATE hub_accounts SET email=?,display_name=?,updated_at=? WHERE id=?').bind(user.email,user.displayName,Date.now(),account.id).run();account={...account,email:user.email,display_name:user.displayName};}
   return account;
 }
-async function accountDTO(request:Request,account:AccountRow):Promise<HubAccount>{return {id:account.id,displayName:account.display_name,email:account.email,plan:account.plan,isOperator:await operatorFor(identity(request)!,true)};}
+async function accountDTO(request:Request,account:AccountRow):Promise<HubAccount>{const analytics=await hasAnalyticsEntitlement(db(),account.id);return {id:account.id,displayName:account.display_name,email:account.email,plan:account.plan,isOperator:await operatorFor(identity(request)!,true),entitlements:{analytics,lineDigest:analytics}};}
+export async function requireAnalytics(account:AccountRow):Promise<void>{if(!await hasAnalyticsEntitlement(db(),account.id))throw new HubError(403,'สมัคร Pro เพื่อดูสถิติและรับสรุปผ่าน LINE',{code:'analytics_pro_required',upgradeUrl:'/studio?section=billing'});}
 async function ownPage(account:AccountRow,id:string,includeArchived=false):Promise<PageRow>{
   const page=await db().prepare('SELECT * FROM hub_pages WHERE id=? AND account_id=?'+(includeArchived?'':' AND archived=0')).bind(id,account.id).first<PageRow>();
   if(!page)throw new HubError(404,'ไม่พบหน้านี้ หรือคุณไม่มีสิทธิ์เข้าถึง');return page;
@@ -86,14 +87,15 @@ async function ownPage(account:AccountRow,id:string,includeArchived=false):Promi
 function profileOf(page:PageRow,plan:HubPlan):HubProfile{const p=JSON.parse(page.profile_json) as HubProfile;return {...p,showBranding:plan==='pro'?p.showBranding:true};}
 function fromLink(row:LinkRow):HubLink{return {id:row.id,type:row.type,title:row.title,description:row.description,url:row.url,icon:row.icon,enabled:!!row.enabled,featured:!!row.featured,sortOrder:row.sort_order,archived:!!row.archived};}
 async function linksFor(pageId:string,includeArchived=true):Promise<HubLink[]>{const {results}=await db().prepare('SELECT * FROM hub_links WHERE page_id=?'+(includeArchived?'':' AND archived=0')+' ORDER BY sort_order,created_at,id').bind(pageId).all<LinkRow>();return results.map(fromLink);}
-async function pageSummary(page:PageRow,plan:HubPlan):Promise<PageSummary>{
-  const [links,events]=await Promise.all([
+async function pageSummary(page:PageRow,plan:HubPlan,analyticsAccess:boolean):Promise<PageSummary>{
+  const [links,events,control]=await Promise.all([
     db().prepare("SELECT COUNT(*) AS n FROM hub_links WHERE page_id=? AND archived=0 AND type='link'").bind(page.id).first<{n:number}>(),
-    db().prepare('SELECT type,COUNT(*) AS n FROM hub_events WHERE page_id=? GROUP BY type').bind(page.id).all<{type:string;n:number}>(),
+    analyticsAccess?db().prepare('SELECT type,COUNT(*) AS n FROM hub_events WHERE page_id=? GROUP BY type').bind(page.id).all<{type:string;n:number}>():Promise.resolve({results:[]}),
+    db().prepare('SELECT suspended,reason FROM hub_page_controls WHERE page_id=?').bind(page.id).first<{suspended:number;reason:string}>(),
   ]);const profile=profileOf(page,plan);
-  return {id:page.id,slug:page.slug,title:profile.name,profile,published:!!page.published,archived:!!page.archived,updatedAt:page.updated_at,publishedAt:page.published_at,linkCount:links?.n??0,totalClicks:events.results.find(r=>r.type==='click')?.n??0,totalViews:events.results.find(r=>r.type==='view')?.n??0,hasUnpublishedChanges:page.revision!==page.published_revision};
+  return {id:page.id,slug:page.slug,title:profile.name,profile,published:!!page.published,suspended:!!control?.suspended,suspensionReason:control?.suspended?control.reason:null,archived:!!page.archived,updatedAt:page.updated_at,publishedAt:page.published_at,linkCount:links?.n??0,totalClicks:analyticsAccess?(events.results.find(r=>r.type==='click')?.n??0):null,totalViews:analyticsAccess?(events.results.find(r=>r.type==='view')?.n??0):null,hasUnpublishedChanges:page.revision!==page.published_revision};
 }
-async function editorData(account:AccountRow,page:PageRow):Promise<PageEditorData>{const [summary,links]=await Promise.all([pageSummary(page,account.plan),linksFor(page.id)]);return {page:summary,profile:profileOf(page,account.plan),links,revision:page.revision};}
+async function editorData(account:AccountRow,page:PageRow):Promise<PageEditorData>{const [summary,links]=await Promise.all([pageSummary(page,account.plan,await hasAnalyticsEntitlement(db(),account.id)),linksFor(page.id)]);return {page:summary,profile:profileOf(page,account.plan),links,revision:page.revision};}
 export async function getWorkspace(request:Request):Promise<WorkspaceData>{
   const account=await requireAccount(request);
   const [rows,archivedRows,usage,upgrade,info]=await Promise.all([
@@ -103,9 +105,9 @@ export async function getWorkspace(request:Request):Promise<WorkspaceData>{
     db().prepare('SELECT account_id FROM hub_upgrade_requests WHERE account_id=? AND resolved_at IS NULL').bind(account.id).first(),
     accountDTO(request,account),
   ]);
-  const [pages,archivedPages]=await Promise.all([Promise.all(rows.results.map(p=>pageSummary(p,account.plan))),Promise.all(archivedRows.results.map(p=>pageSummary(p,account.plan)))]);
-  const total=await db().prepare("SELECT COUNT(*) AS n FROM hub_events e JOIN hub_pages p ON p.id=e.page_id WHERE p.account_id=? AND e.type='click'").bind(account.id).first<{n:number}>();
-  return {account:info,limits:planLimits(account.plan),pages,archivedPages,usage:{pages:pages.length,links:usage?.n??0,totalClicks:total?.n??0},upgradeRequested:!!upgrade};
+  const [pages,archivedPages]=await Promise.all([Promise.all(rows.results.map(p=>pageSummary(p,account.plan,info.entitlements.analytics))),Promise.all(archivedRows.results.map(p=>pageSummary(p,account.plan,info.entitlements.analytics)))]);
+  const total=info.entitlements.analytics?await db().prepare("SELECT COUNT(*) AS n FROM hub_events e JOIN hub_pages p ON p.id=e.page_id WHERE p.account_id=? AND e.type='click'").bind(account.id).first<{n:number}>():null;
+  return {account:info,limits:planLimits(account.plan),pages,archivedPages,usage:{pages:pages.length,links:usage?.n??0,totalClicks:info.entitlements.analytics?(total?.n??0):null},upgradeRequested:!!upgrade};
 }
 export function validateSlug(value:unknown):string{
   const slug=text(value,'ชื่อลิงก์',40,true);
@@ -246,12 +248,13 @@ export async function reorderLinks(request:Request,pageId:string):Promise<HubLin
 
 export async function publishPage(request:Request,id:string):Promise<PageEditorData>{
   const account=await requireAccount(request);sameOrigin(request);const page=await ownPage(account,id),data=await body(request,true);keys(data,['revision']);
+  if(await db().prepare('SELECT page_id FROM hub_page_controls WHERE page_id=? AND suspended=1').bind(id).first())throw new HubError(403,'ฮับนี้ถูกพักการเผยแพร่โดยผู้ดูแล กรุณาติดต่อผู้ดูแลก่อนเผยแพร่อีกครั้ง',{code:'hub_suspended'});
   if('revision'in data&&data.revision!==page.revision)throw new HubError(409,'ร่างมีการเปลี่ยนแปลง กรุณาโหลดข้อมูลล่าสุดก่อนเผยแพร่');
   const profile=profileOf(page,account.plan),links=(await linksFor(id,false)).filter(l=>l.enabled);
   if(!links.some(l=>l.type==='link'))throw new HubError(400,'เพิ่มลิงก์ที่เปิดใช้งานอย่างน้อย 1 รายการก่อนเผยแพร่');
   for(const link of links)if(link.type==='link'){validateUrl(link.url);await validateLinkIcon(link.icon,account);}
   const snapshot:Snapshot={profile,links,revision:page.revision},now=Date.now();
-  const result=await db().prepare('UPDATE hub_pages SET snapshot_json=?,published=1,published_revision=?,published_at=?,updated_at=? WHERE id=? AND account_id=? AND archived=0 AND revision=?').bind(JSON.stringify(snapshot),page.revision,now,now,id,account.id,page.revision).run();
+  const result=await db().prepare('UPDATE hub_pages SET snapshot_json=?,published=1,published_revision=?,published_at=?,updated_at=? WHERE id=? AND account_id=? AND archived=0 AND revision=? AND NOT EXISTS(SELECT 1 FROM hub_page_controls c WHERE c.page_id=hub_pages.id AND c.suspended=1)').bind(JSON.stringify(snapshot),page.revision,now,now,id,account.id,page.revision).run();
   if(!result.meta.changes)throw new HubError(409,'ร่างมีการเปลี่ยนแปลงระหว่างเผยแพร่ กรุณาลองใหม่');return editorData(account,await ownPage(account,id));
 }
 export async function unpublishPage(request:Request,id:string):Promise<PageEditorData>{
@@ -260,7 +263,7 @@ export async function unpublishPage(request:Request,id:string):Promise<PageEdito
 }
 type PublicRow=PageRow&{owner_user_id:string;owner_plan:HubPlan};
 async function publicPage(value:string,byId=false):Promise<PublicRow>{
-  const row=await db().prepare('SELECT p.*,a.user_id AS owner_user_id,a.plan AS owner_plan FROM hub_pages p JOIN hub_accounts a ON a.id=p.account_id WHERE p.'+(byId?'id':'slug')+'=? AND p.published=1 AND p.archived=0 AND p.snapshot_json IS NOT NULL').bind(value).first<PublicRow>();
+  const row=await db().prepare('SELECT p.*,a.user_id AS owner_user_id,a.plan AS owner_plan FROM hub_pages p JOIN hub_accounts a ON a.id=p.account_id WHERE p.'+(byId?'id':'slug')+'=? AND p.published=1 AND p.archived=0 AND p.snapshot_json IS NOT NULL AND NOT EXISTS(SELECT 1 FROM hub_page_controls c WHERE c.page_id=p.id AND c.suspended=1)').bind(value).first<PublicRow>();
   if(!row)throw new HubError(404,'หน้านี้ยังไม่เผยแพร่ หรือไม่พบหน้านี้');
   if(row.owner_plan==='pro'&&await expireBillingEntitlement(db(),row.account_id))row.owner_plan='starter';
   return row;
@@ -289,7 +292,7 @@ function sourceFor(request:Request,supplied?:string):string{
 }
 async function recordEvent(request:Request,page:PublicRow,type:'view'|'click',id:string,linkId:string|null,source?:string):Promise<void>{
   if(automated(request)||identity(request)?.userId===page.owner_user_id)return;
-  await db().prepare('INSERT OR IGNORE INTO hub_events (id,page_id,type,link_id,created_at,device,source) SELECT ?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM hub_pages WHERE id=? AND published=1 AND archived=0)').bind(id,page.id,type,linkId,Date.now(),device(request),sourceFor(request,source),page.id).run();
+  await db().prepare('INSERT OR IGNORE INTO hub_events (id,page_id,type,link_id,created_at,device,source) SELECT ?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM hub_pages WHERE id=? AND published=1 AND archived=0 AND NOT EXISTS(SELECT 1 FROM hub_page_controls c WHERE c.page_id=hub_pages.id AND c.suspended=1))').bind(id,page.id,type,linkId,Date.now(),device(request),sourceFor(request,source),page.id).run();
 }
 export async function recordView(request:Request):Promise<void>{
   sameOrigin(request);const data=await body(request);keys(data,['id','type','pageId','source']);
@@ -308,7 +311,7 @@ function startOfRange(range:AnalyticsRange,now:number):number{if(range==='all')r
 // one page view can exceed 100%; no views means the rate cannot be calculated.
 function clickRate(clicks:number,views:number):number|null{return views>0?Math.round(clicks/views*1000)/10:null;}
 export async function analytics(request:Request,pageId:string):Promise<AnalyticsData>{
-  const account=await requireAccount(request);await ownPage(account,pageId,true);const params=new URL(request.url).searchParams,range=parseRange(params.get('range')),now=Date.now(),start=startOfRange(range,now);
+  const account=await requireAccount(request);await ownPage(account,pageId,true);await requireAnalytics(account);const params=new URL(request.url).searchParams,range=parseRange(params.get('range')),now=Date.now(),start=startOfRange(range,now);
   const requestedLink=params.get('linkId');let selected:LinkRow|null=null;
   if(requestedLink!==null){
     if(!UUID.test(requestedLink)||params.getAll('linkId').length!==1)throw new HubError(400,'ลิงก์ที่เลือกไม่ถูกต้อง');
@@ -369,7 +372,7 @@ export async function serveAsset(request:Request,id:string):Promise<Response>{
   const asset=await db().prepare('SELECT * FROM hub_assets WHERE id=?').bind(id).first<AssetRow>();if(!asset||!env.BUCKET)throw new HubError(404,'ไม่พบรูปภาพ');
   const user=identity(request);let allowed=false;
   if(user)allowed=!!await db().prepare('SELECT id FROM hub_accounts WHERE id=? AND user_id=?').bind(asset.account_id,user.userId).first();
-  if(!allowed)allowed=!!await db().prepare(`SELECT p.id FROM hub_pages p WHERE p.account_id=? AND p.published=1 AND p.archived=0 AND (
+  if(!allowed)allowed=!!await db().prepare(`SELECT p.id FROM hub_pages p WHERE p.account_id=? AND p.published=1 AND p.archived=0 AND NOT EXISTS(SELECT 1 FROM hub_page_controls c WHERE c.page_id=p.id AND c.suspended=1) AND (
     json_extract(p.snapshot_json,'$.profile.avatarUrl')=? OR EXISTS(
       SELECT 1 FROM json_each(p.snapshot_json,'$.links') l
       WHERE json_extract(l.value,'$.type')='link' AND json_extract(l.value,'$.enabled')=1
@@ -382,21 +385,14 @@ export async function requestUpgrade(request:Request):Promise<void>{
   const account=await requireAccount(request);sameOrigin(request);if(account.plan==='pro')throw new HubError(409,'บัญชีของคุณใช้ Pro อยู่แล้ว');
   await db().prepare('INSERT INTO hub_upgrade_requests (account_id,requested_at,resolved_at) VALUES (?,?,NULL) ON CONFLICT(account_id) DO UPDATE SET requested_at=excluded.requested_at,resolved_at=NULL').bind(account.id,Date.now()).run();
 }
-async function requireOperator(request:Request):Promise<AccountRow>{const account=await requireAccount(request);if(!await operatorFor(identity(request)!,true))throw new HubError(403,'บัญชีนี้ไม่มีสิทธิ์ดูแลแพลตฟอร์ม');return account;}
+export async function requireOperator(request:Request):Promise<AccountRow>{const account=await requireAccount(request);if(!await operatorFor(identity(request)!,true))throw new HubError(403,'บัญชีนี้ไม่มีสิทธิ์ดูแลแพลตฟอร์ม');return account;}
 export async function getOperator(request:Request):Promise<OperatorData>{
   await requireOperator(request);
   const rows=await db().prepare("SELECT a.*, (SELECT COUNT(*) FROM hub_pages p WHERE p.account_id=a.id AND p.archived=0) AS page_count,(SELECT COUNT(*) FROM hub_events e JOIN hub_pages p ON p.id=e.page_id WHERE p.account_id=a.id AND e.type='click') AS total_clicks,EXISTS(SELECT 1 FROM hub_upgrade_requests u WHERE u.account_id=a.id AND u.resolved_at IS NULL) AS upgrade_requested FROM hub_accounts a ORDER BY upgrade_requested DESC,a.created_at DESC,a.id").all<AccountRow&{page_count:number;total_clicks:number;upgrade_requested:number}>();
   const accounts=rows.results.map(a=>({id:a.id,displayName:a.display_name,email:a.email,plan:a.plan,pageCount:a.page_count,totalClicks:a.total_clicks,upgradeRequested:!!a.upgrade_requested,createdAt:a.created_at}));
   return {accounts,totals:{accounts:accounts.length,pages:accounts.reduce((n,a)=>n+a.pageCount,0),totalClicks:accounts.reduce((n,a)=>n+a.totalClicks,0),upgradeRequests:accounts.filter(a=>a.upgradeRequested).length}};
 }
-export async function setAccountPlan(request:Request,id:string):Promise<{ok:true;plan:HubPlan}>{
-  await requireOperator(request);sameOrigin(request);const data=await body(request);keys(data,['plan']);if(data.plan!=='starter'&&data.plan!=='pro')throw new HubError(400,'แพ็กเกจไม่ถูกต้อง');
-  const target=await db().prepare('SELECT id,plan FROM hub_accounts WHERE id=?').bind(id).first<{id:string;plan:HubPlan}>();if(!target)throw new HubError(404,'ไม่พบบัญชีนี้');
-  const plan=data.plan,now=Date.now();
-  // The downgrade guard and account write are one SQL statement, so concurrent
-  // page/link creation cannot race a previously checked usage total.
-  const result=await db().prepare("UPDATE hub_accounts SET plan=?,updated_at=? WHERE id=? AND (?='pro' OR ((SELECT COUNT(*) FROM hub_pages WHERE account_id=? AND archived=0)<=1 AND NOT EXISTS(SELECT p.id FROM hub_pages p JOIN hub_links l ON l.page_id=p.id WHERE p.account_id=? AND p.archived=0 AND l.archived=0 GROUP BY p.id HAVING COUNT(*)>20) AND NOT EXISTS(SELECT 1 FROM hub_pages p WHERE p.account_id=? AND p.archived=0 AND p.published=1 AND COALESCE(json_array_length(p.snapshot_json,'$.links'),0)>20)))").bind(plan,now,id,plan,id,id,id).run();
-  if(!result.meta.changes)throw new HubError(409,'ลดเป็น Starter ไม่ได้: ต้องเหลือไม่เกิน 1 หน้า และไม่เกิน 20 บล็อกทั้งฉบับร่างและฉบับเผยแพร่');
-  if(plan==='pro')await db().prepare('UPDATE hub_upgrade_requests SET resolved_at=? WHERE account_id=? AND resolved_at IS NULL').bind(now,id).run();
-  return {ok:true,plan};
+export async function setAccountPlan(request:Request,_id:string):Promise<never>{
+  await requireOperator(request);sameOrigin(request);
+  throw new HubError(409,'แพ็กเกจอัปเดตจากการชำระเงินผ่าน Stripe เท่านั้น ใช้หลังบ้านเพื่อดูสถานะสมาชิก',{code:'billing_managed_plan'});
 }
