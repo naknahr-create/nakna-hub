@@ -15,7 +15,7 @@ export function HubCardCarousel({blocks,href,onDemoClick}:{blocks:HubLink[];href
   const next=Math.max(0,Math.min(blocks.length-1,index));
   const tile=track.children[next] as HTMLElement|undefined;
   if(!tile)return;
-  track.scrollTo({left:tile.offsetLeft-track.children[0].getBoundingClientRect().left+track.getBoundingClientRect().left,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
+  track.scrollTo({left:tile.offsetLeft-(track.children[0] as HTMLElement).offsetLeft,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
   setCurrent(next);
  }
  function update(){
