@@ -10,3 +10,10 @@
 .hs-shell .hs-add-next-product:disabled{opacity:.45;cursor:default}
 .hs-shell .hs-add-next-product:focus-visible{outline:3px solid #04878a;outline-offset:3px}
 .hs-shell .hs-inline-product-form{margin:12px 0 20px;border:1px solid #81b9b9;box-shadow:0 5px 18px #17343b09}
+
+/* Share preview copy is editable independently of the public hub profile. */
+.hce-share-copy-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;margin-bottom:20px}
+.hce-share-copy-fields .hs-field{min-width:0;margin-bottom:0}
+.hce-share-copy-fields .hs-field textarea{min-height:78px;resize:vertical}
+.hce-share-copy-fields .hs-field small{display:block;font-size:11px;line-height:1.7;margin-top:6px;color:var(--hs-muted)}
+@media(max-width:850px){.hce-share-copy-fields{grid-template-columns:1fr}}
