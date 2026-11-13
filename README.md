@@ -8,7 +8,7 @@ This repository targets **Cloudflare Workers with Vinext**, D1, and R2. Start wi
 
 The public landing page and published customer hubs can run without an authentication provider. **LINE Login is the primary customer sign-in.** Customers can separately opt in to daily analytics messages through the NAKNA HUB LINE Official Account. Follow [การเชื่อม LINE และรายงานประจำวัน](docs/LINE_SETUP_TH.md) to configure the channels, migration, secrets, and webhook. Management remains blocked until a supported login provider is configured; deploying this repository does not create LINE channels or enable message delivery.
 
-Starter is free (1 hub / 20 blocks). Pro is 149 THB/month or 1,490 THB/year (10 hubs / 100 blocks per hub, analytics, CSV, daily LINE reports, and optional public-footer branding removal). Stripe Checkout, Customer Portal, signed webhooks, and paid entitlement expiry are implemented. **New purchases remain disabled until the actual Stripe account, live prices, secrets, webhook and runtime gate are configured.** See [Stripe setup and pricing decisions](docs/STRIPE_SETUP_TH.md). Deploying source alone does not connect a Stripe merchant account.
+Starter is free (1 hub / 5 blocks). Pro is 149 THB/month or 1,490 THB/year (10 hubs / 100 blocks per hub, analytics, CSV, daily LINE reports, and optional public-footer branding removal). Stripe Checkout, Customer Portal, signed webhooks, and paid entitlement expiry are implemented. **New purchases remain disabled until the actual Stripe account, live prices, secrets, webhook and runtime gate are configured.** See [Stripe setup and pricing decisions](docs/STRIPE_SETUP_TH.md). Deploying source alone does not connect a Stripe merchant account.
 
 ### Runtime and resources
 
@@ -195,7 +195,7 @@ Archiving a block changes the draft while preserving the existing public snapsho
 | Limit | Starter | Pro |
 | --- | --- | --- |
 | Unarchived pages per account | 1 | 10 |
-| Unarchived blocks per page | 20 | 100 |
+| Unarchived blocks per page | 5 | 100 |
 | Layouts, profile styling, avatar, link icons/images | Included | Included |
 | Analytics, rankings, source/device breakdown, and CSV | Locked; events are still collected | Included |
 | Daily LINE analytics report | Locked | Included with LINE setup, friendship, and opt-in |

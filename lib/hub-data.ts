@@ -58,7 +58,7 @@ export function text(value:unknown,label:string,max:number,required=false):strin
   if(typeof value!=='string')throw new HubError(400,`${label}ต้องเป็นข้อความ`);const clean=value.trim();
   if((required&&!clean)||clean.length>max||/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(clean))throw new HubError(400,`${label}ไม่ถูกต้อง (ไม่เกิน ${max} ตัวอักษร)`);return clean;
 }
-export function planLimits(plan:HubPlan):PlanLimits{return plan==='pro'?{maxPages:10,maxLinksPerPage:100}:{maxPages:1,maxLinksPerPage:20};}
+export function planLimits(plan:HubPlan):PlanLimits{return plan==='pro'?{maxPages:10,maxLinksPerPage:100}:{maxPages:1,maxLinksPerPage:5};}
 async function operatorFor(user:Identity,bind=false):Promise<boolean>{
   const existing=await db().prepare('SELECT user_id FROM hub_operators WHERE slot=?').bind('operator').first<{user_id:string}>();
   if(existing)return existing.user_id===user.userId;
@@ -190,7 +190,7 @@ export async function updatePage(request:Request,id:string):Promise<PageEditorDa
     if(!access.canManage)throw new HubError(403,'เฉพาะเจ้าของฮับเท่านั้นที่กู้คืนฮับได้');
     if(data.archived!==false||Object.keys(data).some(k=>!['archived','revision'].includes(k)))throw new HubError(400,'ใช้คำสั่งนี้เพื่อกู้คืนหน้าเท่านั้น');
     if(!page.archived)return editorData(actor,page);
-    const result=await db().prepare("UPDATE hub_pages SET archived=0,updated_at=?,revision=revision+1 WHERE id=? AND account_id=? AND archived=1 AND (SELECT COUNT(*) FROM hub_pages WHERE account_id=? AND archived=0)<CASE (SELECT plan FROM hub_accounts WHERE id=?) WHEN 'pro' THEN 10 ELSE 1 END AND (SELECT COUNT(*) FROM hub_links WHERE page_id=? AND archived=0)<=CASE (SELECT plan FROM hub_accounts WHERE id=?) WHEN 'pro' THEN 100 ELSE 20 END").bind(Date.now(),id,account.id,account.id,account.id,id,account.id).run();
+    const result=await db().prepare("UPDATE hub_pages SET archived=0,updated_at=?,revision=revision+1 WHERE id=? AND account_id=? AND archived=1 AND (SELECT COUNT(*) FROM hub_pages WHERE account_id=? AND archived=0)<CASE (SELECT plan FROM hub_accounts WHERE id=?) WHEN 'pro' THEN 10 ELSE 1 END AND (SELECT COUNT(*) FROM hub_links WHERE page_id=? AND archived=0)<=CASE (SELECT plan FROM hub_accounts WHERE id=?) WHEN 'pro' THEN 100 ELSE 5 END").bind(Date.now(),id,account.id,account.id,account.id,id,account.id).run();
     if(!result.meta.changes)throw new HubError(403,'จำนวนหน้าครบตามแพ็กเกจแล้ว',{code:'page_limit'});return editorData(actor,await ownPage(account,id));
   }
   clientRevision(data.revision,page);
@@ -236,7 +236,7 @@ export async function createLink(request:Request,pageId:string):Promise<HubLink>
   const max=await db().prepare('SELECT MAX(sort_order) AS n FROM hub_links WHERE page_id=?').bind(pageId).first<{n:number|null}>();if(!('sortOrder'in data))link.sortOrder=(max?.n??-1)+1;
   const id=crypto.randomUUID(),now=Date.now();
   const results=await db().batch([
-    db().prepare("INSERT INTO hub_links (id,page_id,type,title,description,url,icon,enabled,featured,sort_order,archived,created_at) SELECT ?,?,?,?,?,?,?,?,?,?,0,? WHERE EXISTS(SELECT 1 FROM hub_pages WHERE id=? AND account_id=? AND archived=0 AND revision=? AND "+teamWriteGuard()+") AND (SELECT COUNT(*) FROM hub_links WHERE page_id=? AND archived=0)<CASE (SELECT plan FROM hub_accounts WHERE id=?) WHEN 'pro' THEN 100 ELSE 20 END").bind(id,pageId,link.type,link.title,link.description,link.url,link.icon,+link.enabled,+link.featured,link.sortOrder,now,pageId,account.id,page.revision,actor.id,actor.id,pageId,account.id),
+    db().prepare("INSERT INTO hub_links (id,page_id,type,title,description,url,icon,enabled,featured,sort_order,archived,created_at) SELECT ?,?,?,?,?,?,?,?,?,?,0,? WHERE EXISTS(SELECT 1 FROM hub_pages WHERE id=? AND account_id=? AND archived=0 AND revision=? AND "+teamWriteGuard()+") AND (SELECT COUNT(*) FROM hub_links WHERE page_id=? AND archived=0)<CASE (SELECT plan FROM hub_accounts WHERE id=?) WHEN 'pro' THEN 100 ELSE 5 END").bind(id,pageId,link.type,link.title,link.description,link.url,link.icon,+link.enabled,+link.featured,link.sortOrder,now,pageId,account.id,page.revision,actor.id,actor.id,pageId,account.id),
     db().prepare('UPDATE hub_pages SET revision=revision+1,updated_at=? WHERE id=? AND account_id=? AND EXISTS(SELECT 1 FROM hub_links WHERE id=? AND page_id=?)').bind(now,pageId,account.id,id,pageId),
   ]);
   if(!results[0].meta.changes)throw new HubError(409,'บันทึกไม่ได้ จำนวนบล็อกเต็ม หรือข้อมูลและสิทธิ์เปลี่ยนไป กรุณาโหลดใหม่',{code:'link_write_conflict'});await recordTeamPageActivity(actor,account.id,pageId,'เพิ่มลิงก์หรือหัวข้อ');return {id,...link};
@@ -246,7 +246,7 @@ export async function updateLink(request:Request,pageId:string,linkId:string):Pr
   const data=await body(request);clientRevision(data.revision,page);delete data.revision;if(!Object.keys(data).length)throw new HubError(400,'ไม่มีข้อมูลให้แก้ไข');const link=await validateLink(data,account,fromLink(existing),pageId,actor.id);
   const restoring=existing.archived===1&&!link.archived;
   const results=await db().batch([
-    db().prepare("UPDATE hub_links SET type=?,title=?,description=?,url=?,icon=?,enabled=?,featured=?,sort_order=?,archived=? WHERE id=? AND page_id=? AND EXISTS(SELECT 1 FROM hub_pages WHERE id=? AND account_id=? AND archived=0 AND revision=? AND "+teamWriteGuard()+") AND (?=0 OR (SELECT COUNT(*) FROM hub_links WHERE page_id=? AND archived=0)<CASE (SELECT plan FROM hub_accounts WHERE id=?) WHEN 'pro' THEN 100 ELSE 20 END)").bind(link.type,link.title,link.description,link.url,link.icon,+link.enabled,+link.featured,link.sortOrder,+link.archived,linkId,pageId,pageId,account.id,page.revision,actor.id,actor.id,+restoring,pageId,account.id),
+    db().prepare("UPDATE hub_links SET type=?,title=?,description=?,url=?,icon=?,enabled=?,featured=?,sort_order=?,archived=? WHERE id=? AND page_id=? AND EXISTS(SELECT 1 FROM hub_pages WHERE id=? AND account_id=? AND archived=0 AND revision=? AND "+teamWriteGuard()+") AND (?=0 OR (SELECT COUNT(*) FROM hub_links WHERE page_id=? AND archived=0)<CASE (SELECT plan FROM hub_accounts WHERE id=?) WHEN 'pro' THEN 100 ELSE 5 END)").bind(link.type,link.title,link.description,link.url,link.icon,+link.enabled,+link.featured,link.sortOrder,+link.archived,linkId,pageId,pageId,account.id,page.revision,actor.id,actor.id,+restoring,pageId,account.id),
     db().prepare('UPDATE hub_pages SET revision=revision+1,updated_at=? WHERE id=? AND account_id=? AND changes()>0').bind(Date.now(),pageId,account.id),
   ]);
   if(!results[0].meta.changes)throw new HubError(409,'ร่างหรือสิทธิ์มีการเปลี่ยนแปลง หรือจำนวนบล็อกเต็ม กรุณาโหลดใหม่ก่อนแก้ไข');await recordTeamPageActivity(actor,account.id,pageId,'แก้ไขลิงก์หรือรูปภาพ');return {id:linkId,...link};
