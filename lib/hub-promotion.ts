@@ -1,3 +1,5 @@
+import type {HubBlockContent,HubContentType} from './hub-types';
+
 /** Money values are stored as plain decimal THB strings, never floating-point amounts. */
 export function thbToSatang(value:unknown):number|null{
   if(typeof value!=='string')return null;
@@ -16,4 +18,9 @@ export function getPromotionPricing(original:unknown,sale:unknown):PromotionPric
 const thaiMoney=new Intl.NumberFormat('th-TH',{minimumFractionDigits:0,maximumFractionDigits:2});
 export function formatThaiBaht(satang:number):string{
   return '฿'+thaiMoney.format(satang/100);
+}
+
+/** Legacy promotion records remain readable; new discounts are a service setting. */
+export function isProductDiscountEnabled(type:HubContentType,content?:HubBlockContent):boolean {
+  return type==='promotion'||(type==='service'&&content?.hasPromotion===true);
 }
