@@ -1,9 +1,10 @@
 "use client";
 
-import {Fragment, useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent} from "react";
-import {Archive, ArrowLeft, ArrowRight, ArrowUpRight, BarChart3, Check, CreditCard, ChevronDown, ChevronUp, Copy, ExternalLink, Eye, Globe2, Heading, Image as ImageIcon, LayoutGrid, Link2, LoaderCircle, LockKeyhole, LogOut, MessageCircle, Palette, Plus, RefreshCw, RotateCcw, Search, Settings2, ShieldCheck, Sparkles, Upload, Users, X} from "lucide-react";
+import {useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent} from "react";
+import {Archive, ArrowLeft, ArrowRight, ArrowUpRight, BarChart3, Check, CreditCard, ChevronDown, ChevronUp, Copy, ExternalLink, Eye, Globe2, Heading, Image as ImageIcon, LayoutGrid, Link2, LoaderCircle, LockKeyhole, LogOut, MessageCircle, Palette, Package, Plus, RefreshCw, RotateCcw, Search, Settings2, ShieldCheck, Sparkles, Upload, Users, X} from "lucide-react";
 import type {HubContentType, HubLink, HubProfile, HubTemplate, PageEditorData, PageSummary, WorkspaceData} from "../../lib/hub-types";
 import {hasBlockAction, isRichContentType} from "../../lib/hub-content";
+import {reorderProductIds} from "../../lib/hub-product-order";
 import {CONTENT_OPTIONS, ContentFields, ContentTypePicker, HubShareSettings, contentDraftOf, contentDraftError, emptyContent, type ContentDraft} from "./HubContentEditor";
 import {HubBrand} from "./ui";
 import {BuildVersion} from "./BuildVersion";
@@ -116,6 +117,7 @@ export default function HubStudio(){
     return()=>{document.body.style.overflow=previousOverflow;document.removeEventListener("keydown",onKeyDown,true);mobile.removeEventListener("change",onWidthChange);if(previousFocus?.isConnected)previousFocus.focus({preventScroll:true});};
   },[preview]);
   const links=(editor?.links||[]).filter(link=>!link.archived).sort((a,b)=>a.sortOrder-b.sortOrder);
+  const productLinks=links.filter(link=>link.type==='service');
   const archivedLinks=(editor?.links||[]).filter(link=>link.archived);
   const previewLinks:HubLink[]=links.map(link=>linkDrafts[link.id]?{...link,...linkDrafts[link.id]}:link);
   if(newBlockType&&newBlockDraft.title.trim())previewLinks.push({...newBlockDraft,id:"new-link-preview",sortOrder:Math.max(-1,...links.map(link=>link.sortOrder))+1,archived:false});
@@ -138,15 +140,48 @@ export default function HubStudio(){
   async function createPage(event:FormEvent){event.preventDefault();if(busy)return;setBusy("create");setError("");try{const value=await api<PageEditorData>("/api/pages",{method:"POST",body:JSON.stringify({name:name.trim(),slug:newSlug.trim(),template})});adoptEditor(value);setDirtyRows({});setNewBlockType(null);setEditorTab("content");setScreen("editor");window.history.replaceState(window.history.state,"",`/studio?page=${encodeURIComponent(value.page.id)}`);await refreshWorkspace();notify("สร้างฮับแล้ว เพิ่มเนื้อหาของคุณได้เลย");}catch(e){mutationError(e);}finally{setBusy(null);}}
   function manageTeam(){if(!editor)return;setTeamPageId(editor.page.id);navigate("teams");}
   function mutationError(e:unknown){setError((e as Error).message);if((e as ApiError).status===409)setConflict(true);}
-  function addContent(type:HubContentType){setNewBlockAfterId(null);setNewBlockType(type);setNewBlockDraft(emptyContent(type));setContentPicker(false);setError("");}
+  function addContent(type:HubContentType){setNewBlockAfterId(type==="service"?productLinks[0]?.id??null:null);setNewBlockType(type);setNewBlockDraft(emptyContent(type));setContentPicker(false);setError("");}
   function addProductAfter(id:string){if(busy||newBlockType)return;setNewBlockAfterId(id);setNewBlockType("service");setNewBlockDraft(emptyContent("service"));setContentPicker(false);setError("");}
   function cancelNewContent(){setNewBlockAfterId(null);setNewBlockType(null);setNewBlockDraft(emptyContent("link"));setError("");}
-  async function createBlock(event:FormEvent){event.preventDefault();if(!editor||busy||!newBlockType)return;const validation=contentDraftError(newBlockDraft);if(validation){setError(validation);return;}setBusy("add");setError("");try{await api<{link:HubLink}>(`/api/pages/${editor.page.id}/links`,{method:"POST",body:JSON.stringify({...newBlockDraft,title:newBlockDraft.title.trim(),url:newBlockDraft.url.trim(),revision:editor.revision})});await reloadEditor();setNewBlockAfterId(null);setNewBlockType(null);setNewBlockDraft(emptyContent("link"));await refreshWorkspace();notify("เพิ่มเนื้อหาในฉบับร่างแล้ว");}catch(e){mutationError(e);}finally{setBusy(null);}}
+  async function createBlock(event:FormEvent){
+    event.preventDefault();
+    if(!editor||busy||!newBlockType)return;
+    const validation=contentDraftError(newBlockDraft);
+    if(validation){setError(validation);return;}
+    setBusy("add");setError("");
+    try{
+      const created=await api<{link:HubLink}>(`/api/pages/${editor.page.id}/links`,{
+        method:"POST",
+        body:JSON.stringify({...newBlockDraft,title:newBlockDraft.title.trim(),url:newBlockDraft.url.trim(),revision:editor.revision})
+      });
+      await reloadEditor();
+      setNewBlockAfterId(null);setNewBlockType(null);setNewBlockDraft(emptyContent("link"));
+      await refreshWorkspace();
+      notify(created.link.type==="service"?"เพิ่มสินค้าในกลุ่มเรียบร้อยแล้ว":"เพิ่มเนื้อหาในฉบับร่างแล้ว");
+      if(created.link.type==="service"){
+        window.requestAnimationFrame(()=>{
+          const row=document.getElementById(`studio-link-${created.link.id}`);
+          if(row)row.scrollIntoView({block:"center",behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?"auto":"smooth"});
+        });
+      }
+    }catch(e){mutationError(e);}finally{setBusy(null);}
+  }
   async function duplicateBlock(link:HubLink){if(!editor||busy)return;if(hasUnsaved){setError("บันทึกหรือยกเลิกการแก้ไขก่อนทำสำเนา");return;}setBusy("duplicate");setError("");try{await api<{link:HubLink}>(`/api/pages/${editor.page.id}/links`,{method:"POST",body:JSON.stringify({...draftOf(link),title:(link.title+" (สำเนา)").slice(0,100),enabled:false,revision:editor.revision})});await reloadEditor();await refreshWorkspace();notify("ทำสำเนาแล้ว รายการใหม่ยังซ่อนอยู่จนกว่าคุณจะเปิดใช้งาน");}catch(e){mutationError(e);}finally{setBusy(null);}}
   async function saveLink(link:HubLink,draft:LinkDraft):Promise<HubLink>{if(!editor||busy)throw new Error("กรุณารอให้รายการก่อนหน้าบันทึกเสร็จ");setBusy(link.id);setError("");try{const saved=await api<{link:HubLink}>(`/api/pages/${editor.page.id}/links/${link.id}`,{method:"PATCH",body:JSON.stringify({...draft,revision:editor.revision})});markDirty(link.id,false);await reloadEditor();notify("บันทึกเนื้อหาในฉบับร่างแล้ว");return saved.link;}catch(e){mutationError(e);throw e;}finally{setBusy(null);}}
   async function patchLink(link:HubLink,patch:Partial<HubLink>){if(!editor||busy)return;setBusy(link.id);setError("");try{await api(`/api/pages/${editor.page.id}/links/${link.id}`,{method:"PATCH",body:JSON.stringify({...patch,revision:editor.revision})});await reloadEditor();notify(patch.archived===false?"กู้คืนแล้ว ลิงก์ยังซ่อนอยู่จนกว่าจะเปิดใช้งาน":"บันทึกฉบับร่างแล้ว");}catch(e){mutationError(e);}finally{setBusy(null);}}
   async function archiveLink(link:HubLink){if(!editor||busy)return;setBusy(link.id);setError("");try{await api(`/api/pages/${editor.page.id}/links/${link.id}?revision=${editor.revision}`,{method:"DELETE"});markDirty(link.id,false);await reloadEditor();await refreshWorkspace();notify("เก็บเข้าคลังแล้ว ประวัติคลิกยังอยู่");}catch(e){mutationError(e);}finally{setBusy(null);}}
   async function reorder(index:number,direction:number){if(!editor||busy)return;const ordered=[...links],target=index+direction;if(target<0||target>=ordered.length)return;[ordered[index],ordered[target]]=[ordered[target],ordered[index]];setBusy("reorder");setError("");try{await api(`/api/pages/${editor.page.id}/reorder`,{method:"POST",body:JSON.stringify({ids:ordered.map(link=>link.id),revision:editor.revision})});await reloadEditor();notify("บันทึกลำดับในฉบับร่างแล้ว");}catch(e){mutationError(e);}finally{setBusy(null);}}
+  async function reorderProduct(index:number,direction:number){
+    if(!editor||busy)return;
+    const ids=reorderProductIds(links,index,direction);
+    if(!ids)return;
+    setBusy("reorder");setError("");
+    try{
+      await api(`/api/pages/${editor.page.id}/reorder`,{method:"POST",body:JSON.stringify({ids,revision:editor.revision})});
+      await reloadEditor();
+      notify("เปลี่ยนลำดับสินค้าในฉบับร่างแล้ว");
+    }catch(e){mutationError(e);}finally{setBusy(null);}
+  }
   async function saveProfile(event:FormEvent){event.preventDefault();if(!editor||!profile||busy)return;setBusy("profile");setError("");try{const result=await api<PageEditorData>(`/api/pages/${editor.page.id}`,{method:"PATCH",body:JSON.stringify({profile,...(slug!==editor.page.slug?{slug}:{}),revision:editor.revision})});adoptEditor(result);await refreshWorkspace();notify("บันทึกหน้าตาในฉบับร่างแล้ว");}catch(e){mutationError(e);}finally{setBusy(null);}}
   async function setAvatar(url:string){if(!editor)return;const result=await api<PageEditorData>(`/api/pages/${editor.page.id}`,{method:"PATCH",body:JSON.stringify({profile:{avatarUrl:url},revision:editor.revision})});setEditor(result);setProfile(previous=>previous?{...previous,avatarUrl:url}:result.profile);notify(url?"บันทึกรูปในฉบับร่างแล้ว":"นำรูปออกจากฉบับร่างแล้ว");}
   async function uploadAvatar(file?:File){if(!file||!editor||busy)return;if(!["image/png","image/jpeg","image/webp"].includes(file.type)||file.size>2*1024*1024){setError("เลือกรูป PNG, JPG หรือ WebP ขนาดไม่เกิน 2 MB");return;}setBusy("avatar");setError("");try{const form=new FormData();form.append("file",file);form.append("pageId",editor.page.id);const result=await api<{url:string}>("/api/uploads",{method:"POST",body:form});await setAvatar(result.url);}catch(e){mutationError(e);}finally{setBusy(null);if(uploadRef.current)uploadRef.current.value="";}}
@@ -231,7 +266,42 @@ export default function HubStudio(){
             {links.length>=editorLimit&&<p className="hce-quota-note">ใช้ครบ {editorLimit} รายการแล้ว เก็บรายการที่ไม่ใช้เข้าคลังเพื่อเพิ่มรายการใหม่{editorPlan==="starter"?" หรือเลือก Pro เพื่อเพิ่มได้ถึง 100 รายการต่อฮับ":""}</p>}
             {contentPicker&&!newBlockType&&<ContentTypePicker onChoose={addContent} onClose={()=>setContentPicker(false)} disabled={!!busy}/>}
             {newBlockType&&!newBlockAfterId&&<form className="hs-panel hs-new-block-form" onSubmit={createBlock} aria-busy={!!busy}><div className="hs-panel-heading"><div><span className="hce-new-form-badge">เนื้อหาใหม่</span><h2>{CONTENT_OPTIONS.find(item=>item.type===newBlockType)?.label}</h2></div><button type="button" aria-label="ยกเลิกเพิ่มรายการ" disabled={!!busy} onClick={cancelNewContent}><X size={18}/></button></div><ContentFields pageId={editor.page.id} draft={newBlockDraft} onChange={setNewBlockDraft} disabled={!!busy} onUploadingChange={setMediaUploading} autoFocus/><div className="hs-new-block-actions"><button type="button" className="hs-button hs-outline" disabled={!!busy} onClick={cancelNewContent}>ยกเลิก</button><button type="submit" className="hs-button hs-primary" disabled={!!busy}>{busy==="add"?<LoaderCircle className="hs-spin" size={16}/>:<Plus size={16}/>}เพิ่มลงฉบับร่าง</button></div></form>}
-            {links.length===0&&!newBlockType?<div className="hs-editor-empty"><span><ImageIcon size={27}/></span><h3>เริ่มเล่าเรื่องของคุณ</h3><p>เพิ่มรูป ผลงาน บริการ หรือลิงก์แรก<br/>แล้วดูหน้าฮับเปลี่ยนไปพร้อมกัน</p><button type="button" className="hs-button hs-primary" onClick={()=>setContentPicker(true)}><Plus size={17}/>เลือกเนื้อหาแรก</button></div>:<div className="hs-link-rows">{links.map((link,index)=><Fragment key={link.id}><LinkRow pageId={editor.page.id} link={link} index={index} total={links.length} busy={!!busy} onSave={saveLink} onArchive={archiveLink} onReorder={reorder} onDirty={markDirty} onDraft={markDraft} onUploadState={setMediaUploading} onStatistics={showLinkStatistics} hasAnalyticsAccess={editorAnalytics} onDuplicate={duplicateBlock} canDuplicate={links.length<editorLimit} onAddProduct={()=>addProductAfter(link.id)} canAddProduct={links.length<editorLimit&&!newBlockType}/>{newBlockType&&newBlockAfterId===link.id&&<form className="hs-panel hs-new-block-form hs-inline-product-form" onSubmit={createBlock} aria-busy={!!busy}><div className="hs-panel-heading"><div><span className="hce-new-form-badge">สินค้าใหม่</span><h2>{CONTENT_OPTIONS.find(item=>item.type===newBlockType)?.label}</h2></div><button type="button" aria-label="ยกเลิกเพิ่มรายการ" disabled={!!busy} onClick={cancelNewContent}><X size={18}/></button></div><ContentFields pageId={editor.page.id} draft={newBlockDraft} onChange={setNewBlockDraft} disabled={!!busy} onUploadingChange={setMediaUploading} autoFocus/><div className="hs-new-block-actions"><button type="button" className="hs-button hs-outline" disabled={!!busy} onClick={cancelNewContent}>ยกเลิก</button><button type="submit" className="hs-button hs-primary" disabled={!!busy}>{busy==="add"?<LoaderCircle className="hs-spin" size={16}/>:<Plus size={16}/>}เพิ่มลงฉบับร่าง</button></div></form>}</Fragment>)}</div>}
+            {links.length===0&&!newBlockType?<div className="hs-editor-empty"><span><ImageIcon size={27}/></span><h3>เริ่มเล่าเรื่องของคุณ</h3><p>เพิ่มรูป ผลงาน บริการ หรือลิงก์แรก<br/>แล้วดูหน้าฮับเปลี่ยนไปพร้อมกัน</p><button type="button" className="hs-button hs-primary" onClick={()=>setContentPicker(true)}><Plus size={17}/>เลือกเนื้อหาแรก</button></div>:<div className="hs-link-rows">{links.map((link,index)=>link.type==="service"?
+              (link.id!==productLinks[0]?.id?null:
+               <section key={link.id} className="hs-product-collection" aria-labelledby="hs-product-collection-title">
+                 <header className="hs-product-collection-header">
+                   <span className="hs-product-collection-icon"><Package size={22}/></span>
+                   <div className="hs-product-collection-heading">
+                     <h3 id="hs-product-collection-title">สินค้า / บริการ</h3>
+                     <p>สินค้าแต่ละแถวมีรูป ราคา และปุ่มของตัวเอง · หน้าเว็บเลื่อนดูซ้าย–ขวา</p>
+                   </div>
+                   <span className="hs-product-collection-count">{productLinks.length} สินค้า</span>
+                 </header>
+                 <div className="hs-product-collection-list" role="group" aria-label="รายการสินค้า">
+                   {productLinks.map((product,productIndex)=><LinkRow key={product.id}
+                     pageId={editor.page.id} link={product} index={productIndex} total={productLinks.length}
+                     busy={!!busy} onSave={saveLink} onArchive={archiveLink}
+                     onReorder={reorderProduct} onDirty={markDirty} onDraft={markDraft}
+                     onUploadState={setMediaUploading} onStatistics={showLinkStatistics}
+                     hasAnalyticsAccess={editorAnalytics} onDuplicate={duplicateBlock}
+                     canDuplicate={links.length<editorLimit}/>)}
+                 </div>
+                 {newBlockType==="service"&&!!newBlockAfterId&&<form className="hs-panel hs-new-block-form hs-inline-product-form" onSubmit={createBlock} aria-busy={!!busy}><div className="hs-panel-heading"><div><span className="hce-new-form-badge">สินค้าใหม่</span><h2>{CONTENT_OPTIONS.find(item=>item.type===newBlockType)?.label}</h2></div><button type="button" aria-label="ยกเลิกเพิ่มรายการ" disabled={!!busy} onClick={cancelNewContent}><X size={18}/></button></div><ContentFields pageId={editor.page.id} draft={newBlockDraft} onChange={setNewBlockDraft} disabled={!!busy} onUploadingChange={setMediaUploading} autoFocus/><div className="hs-new-block-actions"><button type="button" className="hs-button hs-outline" disabled={!!busy} onClick={cancelNewContent}>ยกเลิก</button><button type="submit" className="hs-button hs-primary" disabled={!!busy}>{busy==="add"?<LoaderCircle className="hs-spin" size={16}/>:<Plus size={16}/>}เพิ่มลงฉบับร่าง</button></div></form>}
+                 <div className="hs-product-collection-actions">
+                   <button type="button" className="hs-add-next-product"
+                     disabled={!!busy||links.length>=editorLimit||!!newBlockType}
+                     onClick={()=>addProductAfter(productLinks[0].id)}>
+                     <Plus size={18}/>เพิ่มสินค้าอีกรายการ
+                   </button>
+                   <small>เพิ่มในกลุ่มเดียวกัน · สินค้า 1 ตัวนับเป็น 1 รายการในแพ็กเกจ</small>
+                 </div>
+               </section>)
+              :<LinkRow key={link.id} pageId={editor.page.id} link={link}
+                index={index} total={links.length} busy={!!busy}
+                onSave={saveLink} onArchive={archiveLink} onReorder={reorder}
+                onDirty={markDirty} onDraft={markDraft} onUploadState={setMediaUploading}
+                onStatistics={showLinkStatistics} hasAnalyticsAccess={editorAnalytics}
+                onDuplicate={duplicateBlock} canDuplicate={links.length<editorLimit}/>)}</div>}
             {archivedLinks.length>0&&<details className="hs-archive"><summary><span><Archive size={15}/>เนื้อหาในคลัง <b>{archivedLinks.length}</b></span><ChevronDown size={16}/></summary><p>กู้คืนได้โดยไม่เสียประวัติคลิก</p>{archivedLinks.map(link=><div className="hs-archived-row" key={link.id}><HubLinkIcon icon={link.type==="heading"?"file":link.icon} url={link.url} size={21}/><span>{link.title}</span><button className="hs-button hs-outline" disabled={!!busy||links.length>=editorLimit} data-tooltip={links.length>=editorLimit?`ครบ ${editorLimit} รายการแล้ว เก็บรายการที่ไม่ใช้เข้าคลังก่อนกู้คืน`:"นำรายการกลับมาแก้ไขในฉบับร่าง"} onClick={()=>void patchLink(link,{archived:false,enabled:false,sortOrder:Math.max(-1,...links.map(item=>item.sortOrder))+1})}><RotateCcw size={13}/>กู้คืน</button></div>)}</details>}
             <div className="hs-edit-note"><ShieldCheck size={16}/><p><strong>บันทึกก่อน แล้วค่อยเผยแพร่</strong>รูปและเนื้อหาจะอยู่ในฉบับร่าง กด “เผยแพร่การเปลี่ยนแปลง” เมื่อพร้อมให้คนเข้าชม</p></div>
           </>}
@@ -249,7 +319,7 @@ export default function HubStudio(){
   </div>;
 }
 
-function LinkRow({pageId,link,index,total,busy,onSave,onArchive,onReorder,onDirty,onDraft,onUploadState,onStatistics,hasAnalyticsAccess,onDuplicate,canDuplicate,onAddProduct,canAddProduct}:{pageId:string;link:HubLink;index:number;total:number;busy:boolean;onSave:(link:HubLink,draft:LinkDraft)=>Promise<HubLink>;onArchive:(link:HubLink)=>Promise<void>;onReorder:(index:number,direction:number)=>Promise<void>;onDirty:(id:string,dirty:boolean)=>void;onDraft:(id:string,draft:LinkDraft|null)=>void;onUploadState:(uploading:boolean)=>void;onStatistics:(id:string)=>void;hasAnalyticsAccess:boolean;onDuplicate:(link:HubLink)=>Promise<void>;canDuplicate:boolean;onAddProduct:()=>void;canAddProduct:boolean}){
+function LinkRow({pageId,link,index,total,busy,onSave,onArchive,onReorder,onDirty,onDraft,onUploadState,onStatistics,hasAnalyticsAccess,onDuplicate,canDuplicate}:{pageId:string;link:HubLink;index:number;total:number;busy:boolean;onSave:(link:HubLink,draft:LinkDraft)=>Promise<HubLink>;onArchive:(link:HubLink)=>Promise<void>;onReorder:(index:number,direction:number)=>Promise<void>;onDirty:(id:string,dirty:boolean)=>void;onDraft:(id:string,draft:LinkDraft|null)=>void;onUploadState:(uploading:boolean)=>void;onStatistics:(id:string)=>void;hasAnalyticsAccess:boolean;onDuplicate:(link:HubLink)=>Promise<void>;canDuplicate:boolean}){
   const [draft,setDraft]=useState<LinkDraft>(()=>draftOf(link));
   const [expanded,setExpanded]=useState(false);
   const [mediaExpanded,setMediaExpanded]=useState(false);
@@ -268,7 +338,7 @@ function LinkRow({pageId,link,index,total,busy,onSave,onArchive,onReorder,onDirt
   useEffect(()=>()=>{onDraft(link.id,null);onDirty(link.id,false);},[link.id,onDraft,onDirty]);
   async function save(event:FormEvent){event.preventDefault();if(busy)return;setError("");const validation=contentDraftError(draft);if(validation){setError(validation);if(rich)setExpanded(true);return;}try{const saved=await onSave(link,{...draft,title:draft.title.trim(),url:draft.url.trim()});setDraft(draftOf(saved));setBaseSignature(JSON.stringify(draftOf(saved)));setExpanded(false);setMediaExpanded(false);}catch(e){setError((e as Error).message);}}
   function cancel(){setDraft(draftOf(link));setBaseSignature(signature);setError("");setMediaExpanded(false);setExpanded(false);}
-  return <article className={`hs-link-row ${draft.type==="heading"?"hs-heading-row":""} ${!draft.enabled?"hs-row-hidden":""}`} aria-label={`${option.short}: ${link.title}`}>
+  return <article id={`studio-link-${link.id}`} className={`hs-link-row ${draft.type==="heading"?"hs-heading-row":""} ${!draft.enabled?"hs-row-hidden":""}`} aria-label={`${option.short}: ${link.title}`}>
     <form onSubmit={save} aria-busy={busy}>
       <div className="hs-row-top">
         <span className="hs-row-grip"><button type="button" aria-label={`เลื่อน ${link.title} ขึ้น`} data-tooltip={index===0?"รายการนี้อยู่บนสุดแล้ว":"เลื่อนรายการนี้ขึ้นหนึ่งตำแหน่ง"} disabled={busy||index===0} onClick={()=>void onReorder(index,-1)}><ChevronUp size={17}/></button><button type="button" aria-label={`เลื่อน ${link.title} ลง`} data-tooltip={index===total-1?"รายการนี้อยู่ท้ายสุดแล้ว":"เลื่อนรายการนี้ลงหนึ่งตำแหน่ง"} disabled={busy||index===total-1} onClick={()=>void onReorder(index,1)}><ChevronDown size={17}/></button></span>
@@ -287,7 +357,6 @@ function LinkRow({pageId,link,index,total,busy,onSave,onArchive,onReorder,onDirt
         <button type="button" aria-label={`ทำสำเนา ${link.title}`} data-tooltip={!canDuplicate?"จำนวนรายการครบตามแพ็กเกจแล้ว":dirty?"บันทึกการแก้ไขก่อนทำสำเนา":"ทำสำเนาไปท้ายรายการ โดยเริ่มเป็นรายการที่ซ่อนอยู่"} disabled={busy||dirty||!canDuplicate} onClick={()=>void onDuplicate(link)}><Copy size={16}/><span>ทำสำเนา</span></button>
         <button type="button" aria-label={`เก็บ ${link.title} เข้าคลัง`} data-tooltip="เก็บรายการเข้าคลัง ประวัติคลิกยังอยู่และกู้คืนได้" disabled={busy} onClick={()=>setConfirm(!confirm)}><Archive size={16}/><span>เก็บเข้าคลัง</span></button>
       </div>{dirty?<div className="hs-row-save"><button type="button" disabled={busy} onClick={cancel}>ยกเลิก</button><button type="submit" className="hs-save-link" disabled={busy}><Check size={17}/>บันทึกฉบับร่าง</button></div>:<span className="hs-row-saved"><Check size={15}/>บันทึกแล้ว</span>}</div>
-      {draft.type==="service"&&<button type="button" className="hs-add-next-product" disabled={busy||!canAddProduct} onClick={onAddProduct}><Plus size={17}/>เพิ่มสินค้าอีกรายการ</button>}
       {error&&<p className="hs-row-error" role="alert">{error}</p>}
     </form>
     {confirm&&<div className="hs-inline-confirm"><p>เก็บรายการนี้เข้าคลัง?<span>ประวัติคลิกยังอยู่ และกู้คืนได้ภายหลัง</span></p><div><button onClick={()=>setConfirm(false)} disabled={busy}>ยกเลิก</button><button className="hs-danger-text" disabled={busy} onClick={()=>void onArchive(link)}>เก็บเข้าคลัง</button></div></div>}
