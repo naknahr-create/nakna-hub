@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {reorderProductIds,reorderTypedContentIds} from '../lib/hub-product-order.ts';
+import {reorderProductIds,reorderTypedContentIds,reorderProductGroupIds} from '../lib/hub-product-order.ts';
 import {readFileSync} from 'node:fs';
 
 const links=[
@@ -103,4 +103,68 @@ test('discount works for a normal product and keeps historic promotion records r
   assert.match(card,/discountEnabled&&block\.type==='service'\?'hcb-promotion'/);
   assert.match(card,/\{promo&&<div className="hcb-promo-prices"/);
   assert.match(card,/!discountEnabled&&content\.price/);
+});
+
+
+test('moving the entire product rail operates on the visible group, not a single product',()=>{
+  // The two product records are interspersed in storage, but visually share one carousel.
+  const mixed=[
+    {id:'one',type:'link'},
+    {id:'two',type:'heading'},
+    {id:'productA',type:'promotion'},
+    {id:'three',type:'link'},
+    {id:'productB',type:'service'},
+    {id:'four',type:'link'},
+  ];
+  assert.deepEqual(reorderProductGroupIds(mixed,'top'),
+    ['productA','productB','one','two','three','four']);
+  assert.deepEqual(reorderProductGroupIds(mixed,'up'),
+    ['one','productA','productB','two','three','four']);
+  assert.deepEqual(reorderProductGroupIds(mixed,'down'),
+    ['one','two','three','productA','productB','four']);
+  assert.deepEqual(mixed.map(row=>row.id),
+    ['one','two','productA','three','productB','four'],
+    'original positions must not mutate before a successful save');
+});
+
+test('move group boundary conditions keep controls disabled when no move is possible',()=>{
+  const atTop=[
+    {id:'service',type:'service'},{id:'discount',type:'promotion'},
+    {id:'about',type:'text'}
+  ];
+  const atBottom=[
+    {id:'about',type:'text'},{id:'heading',type:'heading'},
+    {id:'discount',type:'promotion'},{id:'service',type:'service'}
+  ];
+  assert.equal(reorderProductGroupIds(atTop,'top'),null);
+  assert.equal(reorderProductGroupIds(atTop,'up'),null);
+  assert.deepEqual(reorderProductGroupIds(atTop,'down'),['about','service','discount']);
+  assert.equal(reorderProductGroupIds(atBottom,'down'),null);
+  assert.equal(reorderProductGroupIds([], 'top'),null);
+  assert.equal(reorderProductGroupIds([{id:'text',type:'text'}],'top'),null);
+});
+
+test('Studio exposes explicit move-to-top, up, down buttons for the entire product card',()=>{
+  const studio=readFileSync(new URL('../app/components/HubStudio.tsx',import.meta.url),'utf8');
+  const style=readFileSync(new URL('../app/content-editor.css',import.meta.url),'utf8');
+  assert.match(studio,/aria-label="เลื่อนตำแหน่งกลุ่มสินค้า"/);
+  assert.match(studio,/aria-label="ย้ายกลุ่มสินค้าขึ้นบนสุด"/);
+  assert.match(studio,/aria-label="เลื่อนกลุ่มสินค้าขึ้น"/);
+  assert.match(studio,/aria-label="เลื่อนกลุ่มสินค้าลง"/);
+  assert.match(studio,/reorderProductGroupIds\(links,"top"\)/);
+  assert.match(studio,/reorderProductGroupIds\(links,"up"\)/);
+  assert.match(studio,/reorderProductGroupIds\(links,"down"\)/);
+  assert.match(studio,/moveProductGroup\("top"\)/);
+  assert.match(studio,/moveProductGroup\("up"\)/);
+  assert.match(studio,/moveProductGroup\("down"\)/);
+  assert.match(style,/\.hs-product-group-order/);
+});
+
+test('mixed product cards keep prices and CTAs near titles with no auto-stretched gap',()=>{
+  const css=readFileSync(new URL('../app/hub-content.css',import.meta.url),'utf8');
+  assert.match(css,/\.hc-card-carousel-compact:not\(\.hc-card-carousel-single\) \.hc-card-rail/);
+  assert.match(css,/align-items:flex-start/);
+  assert.match(css,/\.hc-card-carousel-compact:not\(\.hc-card-carousel-single\) \.hc-card-slide \.hcb-bottom/);
+  assert.match(css,/margin-top:8px/);
+  assert.match(css,/height:auto/);
 });
