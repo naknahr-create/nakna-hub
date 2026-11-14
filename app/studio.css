@@ -94,3 +94,12 @@
   .hs-home-main .hs-page-card-body{padding:18px}
   .hs-home-main .hs-card-title h3{font-size:20px}
 }
+
+/* Version is unobtrusive in the sidebar on desktop and accessible in the footer on mobile. */
+.hs-sidebar-bottom .hub-build-sidebar{margin:4px 8px 0}
+.hs-studio-footer>.hub-build-footer{display:none}
+@media(max-width:930px){
+  .hs-sidebar-bottom .hub-build-sidebar{display:none}
+  .hs-studio-footer>.hub-build-footer{display:block;margin-left:auto}
+  .hs-studio-footer{flex-wrap:wrap}
+}
