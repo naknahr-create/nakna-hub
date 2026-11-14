@@ -149,3 +149,38 @@
 .hs-promotion-collection .hs-product-collection-count{background:#e1f2ed;color:#087778;border-color:#badfd8}
 .hs-promotion-collection .hs-add-next-product{background:#ecf9f4;border-color:#8cc7bd}
 @media(max-width:600px){.hs-promotion-collection .hs-product-collection-heading p{font-size:10.5px;line-height:1.5}}
+
+
+/* Compact promotion manager: several independently editable products share one card. */
+.hs-promotion-collection .hs-product-collection-header{
+  padding:14px 16px;gap:10px
+}
+.hs-promotion-collection .hs-product-collection-icon{
+  width:38px;height:38px;border-radius:10px
+}
+.hs-promotion-collection .hs-product-collection-heading h3{font-size:15px;margin-bottom:2px}
+.hs-promotion-collection .hs-product-collection-heading p{font-size:11px;line-height:1.5}
+.hs-promotion-collection .hs-product-collection-count{font-size:11px;padding:4px 8px}
+.hs-promotion-collection .hs-row-top{
+  padding:11px 13px 9px 9px;gap:9px
+}
+.hs-promotion-collection .hs-row-fields input{min-height:38px}
+.hs-promotion-collection .hs-row-bottom{
+  gap:6px;padding:6px 0 8px;margin:0 13px
+}
+.hs-promotion-collection .hs-row-bottom>div:first-child>button{
+  min-height:40px;padding:6px
+}
+.hs-promotion-collection .hs-row-saved,
+.hs-promotion-collection .hs-row-unsaved{font-size:11px}
+.hs-promotion-collection .hs-product-collection-actions{padding:12px 16px 14px}
+.hs-promotion-collection .hs-product-collection-actions>.hs-add-next-product{min-height:44px}
+.hs-promotion-collection .hs-product-collection-actions>small{font-size:11px}
+@media(max-width:600px){
+ .hs-promotion-collection .hs-product-collection-header{padding:12px;gap:8px}
+ .hs-promotion-collection .hs-product-collection-heading p{font-size:10px}
+ .hs-promotion-collection .hs-product-collection-count{margin-left:0}
+ .hs-promotion-collection .hs-row-top{padding:9px 9px 8px 6px;gap:6px}
+ .hs-promotion-collection .hs-row-bottom{margin:0 10px}
+ .hs-promotion-collection .hs-product-collection-actions{padding:11px}
+}

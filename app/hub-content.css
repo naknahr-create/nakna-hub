@@ -193,3 +193,94 @@
  .hc .hcb-promo-label{top:10px;left:10px;font-size:10px}
  .hc .hc-promotion-heading h2{font-size:15px}
 }
+
+
+/* Compact Affiliate rail — intentionally overrides the legacy 100%-wide card
+   carousel only for promotions. Services continue using the full-size design. */
+.hc .hc-promotion-showcase .hc-card-carousel-compact{width:100%;min-width:0;isolation:isolate}
+.hc .hc-promotion-showcase .hc-card-carousel-compact .hc-card-rail{
+  display:flex;flex-wrap:nowrap;gap:10px;overflow-x:auto;overflow-y:hidden;
+  width:100%;min-width:0;max-width:100%;padding:2px 1px 8px;
+  overscroll-behavior-x:contain;scroll-snap-type:x mandatory;scroll-padding-inline:1px;
+  scroll-behavior:smooth;scrollbar-width:none;-webkit-overflow-scrolling:touch;
+  touch-action:pan-x pan-y
+}
+.hc .hc-promotion-showcase .hc-card-carousel-compact .hc-card-rail::-webkit-scrollbar{display:none}
+.hc .hc-promotion-showcase .hc-card-carousel-compact .hc-card-slide,
+.hc .hc-promotion-showcase .hc-card-carousel-compact .hc-card-slide:only-child{
+  flex:0 0 clamp(186px,58%,218px);width:clamp(186px,58%,218px);
+  min-width:0;max-width:none;scroll-snap-align:start;scroll-snap-stop:normal
+}
+.hc .hc-promotion-showcase .hc-card-slide>.hcb-promotion{
+  display:flex;flex-direction:column;height:100%;border-radius:14px;
+  border:1px solid var(--hc-line);box-shadow:0 3px 12px #19383a0a
+}
+.hc .hc-promotion-showcase .hcb-promotion .hcb-cover{min-height:0}
+.hc .hc-promotion-showcase .hcb-promotion .hcb-media{aspect-ratio:1.65/1;min-height:0}
+.hc .hc-promotion-showcase .hcb-promotion .hcb-media img{object-fit:contain;padding:7px}
+.hc .hc-promotion-showcase .hcb-promo-label{
+  top:7px;left:7px;min-height:22px;padding:3px 8px;
+  font-size:9px;line-height:1.35;box-shadow:none
+}
+.hc .hc-promotion-showcase .hcb-promotion .hcb-body{
+  display:flex;flex-direction:column;flex:1;gap:0;padding:10px 11px 11px;min-width:0
+}
+.hc .hc-promotion-showcase .hcb-promotion .hcb-title{
+  font-size:12px;line-height:1.4;font-weight:650;letter-spacing:-.01em;
+  min-height:33px;display:-webkit-box;-webkit-box-orient:vertical;
+  -webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere
+}
+.hc .hc-promotion-showcase .hcb-promotion .hcb-description{
+  font-size:10px;line-height:1.45;margin-top:3px;display:-webkit-box;
+  -webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden
+}
+.hc .hc-promotion-showcase .hcb-promo-prices{
+  display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;
+  gap:4px 6px;margin:8px 0 0
+}
+.hc .hc-promotion-showcase .hcb-promo-amount{gap:1px}
+.hc .hc-promotion-showcase .hcb-promo-amount del{font-size:10px;line-height:1.25}
+.hc .hc-promotion-showcase .hcb-promo-amount strong{font-size:20px;line-height:1.2;letter-spacing:-.03em}
+.hc .hc-promotion-showcase .hcb-promo-discount{
+  min-height:21px;padding:3px 6px;font-size:9px;line-height:1.3
+}
+.hc .hc-promotion-showcase .hc-card-slide .hcb-bottom{
+  margin-top:auto;padding-top:8px;display:flex;flex-direction:column;align-items:stretch;gap:0
+}
+.hc .hc-promotion-showcase .hcb-promotion .hcb-action{
+  width:100%;min-height:42px;gap:4px;justify-content:center;
+  padding:8px 5px;border-radius:10px;font-size:11px;line-height:1.35;font-weight:650
+}
+.hc .hc-promotion-showcase .hcb-promotion .hcb-action svg{width:14px;height:14px}
+.hc .hc-promotion-showcase .hcb-promo-disclosure{
+  display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;
+  min-height:23px;overflow:hidden;margin-top:7px;
+  font-size:9px;line-height:1.3;text-align:left;opacity:.9
+}
+.hc .hc-promotion-showcase .hc-card-compact-controls{
+  display:flex;justify-content:space-between;align-items:center;
+  min-height:44px;gap:10px;padding:1px 2px 0;color:var(--hc-ink)
+}
+.hc .hc-promotion-showcase .hc-card-compact-controls>span{font-size:11px;color:var(--hc-muted);font-variant-numeric:tabular-nums}
+.hc .hc-promotion-showcase .hc-card-compact-controls>div{display:flex;gap:7px;align-items:center}
+.hc .hc-promotion-showcase .hc-card-compact-controls button{
+  display:grid;place-items:center;min-width:40px;min-height:40px;
+  border:1px solid var(--hc-line);border-radius:12px;
+  background:var(--hc-card);color:var(--hc-ink);cursor:pointer
+}
+.hc .hc-promotion-showcase .hc-card-compact-controls button:disabled{opacity:.35;cursor:default}
+.hc .hc-promotion-showcase .hc-card-compact-controls button:focus-visible,
+.hc .hc-promotion-showcase .hc-card-rail:focus-visible{
+  outline:2px solid var(--hc-accent);outline-offset:3px
+}
+@media(max-width:450px){
+ .hc .hc-promotion-showcase .hc-card-carousel-compact .hc-card-slide,
+ .hc .hc-promotion-showcase .hc-card-carousel-compact .hc-card-slide:only-child{
+   flex-basis:clamp(182px,60%,210px);width:clamp(182px,60%,210px)
+ }
+ .hc .hc-promotion-showcase .hcb-promotion .hcb-media{aspect-ratio:1.75/1}
+ .hc .hc-promotion-showcase .hc-card-compact-controls button{min-width:38px;min-height:38px}
+}
+@media(prefers-reduced-motion:reduce){
+ .hc .hc-promotion-showcase .hc-card-carousel-compact .hc-card-rail{scroll-behavior:auto}
+}
