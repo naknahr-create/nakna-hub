@@ -45,7 +45,27 @@ test('promotion cards share a Studio parent card and a separate public carousel'
   const canvas=readFileSync(new URL('../app/components/HubCanvas.tsx',import.meta.url),'utf8');
   assert.match(studio,/className="hs-product-collection hs-promotion-collection"/);
   assert.match(studio,/promotionLinks\.map\(\(promotion,promotionIndex\)/);
-  assert.match(studio,/เพิ่มโปรโมชั่นอีกชิ้น/);
+  assert.match(studio,/เพิ่มสินค้าโปรโมชั่น/);
   assert.match(canvas,/promoCards=visible\.filter/);
   assert.match(canvas,/hc-promotion-showcase/);
+});
+
+test('promotions use compact swipe rail while ordinary service carousel keeps full cards',async()=>{
+  const {readFileSync}=await import('node:fs');
+  const canvas=readFileSync(new URL('../app/components/HubCanvas.tsx',import.meta.url),'utf8');
+  const carousel=readFileSync(new URL('../app/components/HubCardCarousel.tsx',import.meta.url),'utf8');
+  const css=readFileSync(new URL('../app/hub-content.css',import.meta.url),'utf8');
+  const studio=readFileSync(new URL('../app/components/HubStudio.tsx',import.meta.url),'utf8');
+  assert.match(canvas,/<HubCardCarousel blocks=\{promoCards\} compact/);
+  assert.match(canvas,/<HubCardCarousel key=\{l.id\} blocks=\{productCards\}/);
+  assert.match(carousel,/hc-card-carousel-compact/);
+  assert.match(carousel,/function stepCompact\(/);
+  assert.match(carousel,/ResizeObserver/);
+  assert.match(carousel,/aria-label="โปรโมชั่นถัดไป"/);
+  assert.match(carousel,/aria-label="โปรโมชั่นก่อนหน้า"/);
+  assert.match(css,/\.hc \.hc-promotion-showcase \.hc-card-carousel-compact \.hc-card-slide/);
+  assert.match(css,/scroll-snap-type:x mandatory/);
+  assert.match(css,/overflow-x:auto/);
+  assert.match(css,/clamp\(186px,58%,218px\)/);
+  assert.match(studio,/เพิ่มอีก 1 ชิ้นเพื่อให้ลูกค้าเลื่อนดูซ้าย–ขวาได้/);
 });
