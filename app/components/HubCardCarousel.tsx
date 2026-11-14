@@ -1,5 +1,5 @@
 'use client';
-import {useEffect,useId,useRef,useState} from 'react';
+import {useCallback,useEffect,useId,useRef,useState} from 'react';
 import {ChevronLeft,ChevronRight} from 'lucide-react';
 import type {HubLink} from '../../lib/hub-types';
 import {HubContentBlock} from './HubContentBlock';
@@ -20,7 +20,7 @@ export function HubCardCarousel({blocks,href,onDemoClick,compact=false}:Props){
  const label=blocks[0]?.type==='promotion'?'โปรโมชั่น':'สินค้าและบริการ';
  const signature=blocks.map(block=>block.id).join(',');
 
- function readPosition(){
+ const readPosition=useCallback(()=>{
   const track=rail.current;
   if(!track)return;
   const children=Array.from(track.children) as HTMLElement[];
@@ -32,7 +32,10 @@ export function HubCardCarousel({blocks,href,onDemoClick,compact=false}:Props){
     const delta=Math.abs(left-track.scrollLeft);
     if(delta<distance){distance=delta;closest=i;}
    }
-   setCurrent(closest);
+   const max=Math.max(0,track.scrollWidth-track.clientWidth);
+   // At the far right, the last promotion is the current destination even if
+   // several narrow tiles remain partially visible beside it.
+   setCurrent(compactPromos&&max>1&&track.scrollLeft>=max-2?children.length-1:closest);
   }
   if(compactPromos){
    const max=Math.max(0,track.scrollWidth-track.clientWidth);
@@ -40,7 +43,7 @@ export function HubCardCarousel({blocks,href,onDemoClick,compact=false}:Props){
    const next=track.scrollLeft<max-2;
    setEdges(old=>old.prev===prev&&old.next===next?old:{prev,next});
   }
- }
+ },[compactPromos]);
 
  useEffect(()=>{
   const track=rail.current;
@@ -54,7 +57,7 @@ export function HubCardCarousel({blocks,href,onDemoClick,compact=false}:Props){
   window.addEventListener('resize',refresh);
   refresh();
   return ()=>{observer?.disconnect();window.removeEventListener('resize',refresh);};
- },[signature,compactPromos]);
+ },[signature,compactPromos,readPosition]);
 
  function move(index:number){
   const track=rail.current;
@@ -92,7 +95,7 @@ export function HubCardCarousel({blocks,href,onDemoClick,compact=false}:Props){
  return <div className={`hc-card-carousel ${compactPromos?'hc-card-carousel-compact':''}`} aria-label={label} data-count={blocks.length}>
   <div className="hc-card-rail" id={railId} ref={rail} onScroll={readPosition}
        onKeyDown={event=>{if(event.key==='ArrowRight'){event.preventDefault();moveWithKeys(1);}else if(event.key==='ArrowLeft'){event.preventDefault();moveWithKeys(-1);}}}
-       tabIndex={blocks.length>1?0:undefined} aria-roledescription="carousel" aria-label={`ปัดซ้ายหรือขวาเพื่อดู${label}ถัดไป`}>
+       tabIndex={blocks.length>1?0:undefined} aria-roledescription="carousel" aria-label={blocks.length>1?`ปัดซ้ายหรือขวาเพื่อดู${label}ถัดไป`:`${label} 1 รายการ`}>
    {blocks.map((block,index)=><div className="hc-card-slide" role="group" aria-roledescription="slide" aria-label={`${label} ${index+1} จาก ${blocks.length}: ${block.title}`} key={block.id}><HubContentBlock block={block} href={href(block)} onDemoClick={onDemoClick}/></div>)}
   </div>
   {blocks.length>1&&(compactPromos?
