@@ -195,15 +195,16 @@ export default function HubStudio(){
       setSaveEpoch(value=>value+1);
       setDirtyRows({});setLinkDrafts({});
       adoptEditor(saved);
-      await refreshWorkspace();
+      await refreshWorkspace().catch(()=>{});
       notify(`บันทึกเรียบร้อย ${changes.length} รายการ · กดเผยแพร่เมื่อพร้อมให้ลูกค้าเห็น`);
     }catch(e){mutationError(e);}finally{setBusy(null);}
   }
-  async function patchLink(link:HubLink,patch:Partial<HubLink>){if(!editor||busy)return;setBusy(link.id);setError("");try{await api(`/api/pages/${editor.page.id}/links/${link.id}`,{method:"PATCH",body:JSON.stringify({...patch,revision:editor.revision})});await reloadEditor();notify(patch.archived===false?"กู้คืนแล้ว ลิงก์ยังซ่อนอยู่จนกว่าจะเปิดใช้งาน":"บันทึกฉบับร่างแล้ว");}catch(e){mutationError(e);}finally{setBusy(null);}}
-  async function archiveLink(link:HubLink){if(!editor||busy)return;setBusy(link.id);setError("");try{await api(`/api/pages/${editor.page.id}/links/${link.id}?revision=${editor.revision}`,{method:"DELETE"});markDirty(link.id,false);await reloadEditor();await refreshWorkspace();notify("เก็บเข้าคลังแล้ว ประวัติคลิกยังอยู่");}catch(e){mutationError(e);}finally{setBusy(null);}}
-  async function reorder(index:number,direction:number){if(!editor||busy)return;const ordered=[...links],target=index+direction;if(target<0||target>=ordered.length)return;[ordered[index],ordered[target]]=[ordered[target],ordered[index]];setBusy("reorder");setError("");try{await api(`/api/pages/${editor.page.id}/reorder`,{method:"POST",body:JSON.stringify({ids:ordered.map(link=>link.id),revision:editor.revision})});await reloadEditor();notify("บันทึกลำดับในฉบับร่างแล้ว");}catch(e){mutationError(e);}finally{setBusy(null);}}
+  async function patchLink(link:HubLink,patch:Partial<HubLink>){if(!editor||busy)return;if(unsavedRows){setError("กรุณากดบันทึกการแก้ไขก่อนดำเนินการอื่น");return;}setBusy(link.id);setError("");try{await api(`/api/pages/${editor.page.id}/links/${link.id}`,{method:"PATCH",body:JSON.stringify({...patch,revision:editor.revision})});await reloadEditor();notify(patch.archived===false?"กู้คืนแล้ว ลิงก์ยังซ่อนอยู่จนกว่าจะเปิดใช้งาน":"บันทึกฉบับร่างแล้ว");}catch(e){mutationError(e);}finally{setBusy(null);}}
+  async function archiveLink(link:HubLink){if(!editor||busy)return;if(unsavedRows){setError("กรุณากดบันทึกการแก้ไขก่อนเก็บรายการเข้าคลัง");return;}setBusy(link.id);setError("");try{await api(`/api/pages/${editor.page.id}/links/${link.id}?revision=${editor.revision}`,{method:"DELETE"});markDirty(link.id,false);await reloadEditor();await refreshWorkspace();notify("เก็บเข้าคลังแล้ว ประวัติคลิกยังอยู่");}catch(e){mutationError(e);}finally{setBusy(null);}}
+  async function reorder(index:number,direction:number){if(!editor||busy)return;if(unsavedRows){setError("กรุณากดบันทึกการแก้ไขก่อนเปลี่ยนลำดับ");return;}const ordered=[...links],target=index+direction;if(target<0||target>=ordered.length)return;[ordered[index],ordered[target]]=[ordered[target],ordered[index]];setBusy("reorder");setError("");try{await api(`/api/pages/${editor.page.id}/reorder`,{method:"POST",body:JSON.stringify({ids:ordered.map(link=>link.id),revision:editor.revision})});await reloadEditor();notify("บันทึกลำดับในฉบับร่างแล้ว");}catch(e){mutationError(e);}finally{setBusy(null);}}
   async function reorderProduct(index:number,direction:number){
     if(!editor||busy)return;
+    if(unsavedRows){setError("กรุณากดบันทึกการแก้ไขก่อนเปลี่ยนลำดับ");return;}
     const ids=reorderProductIds(links,index,direction);
     if(!ids)return;
     setBusy("reorder");setError("");
