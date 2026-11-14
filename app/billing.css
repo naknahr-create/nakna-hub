@@ -292,6 +292,7 @@
 .hb-compare-toggle>svg,.hb-extra-toggle>svg{transition:transform .18s ease}
 .hb-compare-toggle[aria-expanded=true]>svg,.hb-extra-toggle[aria-expanded=true]>svg{transform:rotate(180deg)}
 .hb-feature-toggle{display:none}
+.hb-extra-toggle{display:none}
 .hb-plan-highlights{display:none}
 @media(max-width:680px){
   .hb-billing{min-width:0}
@@ -348,7 +349,7 @@
   .hb-plan .hb-free-foot{margin-top:7px;padding:9px 12px;font-size:11px;min-height:36px}
   .hb-pro-plan .hb-button-primary{margin-top:12px;min-height:44px;font-size:13px;border-radius:11px}
   .hb-renew-note{font-size:10.5px;line-height:1.55;margin-top:7px!important}
-  .hb-extra-toggle{font-size:12px;min-height:42px;margin:12px 0 0}
+  .hb-extra-toggle{display:flex;font-size:12px;min-height:42px;margin:12px 0 0}
   .hb-extra-body:not(.is-open){display:none}
   .hb-extra-body.is-open{display:block}
   .hb-brand-preview{margin-top:11px;padding:16px;border-radius:13px;gap:12px}
