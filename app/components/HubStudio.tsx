@@ -327,7 +327,7 @@ export default function HubStudio(){
                      hasAnalyticsAccess={editorAnalytics} onDuplicate={duplicateBlock}
                      canDuplicate={links.length<editorLimit}/>)}
                  </div>
-                 {(newBlockType==="service"||newBlockType==="promotion")&&!!newBlockAfterId&&
+                 {newBlockType==="service"&&!!newBlockAfterId&&
                    <form className="hs-panel hs-new-block-form hs-inline-product-form"
                      onSubmit={createBlock} aria-busy={!!busy}>
                      <div className="hs-panel-heading"><div>
