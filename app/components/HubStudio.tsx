@@ -361,7 +361,7 @@ export default function HubStudio(){
                    </div>
                    <span className="hs-product-collection-count">{promotionLinks.length} โปรโมชั่น</span>
                  </header>
-                 <div className="hs-product-collection-list" role="group" aria-label="รายการสินค้า">
+                 <div className="hs-product-collection-list" role="group" aria-label="รายการโปรโมชั่น">
                    {promotionLinks.map((promotion,promotionIndex)=><LinkRow key={`${promotion.id}:${saveEpoch}`}
                      pageId={editor.page.id} link={promotion} index={promotionIndex} total={promotionLinks.length}
                      busy={!!busy} onArchive={archiveLink}
