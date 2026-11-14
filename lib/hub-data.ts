@@ -308,11 +308,11 @@ async function validateBlockContent(value:unknown,type:HubLink['type'],title:str
   if(type==='service')content.price=contentText(input.price??'','ราคา',80);
   if(type==='promotion'){
     const originalPrice=contentText(input.originalPrice??'','ราคาปกติ',20,true);
-    const salePrice=contentText(input.salePrice??'','ราคาโปรโมชั่น',20,true);
+    const salePrice=contentText(input.salePrice??'','ราคาหลังลด',20,true);
     if(!getPromotionPricing(originalPrice,salePrice)){
-      throw new HubError(400,'ราคาปกติต้องมากกว่าราคาโปรโมชั่น และเป็นจำนวนเงินบาทที่ถูกต้อง');
+      throw new HubError(400,'ราคาปกติต้องมากกว่าราคาหลังลด และเป็นจำนวนเงินบาทที่ถูกต้อง');
     }
-    if(!content.imageUrl)throw new HubError(400,'กรุณาเพิ่มรูปสินค้าโปรโมชั่น');
+    if(!content.imageUrl)throw new HubError(400,'กรุณาเพิ่มรูปสินค้าลดราคา');
     content.originalPrice=originalPrice;
     content.salePrice=salePrice;
   }
@@ -330,7 +330,7 @@ async function validateLink(data:Record<string,unknown>,account:AccountRow,exist
   if(link.type==='link')link.url=validateUrl(link.url);
   else if(link.type==='promotion'){
     link.url=validateUrl(link.url);
-    if(!/^https?:\/\//i.test(link.url))throw new HubError(400,'ลิงก์สินค้าโปรโมชั่นต้องเริ่มด้วย https:// หรือ http://');
+    if(!/^https?:\/\//i.test(link.url))throw new HubError(400,'ลิงก์สินค้าลดราคาต้องเริ่มด้วย https:// หรือ http://');
   }
   else if(['image','gallery','service'].includes(link.type)){if(link.url)link.url=validateUrl(link.url);}
   else {link.url='';link.featured=false;}
