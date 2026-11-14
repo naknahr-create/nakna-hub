@@ -337,7 +337,8 @@
   inset:auto 9px 9px;
   display:grid;
   grid-template-columns:minmax(0,1fr);
-  grid-template-rows:34px 16px 52px;
+  /* Two title lines, two description lines, and a stable price baseline. */
+  grid-template-rows:30px 30px 48px;
   align-content:end;
   justify-items:stretch;
   flex:0 0 auto;
@@ -348,7 +349,7 @@
   min-height:136px;
   max-height:136px;
   margin:0;
-  padding:9px 10px 10px;
+  padding:8px 10px 8px;
   box-sizing:border-box;
   overflow:hidden;
   color:#17353b;
@@ -368,13 +369,13 @@
   -webkit-line-clamp:2;
   white-space:normal;
   overflow:hidden;
-  height:34px;
-  min-height:34px;
-  max-height:34px;
+  height:30px;
+  min-height:30px;
+  max-height:30px;
   align-self:stretch;
   margin:0;
   font-size:12px;
-  line-height:1.35;
+  line-height:1.25;
   font-weight:700;
   letter-spacing:-.01em;
   color:#18343a;
@@ -382,28 +383,30 @@
 .hc .hc-card-carousel-compact .hcb-product-description-slot,
 .hc .hc-card-carousel-compact .hcb-product-description-slot:empty{
   display:block;
-  height:16px;
-  min-height:16px;
-  max-height:16px;
+  height:30px;
+  min-height:30px;
+  max-height:30px;
   width:100%;
   overflow:hidden;
 }
 .hc .hc-card-carousel-compact .hcb-product-description-slot .hcb-description{
   display:-webkit-box;
   -webkit-box-orient:vertical;
-  -webkit-line-clamp:1;
-  max-height:15px;
+  -webkit-line-clamp:2;
+  max-height:30px;
   overflow:hidden;
   margin:0;
   color:#50686e;
   font-size:10px;
-  line-height:1.5;
+  line-height:1.45;
+  overflow-wrap:anywhere;
 }
 .hc .hc-card-carousel-compact .hcb-product-description-slot p{
   margin:0;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
+  overflow:visible;
+  text-overflow:clip;
+  white-space:normal;
+  overflow-wrap:anywhere;
   color:inherit;
   line-height:inherit;
 }
@@ -413,9 +416,9 @@
   align-items:flex-end;
   justify-content:flex-start;
   width:100%;
-  height:52px;
-  min-height:52px;
-  max-height:52px;
+  height:48px;
+  min-height:48px;
+  max-height:48px;
   margin:0;
   padding:0;
   overflow:hidden;
@@ -556,37 +559,38 @@
 .hc.hc-grid .hc-card-carousel-single .hcb-service .hcb-product-overlay{
   position:absolute;
   inset:auto 13px 13px;
-  grid-template-rows:46px 20px 56px;
+  grid-template-rows:40px 32px 52px;
   height:160px;
   min-height:160px;
   max-height:160px;
-  padding:13px 15px;
+  padding:11px 15px;
   max-width:min(400px,calc(100% - 26px));
   margin:0;
   background:rgba(255,255,255,.93);
 }
 .hc .hc-card-carousel-single .hcb-product-overlay>.hcb-title{
-  font-size:17px;
-  line-height:1.35;
-  height:46px;
-  min-height:46px;
-  max-height:46px;
+  font-size:16px;
+  line-height:1.25;
+  height:40px;
+  min-height:40px;
+  max-height:40px;
 }
 .hc .hc-card-carousel-single .hcb-product-description-slot,
 .hc .hc-card-carousel-single .hcb-product-description-slot:empty{
-  height:20px;
-  min-height:20px;
-  max-height:20px;
+  height:32px;
+  min-height:32px;
+  max-height:32px;
 }
 .hc .hc-card-carousel-single .hcb-product-description-slot .hcb-description{
-  font-size:12px;
-  max-height:19px;
+  font-size:11px;
+  line-height:1.4;
+  max-height:32px;
 }
 .hc .hc-card-carousel-single .hcb-product-price-slot,
 .hc .hc-card-carousel-single .hcb-product-price-slot:empty{
-  height:56px;
-  min-height:56px;
-  max-height:56px;
+  height:52px;
+  min-height:52px;
+  max-height:52px;
 }
 .hc .hc-card-carousel-single .hcb-product-price-slot .hcb-promo-amount strong,
 .hc .hc-card-carousel-single .hcb-product-price-slot>.hcb-price{
