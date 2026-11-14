@@ -406,3 +406,87 @@
 .hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-promo-amount strong{
  font-size:19px
 }
+
+
+/* Equal-size product tiles. Shared slots eliminate the earlier mismatch:
+   a two-line sale amount and a one-line ordinary price occupy the same
+   reserved price row, while the CTA sits at the same baseline in every tile.
+   Keep cards short without stretching empty flex space. */
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hc-card-slide>.hcb{
+  display:flex;flex-direction:column;height:auto;min-height:0
+}
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hc-card-slide>.hcb>.hcb-product-body,
+.hc.hc-grid .hc-card-carousel-compact:not(.hc-card-carousel-single) .hc-card-slide .hcb-service .hcb-product-body{
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  grid-template-rows:34px 34px 62px 46px;
+  gap:4px;
+  align-content:start;
+  flex:0 0 auto;
+  min-height:0;
+  padding:10px 11px 11px
+}
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-product-body>.hcb-title{
+  margin:0;min-height:0;max-height:34px;line-height:1.4;
+  overflow:hidden;align-self:start
+}
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-product-description-slot{
+  min-height:0;max-height:34px;overflow:hidden;align-self:start
+}
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-product-description-slot .hcb-description{
+  margin:0;font-size:10px;line-height:1.5;
+  display:-webkit-box;-webkit-box-orient:vertical;
+  -webkit-line-clamp:2;overflow:hidden
+}
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-product-description-slot p{
+  margin:0;white-space:normal;line-height:1.5
+}
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-product-price-slot{
+  display:flex;align-items:flex-end;justify-content:flex-start;
+  min-width:0;min-height:0;max-height:62px;overflow:hidden
+}
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-product-price-slot>.hcb-promo-prices{
+  margin:0;width:100%;align-items:flex-end;align-self:flex-end;
+  gap:3px 5px
+}
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-product-price-slot>.hcb-price{
+  margin:0;align-self:flex-end;font-size:19px;line-height:1.3
+}
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-product-action-slot{
+  display:flex;align-items:stretch;min-height:0;max-height:46px
+}
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-product-action-slot>.hcb-action,
+.hc.hc-grid .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-service .hcb-product-action-slot>.hcb-action{
+  display:flex;align-items:center;justify-content:center;
+  width:100%;height:46px;min-height:46px;max-height:46px;
+  margin:0;padding:5px 6px;border-radius:10px;
+  font-size:10.5px;line-height:1.25;gap:4px;
+  overflow:hidden;text-align:center
+}
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-product-action-slot>.hcb-action span{
+  display:-webkit-box;-webkit-box-orient:vertical;
+  -webkit-line-clamp:2;overflow:hidden
+}
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-product-action-slot>.hcb-action svg{
+  width:13px;height:13px;flex-shrink:0
+}
+/* The responsive single-product hero keeps natural content flow, not fixed
+   carousel slots. Only the multi-product shelf needs uniform row tracks. */
+.hc .hc-card-carousel-single .hcb-product-body,
+.hc.hc-grid .hc-card-carousel-single .hcb-service .hcb-product-body{
+  display:flex;flex-direction:column;justify-content:center;gap:0
+}
+.hc .hc-card-carousel-single .hcb-product-description-slot:empty{display:none}
+.hc .hc-card-carousel-single .hcb-product-description-slot .hcb-description{margin-top:7px}
+.hc .hc-card-carousel-single .hcb-product-price-slot{margin-top:10px}
+.hc .hc-card-carousel-single .hcb-product-price-slot .hcb-promo-prices{margin:0}
+.hc .hc-card-carousel-single .hcb-product-action-slot{margin-top:10px}
+.hc .hc-card-carousel-single .hcb-product-action-slot .hcb-action{
+  width:100%;min-height:44px
+}
+@media(max-width:360px){
+  .hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hc-card-slide>.hcb>.hcb-product-body{
+    grid-template-rows:34px 32px 60px 46px;
+    padding:9px 9px 10px
+  }
+}
