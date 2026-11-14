@@ -556,9 +556,11 @@
 
 
 
-/* White-mist product composition (Studio preview + public Hub).
-   The visual and the CTA footer are sibling regions: image/text can never
-   extend over the white button area. Only product carousels use this style. */
+/* NAKNA HUB · Clean Editorial Commerce
+   Bright original product imagery, with a small frosted-white information
+   panel at the bottom of the image and a solid-white clickable CTA footer.
+   Scope all rules to product carousels so link/banner/gallery blocks keep
+   their own styling. No photo or overlay extends into the button footer. */
 .hc .hc-card-carousel-compact .hc-card-rail{
   gap:10px;
   align-items:stretch;
@@ -572,8 +574,6 @@
   align-self:stretch;
   display:flex;
 }
-/* Both visible cards share a stable stage + white footer, regardless of
-   whether the item has a discount or a longer description. */
 .hc .hc-card-carousel-compact .hc-card-slide>.hcb{
   display:flex;
   flex-direction:column;
@@ -583,36 +583,38 @@
   padding:0;
   overflow:hidden;
   background:#fff;
-  border-radius:15px;
+  border:1px solid #dce6e7;
+  border-radius:16px;
+  box-shadow:0 4px 16px rgba(16,56,56,.06);
 }
+/* The bright photo is its own isolated viewport. */
 .hc .hc-card-carousel-compact .hcb-product-stage{
   position:relative;
-  display:block;
-  flex:0 0 228px;
-  height:228px;
-  min-height:0;
-  width:100%;
-  overflow:hidden;
   isolation:isolate;
-  background:#f4f7f6;
-  border-radius:14px 14px 0 0;
+  flex:0 0 244px;
+  height:244px;
+  width:100%;
+  min-width:0;
+  min-height:0;
+  overflow:hidden;
+  background:#eef4f2;
+  border-radius:15px 15px 0 0;
 }
 .hc .hc-card-carousel-compact .hcb-product-photo{
   position:absolute;
   inset:0;
+  margin:0;
   width:100%;
   height:100%;
-  padding:0;
-  margin:0;
   border:0;
   border-radius:0;
   overflow:hidden;
 }
 .hc .hc-card-carousel-compact .hcb-product-photo>a{
   display:block;
+  position:relative;
   width:100%;
   height:100%;
-  position:relative;
 }
 .hc .hc-card-carousel-compact .hcb-product-photo .hcb-media{
   position:absolute;
@@ -620,56 +622,56 @@
   display:block;
   width:100%;
   height:100%;
-  min-height:0;
   max-height:none;
+  min-height:0;
   aspect-ratio:auto;
   border:0;
   border-radius:0;
+  background:#f5f9f8;
 }
 .hc .hc-card-carousel-compact .hcb-product-photo .hcb-media img{
   width:100%;
   height:100%;
   padding:0;
   margin:0;
-  object-position:center 28%;
-  /* Respect each product's cover/contain setting from the editor. */
+  /* The inline image fit, focus and zoom settings take precedence. */
 }
 .hc .hc-card-carousel-compact .hcb-product-placeholder{
   position:absolute;
   inset:0;
   display:grid;
   place-items:center;
-  color:#7e999c;
-  background:linear-gradient(145deg,#f7fbfa,#e9f3f1);
+  color:#728c8c;
+  background:#e9f2f0;
 }
+/* No full-picture tint. Only the lower text panel is frosted. */
 .hc .hc-card-carousel-compact .hcb-product-overlay,
 .hc.hc-grid .hc-card-carousel-compact .hcb-service .hcb-product-overlay,
 .hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hc-card-slide>.hcb>.hcb-product-body{
   position:absolute;
   z-index:2;
-  inset:auto 0 0;
+  inset:auto 9px 9px;
   display:flex;
   flex-direction:column;
   justify-content:flex-end;
-  align-items:stretch;
   flex:0 0 auto;
-  gap:4px;
-  width:100%;
+  gap:3px;
+  width:auto;
+  min-width:0;
   min-height:0;
-  max-height:100%;
+  max-height:calc(100% - 18px);
   margin:0;
-  padding:31px 11px 11px;
+  padding:9px 10px 10px;
   box-sizing:border-box;
-  color:#18343a;
+  overflow:hidden;
+  color:#17353b;
   pointer-events:none;
-  background:linear-gradient(
-    to bottom,
-    rgba(255,255,255,0) 0%,
-    rgba(255,255,255,.66) 28%,
-    rgba(255,255,255,.93) 65%,
-    rgba(255,255,255,.985) 100%
-  );
-  box-shadow:none;
+  background:rgba(255,255,255,.93);
+  border:1px solid rgba(255,255,255,.95);
+  border-radius:12px;
+  box-shadow:0 4px 18px rgba(11,42,44,.09);
+  -webkit-backdrop-filter:blur(10px) saturate(118%);
+  backdrop-filter:blur(10px) saturate(118%);
 }
 .hc .hc-card-carousel-compact .hcb-product-overlay>.hcb-title,
 .hc.hc-grid .hc-card-carousel-compact .hcb-service .hcb-product-overlay>.hcb-title,
@@ -677,40 +679,45 @@
   display:-webkit-box;
   -webkit-box-orient:vertical;
   -webkit-line-clamp:2;
-  overflow:hidden;
   white-space:normal;
-  text-overflow:clip;
+  overflow:hidden;
   max-height:34px;
   min-height:0;
   margin:0;
   font-size:12px;
-  line-height:1.36;
+  line-height:1.35;
   font-weight:700;
-  color:#172f35;
+  letter-spacing:-.01em;
+  color:#18343a;
 }
 .hc .hc-card-carousel-compact .hcb-product-description-slot{
   display:block;
-  width:100%;
-  height:auto;
   min-height:0;
-  max-height:28px;
+  max-height:15px;
+  width:100%;
   overflow:hidden;
 }
+.hc .hc-card-carousel-compact .hcb-product-description-slot:empty{
+  display:none;
+}
 .hc .hc-card-carousel-compact .hcb-product-description-slot .hcb-description{
-  margin:0;
   display:-webkit-box;
   -webkit-box-orient:vertical;
-  -webkit-line-clamp:2;
+  -webkit-line-clamp:1;
+  max-height:15px;
   overflow:hidden;
+  margin:0;
+  color:#50686e;
   font-size:10px;
-  line-height:1.4;
-  color:#3b545a;
+  line-height:1.5;
 }
 .hc .hc-card-carousel-compact .hcb-product-description-slot p{
   margin:0;
-  line-height:inherit;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
   color:inherit;
-  white-space:normal;
+  line-height:inherit;
 }
 .hc .hc-card-carousel-compact .hcb-product-price-slot{
   display:flex;
@@ -718,60 +725,72 @@
   width:100%;
   height:auto;
   min-height:0;
-  max-height:56px;
-  overflow:hidden;
+  max-height:54px;
   margin:5px 0 0;
   padding:0;
+  overflow:hidden;
+}
+.hc .hc-card-carousel-compact .hcb-product-price-slot:empty{
+  display:none;
 }
 .hc .hc-card-carousel-compact .hcb-product-price-slot>.hcb-promo-prices{
-  width:100%;
-  min-width:0;
   display:flex;
   align-items:flex-end;
   justify-content:space-between;
   flex-wrap:wrap;
-  gap:3px 4px;
+  gap:3px 5px;
+  width:100%;
+  min-width:0;
   margin:0;
-  color:#19343c;
+  color:#1e3940;
 }
 .hc .hc-card-carousel-compact .hcb-product-price-slot .hcb-promo-amount{
   display:grid;
   gap:1px;
+  min-width:0;
 }
 .hc .hc-card-carousel-compact .hcb-product-price-slot .hcb-promo-amount del{
   font-size:9px;
   line-height:1.2;
-  color:#677981;
+  color:#637a80;
 }
 .hc .hc-card-carousel-compact .hcb-product-price-slot .hcb-promo-amount strong{
   font-size:19px;
+  font-weight:750;
   line-height:1.14;
   letter-spacing:-.035em;
-  font-weight:750;
-  color:#076c73;
+  color:#067c80;
 }
 .hc .hc-card-carousel-compact .hcb-product-price-slot .hcb-promo-discount{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
   min-height:19px;
   padding:2px 6px;
   border-radius:99px;
+  border:1px solid #f4d9ce;
+  background:#fff2ec;
+  color:#a4482d;
   font-size:9px;
-  line-height:1.25;
+  font-weight:700;
+  line-height:1.2;
+  white-space:nowrap;
 }
 .hc .hc-card-carousel-compact .hcb-product-price-slot>.hcb-price{
+  margin:0;
   font-size:19px;
-  line-height:1.22;
+  line-height:1.2;
   font-weight:750;
   letter-spacing:-.025em;
-  margin:0;
-  color:#19333b;
+  color:#067c80;
 }
-/* This footer is deliberately white and never inherits photo overlays. */
+/* Solid white CTA section, physically separate from the image. */
 .hc .hc-card-carousel-compact .hcb-product-footer{
   position:relative;
   z-index:3;
   display:flex;
-  justify-content:center;
   align-items:center;
+  justify-content:center;
   flex:0 0 62px;
   height:62px;
   min-height:62px;
@@ -779,8 +798,8 @@
   padding:8px 9px 9px;
   box-sizing:border-box;
   background:#fff;
-  border-top:1px solid #e1e9eb;
-  border-radius:0 0 14px 14px;
+  border-top:1px solid #e8eef0;
+  border-radius:0 0 15px 15px;
 }
 .hc .hc-card-carousel-compact .hcb-product-action-slot{
   display:flex;
@@ -801,25 +820,25 @@
   min-height:44px;
   max-height:44px;
   margin:0;
-  padding:6px 7px;
+  padding:6px;
   box-sizing:border-box;
+  border-radius:10px;
+  border:1px solid var(--hc-accent);
   background:var(--hc-accent);
   color:var(--hc-accent-ink);
-  border:1px solid var(--hc-accent);
-  border-radius:10px;
   font-size:10.5px;
   font-weight:650;
   line-height:1.25;
+  gap:4px;
   text-align:center;
-  gap:5px;
   text-decoration:none;
 }
 .hc .hc-card-carousel-compact .hcb-product-action-slot>.hcb-action span{
   display:-webkit-box;
   -webkit-box-orient:vertical;
   -webkit-line-clamp:2;
-  overflow:hidden;
   min-width:0;
+  overflow:hidden;
   text-wrap:balance;
 }
 .hc .hc-card-carousel-compact .hcb-product-action-slot>.hcb-action svg{
@@ -827,7 +846,7 @@
   height:12px;
   flex-shrink:0;
 }
-/* A single product fills its space rather than being left as a narrow tile. */
+/* One product: use a larger image but retain the same clean design. */
 .hc .hc-card-carousel-single .hc-card-slide:only-child{
   display:flex;
   flex:0 1 620px;
@@ -843,24 +862,29 @@
   min-height:0;
 }
 .hc .hc-card-carousel-single .hcb-product-stage{
-  height:clamp(250px,34vw,320px);
-  flex-basis:clamp(250px,34vw,320px);
+  height:clamp(255px,35vw,320px);
+  flex-basis:clamp(255px,35vw,320px);
 }
 .hc .hc-card-carousel-single .hcb-product-overlay,
 .hc.hc-grid .hc-card-carousel-single .hcb-service .hcb-product-overlay{
   position:absolute;
-  inset:auto 0 0;
-  padding:44px 17px 16px;
-  justify-content:flex-end;
-  background:linear-gradient(to bottom,transparent 0%,rgba(255,255,255,.63) 26%,rgba(255,255,255,.97) 78%,#fff 100%);
+  inset:auto 13px 13px;
+  padding:13px 15px;
+  max-width:min(400px,calc(100% - 26px));
+  margin:0;
+  background:rgba(255,255,255,.93);
 }
 .hc .hc-card-carousel-single .hcb-product-overlay>.hcb-title{
   font-size:17px;
   line-height:1.35;
-  max-height:48px;
+  max-height:47px;
+}
+.hc .hc-card-carousel-single .hcb-product-description-slot{
+  max-height:19px;
 }
 .hc .hc-card-carousel-single .hcb-product-description-slot .hcb-description{
   font-size:12px;
+  max-height:19px;
 }
 .hc .hc-card-carousel-single .hcb-product-price-slot .hcb-promo-amount strong,
 .hc .hc-card-carousel-single .hcb-product-price-slot>.hcb-price{
@@ -886,21 +910,22 @@
     max-width:calc(50% - 5px);
   }
   .hc .hc-card-carousel-compact .hcb-product-stage{
-    flex-basis:222px;
-    height:222px;
+    flex-basis:230px;
+    height:230px;
   }
   .hc .hc-card-carousel-single .hc-card-slide:only-child{
     flex:0 0 100%;
     width:100%;
   }
   .hc .hc-card-carousel-single .hcb-product-stage{
-    height:258px;
-    flex-basis:258px;
+    height:260px;
+    flex-basis:260px;
   }
 }
 @media(max-width:350px){
   .hc .hc-card-carousel-compact .hcb-product-overlay{
-    padding:27px 8px 9px;
+    inset:auto 6px 7px;
+    padding:8px;
   }
   .hc .hc-card-carousel-compact .hcb-product-overlay>.hcb-title{
     font-size:11px;
@@ -920,5 +945,12 @@
 @media(prefers-reduced-motion:reduce){
   .hc .hc-card-carousel-compact .hcb-product-action-slot>.hcb-action{
     transition:none;
+  }
+}
+@media(prefers-reduced-transparency:reduce){
+  .hc .hc-card-carousel-compact .hcb-product-overlay{
+    -webkit-backdrop-filter:none;
+    backdrop-filter:none;
+    background:rgba(255,255,255,.97);
   }
 }
