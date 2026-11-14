@@ -8,7 +8,7 @@ type Props={
  blocks:HubLink[];
  href:(block:HubLink)=>string|undefined;
  onDemoClick?:(title:string)=>void;
- /** Promotions use a compact, multi-card swipe rail; services keep their existing full-card carousel. */
+ /** Shared product rail adapts to one hero card or multiple swipeable products. */
  compact?:boolean;
 };
 export function HubCardCarousel({blocks,href,onDemoClick,compact=false}:Props){
@@ -16,8 +16,9 @@ export function HubCardCarousel({blocks,href,onDemoClick,compact=false}:Props){
  const [current,setCurrent]=useState(0);
  const [edges,setEdges]=useState({prev:false,next:false});
  const railId=useId();
- const compactPromos=compact&&blocks[0]?.type==='promotion';
- const label=blocks[0]?.type==='promotion'?'โปรโมชั่น':'สินค้าและบริการ';
+ const compactCards=compact&&blocks.every(block=>block.type==='service'||block.type==='promotion');
+ const singleCard=compactCards&&blocks.length===1;
+ const label='สินค้าและบริการ';
  const signature=blocks.map(block=>block.id).join(',');
 
  const readPosition=useCallback(()=>{
@@ -35,20 +36,20 @@ export function HubCardCarousel({blocks,href,onDemoClick,compact=false}:Props){
    const max=Math.max(0,track.scrollWidth-track.clientWidth);
    // At the far right, the last promotion is the current destination even if
    // several narrow tiles remain partially visible beside it.
-   setCurrent(compactPromos&&max>1&&track.scrollLeft>=max-2?children.length-1:closest);
+   setCurrent(compactCards&&max>1&&track.scrollLeft>=max-2?children.length-1:closest);
   }
-  if(compactPromos){
+  if(compactCards){
    const max=Math.max(0,track.scrollWidth-track.clientWidth);
    const prev=track.scrollLeft>2;
    const next=track.scrollLeft<max-2;
    setEdges(old=>old.prev===prev&&old.next===next?old:{prev,next});
   }
- },[compactPromos]);
+ },[compactCards]);
 
  useEffect(()=>{
   const track=rail.current;
   setCurrent(0);
-  if(!track||!compactPromos)return;
+  if(!track||!compactCards)return;
   // ResizeObserver makes arrows reflect both real phones and the resizable Studio preview.
   const refresh=()=>readPosition();
   const observer=typeof ResizeObserver==='undefined'?null:new ResizeObserver(refresh);
@@ -57,7 +58,7 @@ export function HubCardCarousel({blocks,href,onDemoClick,compact=false}:Props){
   window.addEventListener('resize',refresh);
   refresh();
   return ()=>{observer?.disconnect();window.removeEventListener('resize',refresh);};
- },[signature,compactPromos,readPosition]);
+ },[signature,compactCards,readPosition]);
 
  function move(index:number){
   const track=rail.current;
@@ -88,22 +89,22 @@ export function HubCardCarousel({blocks,href,onDemoClick,compact=false}:Props){
  }
 
  function moveWithKeys(direction:-1|1){
-  if(compactPromos)stepCompact(direction);
+  if(compactCards)stepCompact(direction);
   else move(current+direction);
  }
 
- return <div className={`hc-card-carousel ${compactPromos?'hc-card-carousel-compact':''}`} aria-label={label} data-count={blocks.length}>
+ return <div className={`hc-card-carousel ${compactCards?'hc-card-carousel-compact':''} ${singleCard?'hc-card-carousel-single':''}`} aria-label={label} data-count={blocks.length}>
   <div className="hc-card-rail" id={railId} ref={rail} onScroll={readPosition}
        onKeyDown={event=>{if(event.key==='ArrowRight'){event.preventDefault();moveWithKeys(1);}else if(event.key==='ArrowLeft'){event.preventDefault();moveWithKeys(-1);}}}
        tabIndex={blocks.length>1?0:undefined} aria-roledescription="carousel" aria-label={blocks.length>1?`ปัดซ้ายหรือขวาเพื่อดู${label}ถัดไป`:`${label} 1 รายการ`}>
    {blocks.map((block,index)=><div className="hc-card-slide" role="group" aria-roledescription="slide" aria-label={`${label} ${index+1} จาก ${blocks.length}: ${block.title}`} key={block.id}><HubContentBlock block={block} href={href(block)} onDemoClick={onDemoClick}/></div>)}
   </div>
-  {blocks.length>1&&(compactPromos?
+  {blocks.length>1&&(compactCards?
    <div className="hc-card-compact-controls">
-    <span aria-live="polite">{current+1} / {blocks.length} <span aria-hidden="true">· ปัดซ้าย–ขวา</span></span>
+    <span aria-live="polite">{current+1} / {blocks.length} <span aria-hidden="true">· เลื่อนดูสินค้า</span></span>
     <div>
-     <button type="button" aria-label="โปรโมชั่นก่อนหน้า" aria-controls={railId} disabled={!edges.prev} onClick={()=>stepCompact(-1)}><ChevronLeft size={18}/></button>
-     <button type="button" aria-label="โปรโมชั่นถัดไป" aria-controls={railId} disabled={!edges.next} onClick={()=>stepCompact(1)}><ChevronRight size={18}/></button>
+     <button type="button" aria-label="สินค้าก่อนหน้า" aria-controls={railId} disabled={!edges.prev} onClick={()=>stepCompact(-1)}><ChevronLeft size={18}/></button>
+     <button type="button" aria-label="สินค้าถัดไป" aria-controls={railId} disabled={!edges.next} onClick={()=>stepCompact(1)}><ChevronRight size={18}/></button>
     </div>
    </div>
   :<>
