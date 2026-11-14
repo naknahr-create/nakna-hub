@@ -279,3 +279,95 @@
   .hb-upgrade-brand > button,
   .hb-branding-switch input {transition: none;}
 }
+
+
+/* NAKNA HUB compact pricing and subscription layout.
+   Active Pro members see status/renewal first, not an upsell wall. */
+.hb-compare-toggle,.hb-extra-toggle{
+  display:flex;justify-content:space-between;align-items:center;gap:14px;
+  width:100%;min-height:44px;padding:12px 15px;margin:12px 0;
+  border:1px solid #dbe6e8;background:#fff;border-radius:13px;
+  color:#26636a;font-size:13px;font-weight:600;text-align:left;cursor:pointer
+}
+.hb-compare-toggle>svg,.hb-extra-toggle>svg{transition:transform .18s ease}
+.hb-compare-toggle[aria-expanded=true]>svg,.hb-extra-toggle[aria-expanded=true]>svg{transform:rotate(180deg)}
+.hb-feature-toggle{display:none}
+.hb-extra-toggle{display:none}
+.hb-plan-highlights{display:none}
+@media(max-width:680px){
+  .hb-billing{min-width:0}
+  .hb-heading{margin:3px 0 14px;gap:8px}
+  .hb-heading .hb-eyebrow{font-size:11px;line-height:1.4}
+  .hb-heading h1{font-size:24px;line-height:1.3;letter-spacing:-.6px;margin:0 0 5px}
+  .hb-heading h1+p{font-size:12px;line-height:1.5}
+  .hb-secure{align-self:flex-start;padding:5px 9px;font-size:10.5px;line-height:1.3}
+  .hb-secure svg{width:14px;height:14px}
+  .hb-membership{padding:15px;border-radius:16px;gap:10px;margin:0 0 12px;background:#f0f8f7}
+  .hb-membership>div:first-child{align-items:center;gap:11px}
+  .hb-membership-icon{width:42px;height:42px;border-radius:12px}
+  .hb-membership-icon svg{height:19px;width:19px}
+  .hb-membership h2{font-size:17px;line-height:1.3;margin:2px 0 3px}
+  .hb-membership p{font-size:12px}
+  .hb-membership-detail{gap:10px;width:100%;align-items:stretch}
+  .hb-membership-detail>p{font-size:12px;line-height:1.5}
+  .hb-membership-detail>p strong{font-size:14px}
+  .hb-membership-detail .hb-button{min-height:42px;border-radius:11px;font-size:12px}
+  .hb-compare-toggle{font-size:12px;margin:0 0 11px;border-radius:12px}
+  .hb-plan-comparison{min-width:0}
+  .hb-cycle-row{margin:14px 0 10px;gap:10px}
+  .hb-cycle-copy h2{font-size:16px;line-height:1.35}
+  .hb-cycle-copy p{font-size:11px;line-height:1.45;margin-top:4px}
+  .hb-cycle{padding:4px;border-radius:12px;gap:3px}
+  .hb-cycle button{min-height:40px;font-size:12px;padding:7px 9px;border-radius:9px}
+  .hb-cycle button>span{font-size:10px;padding:2px 4px}
+  .hb-plans{display:grid;grid-template-columns:1fr;gap:12px}
+  .hb-plan,.hb-pro-plan{padding:17px;border-radius:16px;min-width:0}
+  .hb-plan-label{min-height:0;margin:0 0 8px;gap:7px}
+  .hb-plan-label>span{font-size:11px}
+  .hb-plan-label em{font-size:10px}
+  .hb-plan h2{font-size:18px;line-height:1.3;margin:0 0 5px}
+  .hb-plan>p:not(.hb-price-note):not(.hb-plan-highlights):not(.hb-renew-note){font-size:12px;line-height:1.45}
+  .hb-plan .hb-price{margin-top:10px;gap:6px}
+  .hb-plan .hb-price strong{font-size:34px;line-height:1.12;letter-spacing:-1px}
+  .hb-plan .hb-price span{font-size:12px}
+  .hb-plan .hb-price-note{margin-top:5px;font-size:11px;line-height:1.55}
+  .hb-plan-highlights{display:block;margin-top:10px!important;font-size:12px;font-weight:600;color:#315f64;line-height:1.55}
+  .hb-feature-toggle{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    min-height:40px;margin:10px 0 0;padding:9px 3px;width:100%;
+    font-size:12px;font-weight:600;color:#08777a;
+    border:0;border-top:1px solid #e3eced;background:transparent;cursor:pointer
+  }
+  .hb-feature-toggle svg{width:15px;height:15px;transition:transform .18s ease}
+  .hb-feature-toggle[aria-expanded=true] svg{transform:rotate(180deg)}
+  .hb-feature-content:not(.is-open){display:none}
+  .hb-feature-content.is-open{display:block}
+  .hb-plan ul{margin:7px 0 0;padding:12px 0;gap:10px}
+  .hb-plan ul li{font-size:12px;line-height:1.65}
+  .hb-plan ul li svg{width:16px;height:16px}
+  .hb-plan ul li small{font-size:10.5px;line-height:1.5}
+  .hb-plan .hb-free-foot{margin-top:7px;padding:9px 12px;font-size:11px;min-height:36px}
+  .hb-pro-plan .hb-button-primary{margin-top:12px;min-height:44px;font-size:13px;border-radius:11px}
+  .hb-renew-note{font-size:10.5px;line-height:1.55;margin-top:7px!important}
+  .hb-extra-toggle{display:flex;font-size:12px;min-height:42px;margin:12px 0 0}
+  .hb-extra-body:not(.is-open){display:none}
+  .hb-extra-body.is-open{display:block}
+  .hb-brand-preview{margin-top:11px;padding:16px;border-radius:13px;gap:12px}
+  .hb-brand-preview h2{font-size:16px}
+  .hb-brand-preview p{font-size:12px;line-height:1.6}
+  .hb-mini-footer{min-height:100px;padding:10px 7px}
+  .hb-terms{margin:14px 0}
+  .hb-terms h2{font-size:16px}
+  .hb-reasons{gap:10px}
+  .hb-reasons p{font-size:12px;line-height:1.65;padding-bottom:10px}
+  .hb-reasons strong{font-size:13px;margin-bottom:3px}
+  .hb-conditions{padding:15px;border-radius:12px}
+  .hb-conditions h2{font-size:15px}
+  .hb-conditions ul{font-size:12px;line-height:1.65;gap:7px}
+  .hb-footer{padding-top:12px;gap:8px;font-size:11px}
+  .hb-footer>button{font-size:11px;min-height:40px}
+  .hb-error,.hb-notice{padding:12px;border-radius:12px;font-size:12px}
+}
+@media(prefers-reduced-motion:reduce){
+  .hb-compare-toggle>svg,.hb-feature-toggle svg,.hb-extra-toggle>svg{transition:none}
+}
