@@ -218,7 +218,7 @@ export default function HubStudio(){
   }
   async function moveProductGroup(direction:ProductGroupMove){
     if(!editor||busy)return;
-    if(unsavedRows){setError("กรุณากดบันทึกการแก้ไขก่อนย้ายกลุ่มสินค้า");return;}
+    if(hasUnsaved){setError("กรุณาบันทึกหรือยกเลิกการแก้ไขก่อนย้ายกลุ่มสินค้า");return;}
     const ids=reorderProductGroupIds(links,direction);
     if(!ids)return;
     setBusy("reorder-group");setError("");
@@ -334,13 +334,13 @@ export default function HubStudio(){
                    <div className="hs-product-collection-toolbar">
                      <span className="hs-product-collection-count">{productLinks.length} สินค้า</span>
                      <div className="hs-product-group-order" role="group" aria-label="เลื่อนตำแหน่งกลุ่มสินค้า">
-                       <button type="button" disabled={!!busy||!reorderProductGroupIds(links,"top")}
+                       <button type="button" disabled={!!busy||hasUnsaved||!reorderProductGroupIds(links,"top")}
                          aria-label="ย้ายกลุ่มสินค้าขึ้นบนสุด" title="ย้ายกลุ่มสินค้าขึ้นบนสุด"
                          onClick={()=>void moveProductGroup("top")}><ChevronsUp size={16}/>ขึ้นสุด</button>
-                       <button type="button" disabled={!!busy||!reorderProductGroupIds(links,"up")}
+                       <button type="button" disabled={!!busy||hasUnsaved||!reorderProductGroupIds(links,"up")}
                          aria-label="เลื่อนกลุ่มสินค้าขึ้น" title="เลื่อนกลุ่มสินค้าขึ้นหนึ่งตำแหน่ง"
                          onClick={()=>void moveProductGroup("up")}><ChevronUp size={16}/>ขึ้น</button>
-                       <button type="button" disabled={!!busy||!reorderProductGroupIds(links,"down")}
+                       <button type="button" disabled={!!busy||hasUnsaved||!reorderProductGroupIds(links,"down")}
                          aria-label="เลื่อนกลุ่มสินค้าลง" title="เลื่อนกลุ่มสินค้าลงหนึ่งตำแหน่ง"
                          onClick={()=>void moveProductGroup("down")}><ChevronDown size={16}/>ลง</button>
                      </div>
