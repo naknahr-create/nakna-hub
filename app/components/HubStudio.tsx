@@ -1,11 +1,11 @@
 "use client";
 
 import {useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent} from "react";
-import {Archive, ArrowLeft, ArrowRight, ArrowUpRight, BarChart3, Check, CreditCard, ChevronDown, ChevronUp, Copy, ExternalLink, Eye, Globe2, Heading, Image as ImageIcon, LayoutGrid, Link2, LoaderCircle, LockKeyhole, LogOut, MessageCircle, MoreHorizontal, Palette, Package, BadgePercent, PencilLine, Plus, RefreshCw, RotateCcw, Search, Settings2, ShieldCheck, Sparkles, Upload, Users, X} from "lucide-react";
+import {Archive, ArrowLeft, ArrowRight, ArrowUpRight, BarChart3, Check, CreditCard, ChevronDown, ChevronUp, Copy, ExternalLink, Eye, Globe2, Heading, Image as ImageIcon, LayoutGrid, Link2, LoaderCircle, LockKeyhole, LogOut, MessageCircle, MoreHorizontal, Palette, Package, PencilLine, Plus, RefreshCw, RotateCcw, Search, Settings2, ShieldCheck, Sparkles, Upload, Users, X} from "lucide-react";
 import type {HubContentType, HubLink, HubProfile, HubTemplate, PageEditorData, PageSummary, WorkspaceData} from "../../lib/hub-types";
 import {hasBlockAction, isRichContentType} from "../../lib/hub-content";
 import {reorderProductIds} from "../../lib/hub-product-order";
-import {formatThaiBaht,getPromotionPricing} from "../../lib/hub-promotion";
+import {formatThaiBaht,getPromotionPricing,isProductDiscountEnabled} from "../../lib/hub-promotion";
 import {CONTENT_OPTIONS, ContentFields, ContentTypePicker, HubShareSettings, contentDraftOf, contentDraftError, emptyContent, type ContentDraft} from "./HubContentEditor";
 import {HubBrand} from "./ui";
 import {BuildVersion} from "./BuildVersion";
@@ -144,9 +144,8 @@ export default function HubStudio(){
   async function createPage(event:FormEvent){event.preventDefault();if(busy)return;setBusy("create");setError("");try{const value=await api<PageEditorData>("/api/pages",{method:"POST",body:JSON.stringify({name:name.trim(),slug:newSlug.trim(),template})});adoptEditor(value);setDirtyRows({});setNewBlockType(null);setEditorTab("content");setScreen("editor");window.history.replaceState(window.history.state,"",`/studio?page=${encodeURIComponent(value.page.id)}`);await refreshWorkspace();notify("สร้างฮับแล้ว เพิ่มเนื้อหาของคุณได้เลย");}catch(e){mutationError(e);}finally{setBusy(null);}}
   function manageTeam(){if(!editor)return;setTeamPageId(editor.page.id);navigate("teams");}
   function mutationError(e:unknown){setError((e as Error).message);if((e as ApiError).status===409)setConflict(true);}
-  function addContent(type:HubContentType){setNewBlockAfterId(type==="service"||type==="promotion"?productLinks[0]?.id??null:null);setNewBlockType(type);setNewBlockDraft(emptyContent(type));setContentPicker(false);setError("");}
+  function addContent(type:HubContentType){setNewBlockAfterId(type==="service"?productLinks[0]?.id??null:null);setNewBlockType(type);setNewBlockDraft(emptyContent(type));setContentPicker(false);setError("");}
   function addProductAfter(id:string){if(busy||newBlockType)return;setNewBlockAfterId(id);setNewBlockType("service");setNewBlockDraft(emptyContent("service"));setContentPicker(false);setError("");}
-  function addPromotionAfter(id:string){if(busy||newBlockType)return;setNewBlockAfterId(id);setNewBlockType("promotion");setNewBlockDraft(emptyContent("promotion"));setContentPicker(false);setError("");}
   function cancelNewContent(){setNewBlockAfterId(null);setNewBlockType(null);setNewBlockDraft(emptyContent("link"));setError("");}
   async function createBlock(event:FormEvent){
     event.preventDefault();
@@ -304,7 +303,7 @@ export default function HubStudio(){
         {editorTab!=="analytics"?<div className="hs-editor-grid"><section className="hs-edit-column">
           {editorTab==="content"&&<>
             <div className="hs-content-intro"><div><h2>เนื้อหาบนฮับของคุณ</h2><p>เล่าเรื่องด้วยรูป ผลงาน และบริการ แล้วพาคนไปต่อ</p></div><span title="รวมเนื้อหาทุกประเภท ทั้งรายการที่แสดงและซ่อน">{links.length}/{editorLimit} รายการ</span></div>
-            <div className="hs-add-actions"><button className="hs-button hs-primary hce-add-button" disabled={!!busy||links.length>=editorLimit||!!newBlockType} onClick={()=>setContentPicker(!contentPicker)} aria-expanded={contentPicker}><Plus size={19}/>เพิ่มเนื้อหา</button><span className="hce-add-hint"><LayoutGrid size={15}/>7 รูปแบบพร้อมใช้</span></div>
+            <div className="hs-add-actions"><button className="hs-button hs-primary hce-add-button" disabled={!!busy||links.length>=editorLimit||!!newBlockType} onClick={()=>setContentPicker(!contentPicker)} aria-expanded={contentPicker}><Plus size={19}/>เพิ่มเนื้อหา</button><span className="hce-add-hint"><LayoutGrid size={15}/>6 รูปแบบพร้อมใช้</span></div>
             {links.length>=editorLimit&&<p className="hce-quota-note">ใช้ครบ {editorLimit} รายการแล้ว เก็บรายการที่ไม่ใช้เข้าคลังเพื่อเพิ่มรายการใหม่{editorPlan==="starter"?" หรือเลือก Pro เพื่อเพิ่มได้ถึง 100 รายการต่อฮับ":""}</p>}
             {contentPicker&&!newBlockType&&<ContentTypePicker onChoose={addContent} onClose={()=>setContentPicker(false)} disabled={!!busy}/>}
             {newBlockType&&!newBlockAfterId&&<form className="hs-panel hs-new-block-form" onSubmit={createBlock} aria-busy={!!busy}><div className="hs-panel-heading"><div><span className="hce-new-form-badge">เนื้อหาใหม่</span><h2>{CONTENT_OPTIONS.find(item=>item.type===newBlockType)?.label}</h2></div><button type="button" aria-label="ยกเลิกเพิ่มรายการ" disabled={!!busy} onClick={cancelNewContent}><X size={18}/></button></div><ContentFields pageId={editor.page.id} draft={newBlockDraft} onChange={setNewBlockDraft} disabled={!!busy} onUploadingChange={setMediaUploading} autoFocus/><div className="hs-new-block-actions"><button type="button" className="hs-button hs-outline" disabled={!!busy} onClick={cancelNewContent}>ยกเลิก</button><button type="submit" className="hs-button hs-primary" disabled={!!busy}>{busy==="add"?<LoaderCircle className="hs-spin" size={16}/>:<Plus size={16}/>}เพิ่มรายการ</button></div></form>}
@@ -315,7 +314,7 @@ export default function HubStudio(){
                    <span className="hs-product-collection-icon"><Package size={22}/></span>
                    <div className="hs-product-collection-heading">
                      <h3 id="hs-product-collection-title">สินค้า / บริการ</h3>
-                     <p>สินค้าทั่วไปและสินค้าลดราคาอยู่ในการ์ดชุดเดียว · เลื่อนดูซ้าย–ขวาได้</p>
+                     <p>สินค้าแต่ละชิ้นเปิดหรือปิดส่วนลดได้ · หน้าเว็บเลื่อนดูซ้าย–ขวา</p>
                    </div>
                    <span className="hs-product-collection-count">{productLinks.length} สินค้า</span>
                  </header>
@@ -328,7 +327,7 @@ export default function HubStudio(){
                      hasAnalyticsAccess={editorAnalytics} onDuplicate={duplicateBlock}
                      canDuplicate={links.length<editorLimit}/>)}
                  </div>
-                 {(newBlockType==="service"||newBlockType==="promotion")&&!!newBlockAfterId&&
+                 {newBlockType==="service"&&!!newBlockAfterId&&
                    <form className="hs-panel hs-new-block-form hs-inline-product-form"
                      onSubmit={createBlock} aria-busy={!!busy}>
                      <div className="hs-panel-heading"><div>
@@ -350,18 +349,11 @@ export default function HubStudio(){
                      </div>
                    </form>}
                  <div className="hs-product-collection-actions">
-                   <div className="hs-product-add-choices">
-                     <button type="button" className="hs-add-next-product"
-                       disabled={!!busy||links.length>=editorLimit||!!newBlockType}
-                       onClick={()=>addProductAfter(productLinks[0].id)}>
-                       <Plus size={17}/>เพิ่มสินค้า
-                     </button>
-                     <button type="button" className="hs-add-next-product hs-add-discount-product"
-                       disabled={!!busy||links.length>=editorLimit||!!newBlockType}
-                       onClick={()=>addPromotionAfter(productLinks[0].id)}>
-                       <BadgePercent size={17}/>เพิ่มสินค้าลดราคา
-                     </button>
-                   </div>
+                   <button type="button" className="hs-add-next-product"
+                     disabled={!!busy||links.length>=editorLimit||!!newBlockType}
+                     onClick={()=>addProductAfter(productLinks[0].id)}>
+                     <Plus size={18}/>เพิ่มสินค้าอีกรายการ
+                   </button>
                    <small>ทุกสินค้าอยู่ในแถบเดียวกัน · 1 ชิ้นนับเป็น 1 รายการในแพ็กเกจ</small>
                  </div>
                </section>)
@@ -409,7 +401,7 @@ function LinkRow({pageId,link,index,total,busy,onArchive,onReorder,onDirty,onDra
   const option=CONTENT_OPTIONS.find(item=>item.type===draft.type)!;
   const ContentIcon=option.icon;
   const media=draft.type==="gallery"?draft.content?.images?.[0]?.url:draft.content?.imageUrl;
-  const promoPrice=draft.type==="promotion"?getPromotionPricing(draft.content?.originalPrice,draft.content?.salePrice):null;
+  const promoPrice=isProductDiscountEnabled(draft.type,draft.content)?getPromotionPricing(draft.content?.originalPrice,draft.content?.salePrice):null;
   useEffect(()=>{if(!dirtyRef.current){setDraft(draftOf(link));setBaseSignature(signature);setError("");}},[signature]);
   useEffect(()=>{onDirty(link.id,dirty);onDraft(link.id,dirty?draft:null);},[dirty,draft,link.id,onDirty,onDraft]);
   useEffect(()=>()=>{onDraft(link.id,null);onDirty(link.id,false);},[link.id,onDraft,onDirty]);
