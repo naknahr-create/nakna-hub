@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {reorderProductIds,reorderTypedContentIds} from '../lib/hub-product-order.ts';
+import {readFileSync} from 'node:fs';
 
 const links=[
   {id:'house',type:'service'},
@@ -9,63 +10,76 @@ const links=[
   {id:'heading',type:'heading'},
   {id:'hotel',type:'service'}
 ];
-test('reordering inside the Studio product group leaves other link positions unchanged',()=>{
+
+test('reordering Studio product rows leaves all non-product positions unchanged',()=>{
   assert.deepEqual(reorderProductIds(links,0,1),['gym','website','house','heading','hotel']);
   assert.deepEqual(reorderProductIds(links,2,-1),['house','website','hotel','heading','gym']);
-});
-test('reordering stays within the product group boundaries',()=>{
   assert.equal(reorderProductIds(links,0,-1),null);
   assert.equal(reorderProductIds(links,2,1),null);
-  assert.equal(reorderProductIds(links,-1,1),null);
   assert.deepEqual(links.map(link=>link.id),['house','website','gym','heading','hotel']);
 });
 
-test('Studio nests products under one collection while retaining independent editors', async()=>{
-  const {readFileSync}=await import('node:fs');
-  const source=readFileSync(new URL('../app/components/HubStudio.tsx',import.meta.url),'utf8');
-  assert.match(source,/className="hs-product-collection"/);
-  assert.match(source,/productLinks\.map\(\(product,productIndex\)/);
-  assert.match(source,/onReorder=\{reorderProduct\}/);
-  assert.match(source,/setNewBlockAfterId\(type==="service"\?/);
-  assert.equal((source.match(/เพิ่มสินค้าอีกรายการ/g)||[]).length,1);
-  assert.doesNotMatch(source,/onAddProduct/);
-});
-
-test('reordering affiliate promotions never reorders existing services or links',()=>{
-  const rows=[
-    {id:'offer1',type:'promotion'},{id:'service1',type:'service'},
-    {id:'link1',type:'link'},{id:'offer2',type:'promotion'}
+test('normal and discounted products reorder together, without affecting unrelated links',()=>{
+  const mixed=[
+    {id:'serviceA',type:'service'},
+    {id:'link',type:'link'},
+    {id:'discountedA',type:'promotion'},
+    {id:'heading',type:'heading'},
+    {id:'serviceB',type:'service'},
+    {id:'discountedB',type:'promotion'},
   ];
-  assert.deepEqual(reorderTypedContentIds(rows,'promotion',0,1),['offer2','service1','link1','offer1']);
-  assert.equal(reorderTypedContentIds(rows,'promotion',1,1),null);
-});
-test('promotion cards share a Studio parent card and a separate public carousel',async()=>{
-  const {readFileSync}=await import('node:fs');
-  const studio=readFileSync(new URL('../app/components/HubStudio.tsx',import.meta.url),'utf8');
-  const canvas=readFileSync(new URL('../app/components/HubCanvas.tsx',import.meta.url),'utf8');
-  assert.match(studio,/className="hs-product-collection hs-promotion-collection"/);
-  assert.match(studio,/promotionLinks\.map\(\(promotion,promotionIndex\)/);
-  assert.match(studio,/เพิ่มสินค้าโปรโมชั่น/);
-  assert.match(canvas,/promoCards=visible\.filter/);
-  assert.match(canvas,/hc-promotion-showcase/);
+  assert.deepEqual(reorderProductIds(mixed,0,1),
+    ['discountedA','link','serviceA','heading','serviceB','discountedB']);
+  assert.deepEqual(reorderProductIds(mixed,2,1),
+    ['serviceA','link','discountedA','heading','discountedB','serviceB']);
+  assert.equal(reorderProductIds(mixed,3,1),null);
+  // Typed helper remains available for historical/restricted operations.
+  assert.deepEqual(reorderTypedContentIds(mixed,'promotion',0,1),
+    ['serviceA','link','discountedB','heading','serviceB','discountedA']);
 });
 
-test('promotions use compact swipe rail while ordinary service carousel keeps full cards',async()=>{
-  const {readFileSync}=await import('node:fs');
+test('Studio has one product group with two add actions, no separate sale collection',()=>{
+  const studio=readFileSync(new URL('../app/components/HubStudio.tsx',import.meta.url),'utf8');
+  const editor=readFileSync(new URL('../app/components/HubContentEditor.tsx',import.meta.url),'utf8');
+  assert.match(studio,/const productLinks=links\.filter\(link=>link\.type==='service'\|\|link\.type==='promotion'\)/);
+  assert.equal((studio.match(/className="hs-product-collection"/g)||[]).length,1);
+  assert.doesNotMatch(studio,/hs-promotion-collection/);
+  assert.match(studio,/productLinks\.map\(\(product,productIndex\)/);
+  assert.match(studio,/onReorder=\{reorderProduct\}/);
+  assert.match(studio,/addPromotionAfter\(productLinks\[0\]\.id\)/);
+  assert.match(studio,/addProductAfter\(productLinks\[0\]\.id\)/);
+  assert.match(studio,/เพิ่มสินค้าลดราคา/);
+  assert.match(editor,/label:"สินค้าลดราคา \/ Affiliate"/);
+  assert.doesNotMatch(editor,/โปรโมชั่น/);
+  assert.doesNotMatch(studio,/onAddProduct/);
+});
+
+test('public Hub places all products in one rail without heading or promotion badge',()=>{
   const canvas=readFileSync(new URL('../app/components/HubCanvas.tsx',import.meta.url),'utf8');
   const carousel=readFileSync(new URL('../app/components/HubCardCarousel.tsx',import.meta.url),'utf8');
+  const card=readFileSync(new URL('../app/components/HubContentBlock.tsx',import.meta.url),'utf8');
+  assert.match(canvas,/const productCards=visible\.filter\(l=>l\.type==='service'\|\|l\.type==='promotion'\)/);
+  assert.equal((canvas.match(/<HubCardCarousel/g)||[]).length,1);
+  assert.match(canvas,/<HubCardCarousel key=\{l\.id\} blocks=\{productCards\} compact/);
+  assert.doesNotMatch(canvas,/hc-promotion-showcase|promoCards/);
+  assert.doesNotMatch(card,/>โปรโมชั่น</);
+  assert.match(card,/hcb-promo-discount/);
+  assert.match(carousel,/const label='สินค้าและบริการ'/);
+});
+
+test('single card uses a balanced responsive hero; multiple products are small swipe tiles',()=>{
   const css=readFileSync(new URL('../app/hub-content.css',import.meta.url),'utf8');
-  const studio=readFileSync(new URL('../app/components/HubStudio.tsx',import.meta.url),'utf8');
-  assert.match(canvas,/<HubCardCarousel blocks=\{promoCards\} compact/);
-  assert.match(canvas,/<HubCardCarousel key=\{l.id\} blocks=\{productCards\}/);
+  const carousel=readFileSync(new URL('../app/components/HubCardCarousel.tsx',import.meta.url),'utf8');
+  assert.match(carousel,/hc-card-carousel-single/);
   assert.match(carousel,/hc-card-carousel-compact/);
-  assert.match(carousel,/function stepCompact\(/);
   assert.match(carousel,/ResizeObserver/);
-  assert.match(carousel,/aria-label="โปรโมชั่นถัดไป"/);
-  assert.match(carousel,/aria-label="โปรโมชั่นก่อนหน้า"/);
-  assert.match(css,/\.hc \.hc-promotion-showcase \.hc-card-carousel-compact \.hc-card-slide/);
+  assert.match(carousel,/function stepCompact\(/);
+  assert.match(carousel,/aria-label="สินค้าถัดไป"/);
+  assert.match(css,/\.hc \.hc-card-carousel-compact \.hc-card-slide/);
   assert.match(css,/scroll-snap-type:x mandatory/);
   assert.match(css,/overflow-x:auto/);
   assert.match(css,/clamp\(186px,58%,218px\)/);
-  assert.match(studio,/เพิ่มอีก 1 ชิ้นเพื่อให้ลูกค้าเลื่อนดูซ้าย–ขวาได้/);
+  assert.match(css,/\.hc \.hc-card-carousel-single \.hc-card-slide:only-child/);
+  assert.match(css,/grid-template-columns:minmax\(140px,40%\) minmax\(0,1fr\)/);
+  assert.match(css,/@media\(max-width:560px\)/);
 });

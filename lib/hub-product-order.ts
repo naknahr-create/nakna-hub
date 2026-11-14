@@ -10,5 +10,11 @@ export function reorderTypedContentIds(links:readonly Pick<HubLink,'id'|'type'>[
   return ids;
 }
 export function reorderProductIds(links:readonly Pick<HubLink,'id'|'type'>[],index:number,direction:number):string[]|null{
-  return reorderTypedContentIds(links,'service',index,direction);
+  // The same visible rail contains both standard and discounted products.
+  const positions=links.flatMap((link,i)=>link.type==='service'||link.type==='promotion'?[i]:[]);
+  const target=index+direction;
+  if(index<0||target<0||index>=positions.length||target>=positions.length)return null;
+  const ids=links.map(link=>link.id);
+  [ids[positions[index]],ids[positions[target]]]=[ids[positions[target]],ids[positions[index]]];
+  return ids;
 }

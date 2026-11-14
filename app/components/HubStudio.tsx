@@ -4,7 +4,7 @@ import {useCallback, useEffect, useRef, useState, type CSSProperties, type FormE
 import {Archive, ArrowLeft, ArrowRight, ArrowUpRight, BarChart3, Check, CreditCard, ChevronDown, ChevronUp, Copy, ExternalLink, Eye, Globe2, Heading, Image as ImageIcon, LayoutGrid, Link2, LoaderCircle, LockKeyhole, LogOut, MessageCircle, MoreHorizontal, Palette, Package, BadgePercent, PencilLine, Plus, RefreshCw, RotateCcw, Search, Settings2, ShieldCheck, Sparkles, Upload, Users, X} from "lucide-react";
 import type {HubContentType, HubLink, HubProfile, HubTemplate, PageEditorData, PageSummary, WorkspaceData} from "../../lib/hub-types";
 import {hasBlockAction, isRichContentType} from "../../lib/hub-content";
-import {reorderProductIds,reorderTypedContentIds} from "../../lib/hub-product-order";
+import {reorderProductIds} from "../../lib/hub-product-order";
 import {formatThaiBaht,getPromotionPricing} from "../../lib/hub-promotion";
 import {CONTENT_OPTIONS, ContentFields, ContentTypePicker, HubShareSettings, contentDraftOf, contentDraftError, emptyContent, type ContentDraft} from "./HubContentEditor";
 import {HubBrand} from "./ui";
@@ -120,8 +120,7 @@ export default function HubStudio(){
     return()=>{document.body.style.overflow=previousOverflow;document.removeEventListener("keydown",onKeyDown,true);mobile.removeEventListener("change",onWidthChange);if(previousFocus?.isConnected)previousFocus.focus({preventScroll:true});};
   },[preview]);
   const links=(editor?.links||[]).filter(link=>!link.archived).sort((a,b)=>a.sortOrder-b.sortOrder);
-  const productLinks=links.filter(link=>link.type==='service');
-  const promotionLinks=links.filter(link=>link.type==='promotion');
+  const productLinks=links.filter(link=>link.type==='service'||link.type==='promotion');
   const archivedLinks=(editor?.links||[]).filter(link=>link.archived);
   const previewLinks:HubLink[]=links.map(link=>linkDrafts[link.id]?{...link,...linkDrafts[link.id]}:link);
   if(newBlockType&&newBlockDraft.title.trim())previewLinks.push({...newBlockDraft,id:"new-link-preview",sortOrder:Math.max(-1,...links.map(link=>link.sortOrder))+1,archived:false});
@@ -145,7 +144,7 @@ export default function HubStudio(){
   async function createPage(event:FormEvent){event.preventDefault();if(busy)return;setBusy("create");setError("");try{const value=await api<PageEditorData>("/api/pages",{method:"POST",body:JSON.stringify({name:name.trim(),slug:newSlug.trim(),template})});adoptEditor(value);setDirtyRows({});setNewBlockType(null);setEditorTab("content");setScreen("editor");window.history.replaceState(window.history.state,"",`/studio?page=${encodeURIComponent(value.page.id)}`);await refreshWorkspace();notify("สร้างฮับแล้ว เพิ่มเนื้อหาของคุณได้เลย");}catch(e){mutationError(e);}finally{setBusy(null);}}
   function manageTeam(){if(!editor)return;setTeamPageId(editor.page.id);navigate("teams");}
   function mutationError(e:unknown){setError((e as Error).message);if((e as ApiError).status===409)setConflict(true);}
-  function addContent(type:HubContentType){setNewBlockAfterId(type==="service"?productLinks[0]?.id??null:type==="promotion"?promotionLinks[0]?.id??null:null);setNewBlockType(type);setNewBlockDraft(emptyContent(type));setContentPicker(false);setError("");}
+  function addContent(type:HubContentType){setNewBlockAfterId(type==="service"||type==="promotion"?productLinks[0]?.id??null:null);setNewBlockType(type);setNewBlockDraft(emptyContent(type));setContentPicker(false);setError("");}
   function addProductAfter(id:string){if(busy||newBlockType)return;setNewBlockAfterId(id);setNewBlockType("service");setNewBlockDraft(emptyContent("service"));setContentPicker(false);setError("");}
   function addPromotionAfter(id:string){if(busy||newBlockType)return;setNewBlockAfterId(id);setNewBlockType("promotion");setNewBlockDraft(emptyContent("promotion"));setContentPicker(false);setError("");}
   function cancelNewContent(){setNewBlockAfterId(null);setNewBlockType(null);setNewBlockDraft(emptyContent("link"));setError("");}
@@ -163,7 +162,7 @@ export default function HubStudio(){
       await reloadEditor();
       setNewBlockAfterId(null);setNewBlockType(null);setNewBlockDraft(emptyContent("link"));
       await refreshWorkspace();
-      notify(created.link.type==="promotion"?"เพิ่มโปรโมชั่นแล้ว":created.link.type==="service"?"เพิ่มสินค้าในกลุ่มเรียบร้อยแล้ว":"เพิ่มเนื้อหาในฉบับร่างแล้ว");
+      notify(created.link.type==="promotion"||created.link.type==="service"?"เพิ่มสินค้าในกลุ่มเรียบร้อยแล้ว":"เพิ่มเนื้อหาในฉบับร่างแล้ว");
       if(created.link.type==="service"||created.link.type==="promotion"){
         window.requestAnimationFrame(()=>{
           const row=document.getElementById(`studio-link-${created.link.id}`);
@@ -216,18 +215,6 @@ export default function HubStudio(){
       await api(`/api/pages/${editor.page.id}/reorder`,{method:"POST",body:JSON.stringify({ids,revision:editor.revision})});
       await reloadEditor();
       notify("เปลี่ยนลำดับสินค้าในฉบับร่างแล้ว");
-    }catch(e){mutationError(e);}finally{setBusy(null);}
-  }
-  async function reorderPromotion(index:number,direction:number){
-    if(!editor||busy)return;
-    if(unsavedRows){setError("กรุณากดบันทึกการแก้ไขก่อนเปลี่ยนลำดับ");return;}
-    const ids=reorderTypedContentIds(links,'promotion',index,direction);
-    if(!ids)return;
-    setBusy("reorder");setError("");
-    try{
-      await api(`/api/pages/${editor.page.id}/reorder`,{method:"POST",body:JSON.stringify({ids,revision:editor.revision})});
-      await reloadEditor();
-      notify("เปลี่ยนลำดับโปรโมชั่นในฉบับร่างแล้ว");
     }catch(e){mutationError(e);}finally{setBusy(null);}
   }
   async function saveProfile(event:FormEvent){event.preventDefault();if(!editor||!profile||busy)return;setBusy("profile");setError("");try{const result=await api<PageEditorData>(`/api/pages/${editor.page.id}`,{method:"PATCH",body:JSON.stringify({profile,...(slug!==editor.page.slug?{slug}:{}),revision:editor.revision})});adoptEditor(result);await refreshWorkspace();notify("บันทึกหน้าตาในฉบับร่างแล้ว");}catch(e){mutationError(e);}finally{setBusy(null);}}
@@ -321,14 +308,14 @@ export default function HubStudio(){
             {links.length>=editorLimit&&<p className="hce-quota-note">ใช้ครบ {editorLimit} รายการแล้ว เก็บรายการที่ไม่ใช้เข้าคลังเพื่อเพิ่มรายการใหม่{editorPlan==="starter"?" หรือเลือก Pro เพื่อเพิ่มได้ถึง 100 รายการต่อฮับ":""}</p>}
             {contentPicker&&!newBlockType&&<ContentTypePicker onChoose={addContent} onClose={()=>setContentPicker(false)} disabled={!!busy}/>}
             {newBlockType&&!newBlockAfterId&&<form className="hs-panel hs-new-block-form" onSubmit={createBlock} aria-busy={!!busy}><div className="hs-panel-heading"><div><span className="hce-new-form-badge">เนื้อหาใหม่</span><h2>{CONTENT_OPTIONS.find(item=>item.type===newBlockType)?.label}</h2></div><button type="button" aria-label="ยกเลิกเพิ่มรายการ" disabled={!!busy} onClick={cancelNewContent}><X size={18}/></button></div><ContentFields pageId={editor.page.id} draft={newBlockDraft} onChange={setNewBlockDraft} disabled={!!busy} onUploadingChange={setMediaUploading} autoFocus/><div className="hs-new-block-actions"><button type="button" className="hs-button hs-outline" disabled={!!busy} onClick={cancelNewContent}>ยกเลิก</button><button type="submit" className="hs-button hs-primary" disabled={!!busy}>{busy==="add"?<LoaderCircle className="hs-spin" size={16}/>:<Plus size={16}/>}เพิ่มรายการ</button></div></form>}
-            {links.length===0&&!newBlockType?<div className="hs-editor-empty"><span><ImageIcon size={27}/></span><h3>เริ่มเล่าเรื่องของคุณ</h3><p>เพิ่มรูป ผลงาน บริการ หรือลิงก์แรก<br/>แล้วดูหน้าฮับเปลี่ยนไปพร้อมกัน</p><button type="button" className="hs-button hs-primary" onClick={()=>setContentPicker(true)}><Plus size={17}/>เลือกเนื้อหาแรก</button></div>:<div className="hs-link-rows">{links.map((link,index)=>link.type==="service"?
+            {links.length===0&&!newBlockType?<div className="hs-editor-empty"><span><ImageIcon size={27}/></span><h3>เริ่มเล่าเรื่องของคุณ</h3><p>เพิ่มรูป ผลงาน บริการ หรือลิงก์แรก<br/>แล้วดูหน้าฮับเปลี่ยนไปพร้อมกัน</p><button type="button" className="hs-button hs-primary" onClick={()=>setContentPicker(true)}><Plus size={17}/>เลือกเนื้อหาแรก</button></div>:<div className="hs-link-rows">{links.map((link,index)=>(link.type==="service"||link.type==="promotion")?
               (link.id!==productLinks[0]?.id?null:
                <section key={link.id} className="hs-product-collection" aria-labelledby="hs-product-collection-title">
                  <header className="hs-product-collection-header">
                    <span className="hs-product-collection-icon"><Package size={22}/></span>
                    <div className="hs-product-collection-heading">
                      <h3 id="hs-product-collection-title">สินค้า / บริการ</h3>
-                     <p>สินค้าแต่ละแถวมีรูป ราคา และปุ่มของตัวเอง · หน้าเว็บเลื่อนดูซ้าย–ขวา</p>
+                     <p>สินค้าทั่วไปและสินค้าลดราคาอยู่ในการ์ดชุดเดียว · เลื่อนดูซ้าย–ขวาได้</p>
                    </div>
                    <span className="hs-product-collection-count">{productLinks.length} สินค้า</span>
                  </header>
@@ -341,43 +328,41 @@ export default function HubStudio(){
                      hasAnalyticsAccess={editorAnalytics} onDuplicate={duplicateBlock}
                      canDuplicate={links.length<editorLimit}/>)}
                  </div>
-                 {newBlockType==="service"&&!!newBlockAfterId&&<form className="hs-panel hs-new-block-form hs-inline-product-form" onSubmit={createBlock} aria-busy={!!busy}><div className="hs-panel-heading"><div><span className="hce-new-form-badge">สินค้าใหม่</span><h2>{CONTENT_OPTIONS.find(item=>item.type===newBlockType)?.label}</h2></div><button type="button" aria-label="ยกเลิกเพิ่มรายการ" disabled={!!busy} onClick={cancelNewContent}><X size={18}/></button></div><ContentFields pageId={editor.page.id} draft={newBlockDraft} onChange={setNewBlockDraft} disabled={!!busy} onUploadingChange={setMediaUploading} autoFocus/><div className="hs-new-block-actions"><button type="button" className="hs-button hs-outline" disabled={!!busy} onClick={cancelNewContent}>ยกเลิก</button><button type="submit" className="hs-button hs-primary" disabled={!!busy}>{busy==="add"?<LoaderCircle className="hs-spin" size={16}/>:<Plus size={16}/>}เพิ่มสินค้า</button></div></form>}
+                 {(newBlockType==="service"||newBlockType==="promotion")&&!!newBlockAfterId&&
+                   <form className="hs-panel hs-new-block-form hs-inline-product-form"
+                     onSubmit={createBlock} aria-busy={!!busy}>
+                     <div className="hs-panel-heading"><div>
+                       <span className="hce-new-form-badge">สินค้าใหม่</span>
+                       <h2>{CONTENT_OPTIONS.find(item=>item.type===newBlockType)?.label}</h2>
+                     </div>
+                       <button type="button" aria-label="ยกเลิกเพิ่มสินค้า" disabled={!!busy}
+                         onClick={cancelNewContent}><X size={18}/></button>
+                     </div>
+                     <ContentFields pageId={editor.page.id} draft={newBlockDraft}
+                       onChange={setNewBlockDraft} disabled={!!busy}
+                       onUploadingChange={setMediaUploading} autoFocus/>
+                     <div className="hs-new-block-actions">
+                       <button type="button" className="hs-button hs-outline"
+                         disabled={!!busy} onClick={cancelNewContent}>ยกเลิก</button>
+                       <button type="submit" className="hs-button hs-primary" disabled={!!busy}>
+                         {busy==="add"?<LoaderCircle className="hs-spin" size={16}/>:<Plus size={16}/>}เพิ่มสินค้า
+                       </button>
+                     </div>
+                   </form>}
                  <div className="hs-product-collection-actions">
-                   <button type="button" className="hs-add-next-product"
-                     disabled={!!busy||links.length>=editorLimit||!!newBlockType}
-                     onClick={()=>addProductAfter(productLinks[0].id)}>
-                     <Plus size={18}/>เพิ่มสินค้าอีกรายการ
-                   </button>
-                   <small>เพิ่มในกลุ่มเดียวกัน · สินค้า 1 ตัวนับเป็น 1 รายการในแพ็กเกจ</small>
-                 </div>
-               </section>)
-              :link.type==="promotion"?(link.id!==promotionLinks[0]?.id?null:
-               <section key={link.id} className="hs-product-collection hs-promotion-collection" aria-labelledby="hs-promotion-collection-title">
-                 <header className="hs-product-collection-header">
-                   <span className="hs-product-collection-icon"><BadgePercent size={22}/></span>
-                   <div className="hs-product-collection-heading">
-                     <h3 id="hs-promotion-collection-title">โปรโมชั่น / Affiliate</h3>
-                     <p>เพิ่มได้หลายสินค้าในกลุ่มเดียว · หน้าเว็บแสดงเป็นการ์ดเล็ก เลื่อนซ้าย–ขวา</p>
+                   <div className="hs-product-add-choices">
+                     <button type="button" className="hs-add-next-product"
+                       disabled={!!busy||links.length>=editorLimit||!!newBlockType}
+                       onClick={()=>addProductAfter(productLinks[0].id)}>
+                       <Plus size={17}/>เพิ่มสินค้า
+                     </button>
+                     <button type="button" className="hs-add-next-product hs-add-discount-product"
+                       disabled={!!busy||links.length>=editorLimit||!!newBlockType}
+                       onClick={()=>addPromotionAfter(productLinks[0].id)}>
+                       <BadgePercent size={17}/>เพิ่มสินค้าลดราคา
+                     </button>
                    </div>
-                   <span className="hs-product-collection-count">{promotionLinks.length} โปรโมชั่น</span>
-                 </header>
-                 <div className="hs-product-collection-list" role="group" aria-label="รายการโปรโมชั่น">
-                   {promotionLinks.map((promotion,promotionIndex)=><LinkRow key={`${promotion.id}:${saveEpoch}`}
-                     pageId={editor.page.id} link={promotion} index={promotionIndex} total={promotionLinks.length}
-                     busy={!!busy} onArchive={archiveLink}
-                     onReorder={reorderPromotion} onDirty={markDirty} onDraft={markDraft}
-                     onUploadState={setMediaUploading} onStatistics={showLinkStatistics}
-                     hasAnalyticsAccess={editorAnalytics} onDuplicate={duplicateBlock}
-                     canDuplicate={links.length<editorLimit}/>)}
-                 </div>
-                 {newBlockType==="promotion"&&!!newBlockAfterId&&<form className="hs-panel hs-new-block-form hs-inline-product-form" onSubmit={createBlock} aria-busy={!!busy}><div className="hs-panel-heading"><div><span className="hce-new-form-badge">โปรโมชั่นใหม่</span><h2>{CONTENT_OPTIONS.find(item=>item.type===newBlockType)?.label}</h2></div><button type="button" aria-label="ยกเลิกเพิ่มรายการ" disabled={!!busy} onClick={cancelNewContent}><X size={18}/></button></div><ContentFields pageId={editor.page.id} draft={newBlockDraft} onChange={setNewBlockDraft} disabled={!!busy} onUploadingChange={setMediaUploading} autoFocus/><div className="hs-new-block-actions"><button type="button" className="hs-button hs-outline" disabled={!!busy} onClick={cancelNewContent}>ยกเลิก</button><button type="submit" className="hs-button hs-primary" disabled={!!busy}>{busy==="add"?<LoaderCircle className="hs-spin" size={16}/>:<Plus size={16}/>}เพิ่มโปรโมชั่น</button></div></form>}
-                 <div className="hs-product-collection-actions">
-                   <button type="button" className="hs-add-next-product"
-                     disabled={!!busy||links.length>=editorLimit||!!newBlockType}
-                     onClick={()=>addPromotionAfter(promotionLinks[0].id)}>
-                     <Plus size={18}/>เพิ่มสินค้าโปรโมชั่น
-                   </button>
-                   <small>{promotionLinks.length===1?"เพิ่มอีก 1 ชิ้นเพื่อให้ลูกค้าเลื่อนดูซ้าย–ขวาได้":"สินค้าทุกชิ้นอยู่ในแถบเลื่อนเดียวกัน"} · 1 ชิ้นนับเป็น 1 รายการในแพ็กเกจ</small>
+                   <small>ทุกสินค้าอยู่ในแถบเดียวกัน · 1 ชิ้นนับเป็น 1 รายการในแพ็กเกจ</small>
                  </div>
                </section>)
               :<LinkRow key={`${link.id}:${saveEpoch}`} pageId={editor.page.id} link={link}
