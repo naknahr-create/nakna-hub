@@ -208,7 +208,7 @@
 .hc .hc-card-carousel-compact .hc-card-rail::-webkit-scrollbar{display:none}
 .hc .hc-card-carousel-compact .hc-card-slide,
 .hc .hc-card-carousel-compact .hc-card-slide:only-child{
- flex:0 0 clamp(150px,47%,192px);width:clamp(150px,47%,192px);
+ flex:0 0 clamp(136px,43%,164px);width:clamp(136px,43%,164px);
  min-width:0;max-width:none;scroll-snap-align:start;scroll-snap-stop:normal
 }
 .hc .hc-card-carousel-compact .hc-card-slide>.hcb{
@@ -321,7 +321,7 @@
 @media(max-width:560px){
  .hc .hc-card-carousel-compact .hc-card-slide,
  .hc .hc-card-carousel-compact .hc-card-slide:only-child{
-  flex-basis:clamp(150px,47%,183px);width:clamp(150px,47%,183px)
+  flex-basis:clamp(136px,44%,164px);width:clamp(136px,44%,164px)
  }
  .hc .hc-card-carousel-single .hc-card-slide:only-child{
   flex:0 0 100%;width:100%;max-width:100%
@@ -419,19 +419,19 @@
 .hc.hc-grid .hc-card-carousel-compact:not(.hc-card-carousel-single) .hc-card-slide .hcb-service .hcb-product-body{
   display:grid;
   grid-template-columns:minmax(0,1fr);
-  grid-template-rows:34px 34px 62px 46px;
+  grid-template-rows:25px 24px 45px 44px;
   gap:4px;
   align-content:start;
   flex:0 0 auto;
   min-height:0;
-  padding:10px 11px 11px
+  padding:8px 9px 9px
 }
 .hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-product-body>.hcb-title{
-  margin:0;min-height:0;max-height:34px;line-height:1.4;
+  margin:0;min-height:0;max-height:25px;line-height:1.3;
   overflow:hidden;align-self:start
 }
 .hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-product-description-slot{
-  min-height:0;max-height:34px;overflow:hidden;align-self:start
+  min-height:0;max-height:24px;overflow:hidden;align-self:start
 }
 .hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-product-description-slot .hcb-description{
   margin:0;font-size:10px;line-height:1.5;
@@ -443,7 +443,7 @@
 }
 .hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-product-price-slot{
   display:flex;align-items:flex-end;justify-content:flex-start;
-  min-width:0;min-height:0;max-height:62px;overflow:hidden
+  min-width:0;min-height:0;max-height:45px;overflow:hidden
 }
 .hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-product-price-slot>.hcb-promo-prices{
   margin:0;width:100%;align-items:flex-end;align-self:flex-end;
@@ -453,12 +453,12 @@
   margin:0;align-self:flex-end;font-size:19px;line-height:1.3
 }
 .hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-product-action-slot{
-  display:flex;align-items:stretch;min-height:0;max-height:46px
+  display:flex;align-items:stretch;min-height:0;max-height:44px
 }
 .hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-product-action-slot>.hcb-action,
 .hc.hc-grid .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-service .hcb-product-action-slot>.hcb-action{
   display:flex;align-items:center;justify-content:center;
-  width:100%;height:46px;min-height:46px;max-height:46px;
+  width:100%;height:44px;min-height:44px;max-height:44px;
   margin:0;padding:5px 6px;border-radius:10px;
   font-size:10.5px;line-height:1.25;gap:4px;
   overflow:hidden;text-align:center
@@ -486,7 +486,70 @@
 }
 @media(max-width:360px){
   .hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hc-card-slide>.hcb>.hcb-product-body{
-    grid-template-rows:34px 32px 60px 46px;
-    padding:9px 9px 10px
+    grid-template-rows:25px 24px 45px 44px;
+    padding:8px 8px 9px
   }
+}
+
+
+/* More products at a glance: uniform mini cards designed for Studio's narrow
+   phone preview and the published Hub. Desktop can display 3-4 items across,
+   while 320px phones still fit two with comfortable 44px purchase tap targets. */
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hc-card-rail{
+  gap:8px;
+}
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-media{
+  aspect-ratio:2.15/1;
+  min-height:0;
+  max-height:76px;
+}
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-media img{
+  padding:4px;
+  object-fit:contain;
+}
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-product-body>.hcb-title{
+  font-size:11.5px;
+  line-height:1.35;
+  -webkit-line-clamp:1;
+  white-space:nowrap;
+  text-overflow:ellipsis;
+  overflow:hidden;
+}
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-product-description-slot .hcb-description{
+  font-size:10px;
+  line-height:1.2;
+}
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-promo-amount strong{
+  font-size:17px;
+  line-height:1.16;
+}
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-promo-amount del{
+  font-size:9px;
+}
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-promo-discount{
+  font-size:8.5px;
+  min-height:18px;
+  padding:2px 5px;
+}
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-product-price-slot>.hcb-price{
+  font-size:17px;
+}
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-product-action-slot>.hcb-action,
+.hc.hc-grid .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-service .hcb-product-action-slot>.hcb-action{
+  font-size:10px;
+  border-radius:9px;
+  line-height:1.25;
+  padding:5px;
+}
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-product-action-slot>.hcb-action svg{
+  width:11px;
+  height:11px;
+}
+/* Counter and nav remain usable without taking a large second row. */
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hc-card-compact-controls{
+  min-height:38px;
+  padding-top:0;
+}
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hc-card-compact-controls button{
+  min-width:38px;min-height:38px;
 }
