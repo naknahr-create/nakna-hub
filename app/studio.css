@@ -110,3 +110,220 @@
 .hs-content-save{margin-top:18px}
 .hs-content-save .hs-button{min-width:108px}
 @media(max-width:600px){.hs-content-save .hs-button{min-width:0}}
+
+
+/* ===============================================================
+   NAKNA HUB · MOBILE COMPACT PREMIUM
+   Uses existing CI and content. Small UI, clear hierarchy, large
+   touch targets. Overrides only phone layouts; desktop is unchanged.
+   =============================================================== */
+.hs-card-more-trigger{display:none}
+.hs-card-secondary-menu{display:flex;align-items:center;justify-content:space-between;gap:10px;flex:1}
+.hs-card-secondary-menu>a,.hs-card-secondary-menu>button{
+  display:inline-flex;align-items:center;gap:7px;min-height:44px;
+  padding:8px 4px;font-size:12px;color:var(--hs-muted);border-radius:8px
+}
+.hs-card-secondary-menu>a:hover,.hs-card-secondary-menu>button:hover{color:var(--hs-primary);background:#f2f7f7}
+.hs-nav-tail{display:inline}
+@media(max-width:600px){
+  .hs-shell{
+    --hs-primary:#04878a;
+    --hs-primary-dark:#036a6c;
+    --hs-ink:#19343a;
+    --hs-muted:#576f76;
+    --hs-border:#dce6e8;
+    --hs-background:#f6f8f9;
+    background:var(--hs-background)
+  }
+  .hs-sidebar{
+    position:relative;top:auto;height:58px;min-height:58px;padding:0 16px;
+    border-bottom:1px solid #e6ebec;background:#fff
+  }
+  .hs-brand-link{min-height:42px}
+  .hs-brand-link .hub-brand-mark{width:34px;height:34px}
+  .hs-shell .hs-workspace-label{min-height:42px}
+  .hs-workspace-label>span{width:34px;height:34px;font-size:13px}
+  .hs-topbar{display:none}
+  .hs-main{padding:12px 14px 0;min-height:calc(100dvh - 124px)}
+  .hs-sidebar nav{
+    min-height:62px;padding:4px 10px calc(5px + env(safe-area-inset-bottom));
+    gap:2px;border-top:1px solid #e4e9eb;background:rgba(255,255,255,.96);
+    box-shadow:0 -4px 22px #14373c08;
+    -webkit-backdrop-filter:blur(18px) saturate(150%);
+    backdrop-filter:blur(18px) saturate(150%)
+  }
+  .hs-sidebar nav button{
+    min-width:0;min-height:52px;padding:5px 1px;gap:2px;
+    border-radius:12px;font-size:10.5px;line-height:1.2;font-weight:500;
+    color:#62777d;white-space:nowrap
+  }
+  .hs-sidebar nav button>svg{width:21px;height:21px;stroke-width:1.85}
+  .hs-sidebar nav button.active{
+    background:transparent;box-shadow:none;color:#057b7d;font-weight:650
+  }
+  .hs-sidebar nav button.active>svg{
+    width:21px;height:21px;box-sizing:content-box;padding:5px 11px;
+    border-radius:11px;background:#e2f2ef
+  }
+  .hs-sidebar nav button>span{font-size:10.5px;line-height:1.25}
+  .hs-nav-tail{display:none}
+  .hs-page-heading{
+    align-items:center;justify-content:space-between;flex-wrap:nowrap;
+    gap:10px;margin:4px 0 14px
+  }
+  .hs-page-heading>div{min-width:0;flex:1}
+  .hs-kicker{font-size:11px;line-height:1.3;margin:0 0 3px!important}
+  .hs-page-heading h1{font-size:25px;line-height:1.25;letter-spacing:-.6px;margin:0 0 2px}
+  .hs-page-heading>div>p:last-child{font-size:12px;line-height:1.45;margin:0;color:#6d8187}
+  .hs-page-heading>.hs-button{
+    align-self:center;flex-shrink:0;min-height:42px;max-width:150px;
+    padding:8px 12px;font-size:12px;gap:5px;border-radius:12px
+  }
+  .hs-page-heading>.hs-button svg{height:17px;width:17px}
+  .hs-shell .hs-primary{background:#087f83;border-color:#087f83}
+  .hs-shell .hs-button{border-radius:12px}
+  .hs-home-main .hs-workspace-metrics{
+    display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:0;margin:0 0 17px;border:1px solid #dce6e8;
+    border-radius:15px;background:#fff;overflow:hidden;
+    box-shadow:0 2px 8px #16373b04
+  }
+  .hs-home-main .hs-workspace-metrics>article{
+    display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;
+    position:relative;gap:0;padding:11px 9px 12px;
+    border:0;border-radius:0;background:transparent;box-shadow:none;min-width:0
+  }
+  .hs-home-main .hs-workspace-metrics>article+article:before{
+    content:"";position:absolute;left:0;top:12px;bottom:12px;width:1px;background:#e7edee
+  }
+  .hs-home-main .hs-workspace-metrics .hs-small-icon{display:none}
+  .hs-home-main .hs-workspace-metrics>article>div{min-width:0}
+  .hs-home-main .hs-workspace-metrics p{font-size:10px;line-height:1.35;white-space:nowrap}
+  .hs-home-main .hs-workspace-metrics strong{
+    font-size:24px;line-height:1.25;margin:3px 0 0;letter-spacing:-.6px
+  }
+  .hs-home-main .hs-workspace-metrics strong small{font-size:11px;letter-spacing:0}
+  .hs-home-main .hs-workspace-metrics article>div>span:not(.hs-stat-pro-label){display:none}
+  .hs-home-main .hs-workspace-metrics strong.hs-stat-pro-label{font-size:18px}
+  .hs-home-main .hs-stat-upgrade{font-size:10px;min-height:26px;white-space:nowrap}
+  .hs-section-title{align-items:center;gap:8px;margin:0 0 10px}
+  .hs-section-title h2{font-size:17px;line-height:1.4}
+  .hs-section-title h2>span{font-size:11px;padding:3px 6px}
+  .hs-home-main>.hs-section-title>span{display:none}
+  .hs-home-main .hs-pages-grid{grid-template-columns:1fr;gap:10px}
+  .hs-home-main .hs-page-card{
+    border:1px solid #dae5e7;border-radius:17px;background:#fff;
+    box-shadow:0 3px 12px #153a3d08;overflow:hidden
+  }
+  .hs-home-main .hs-page-card-cover{
+    min-height:0;height:auto;padding:14px 14px 8px;
+    gap:11px;background:#fff!important
+  }
+  .hs-home-main .hs-page-card-cover:after{display:none}
+  .hs-home-main .hs-background-ink h3{color:var(--hs-ink)}
+  .hs-home-main .hs-background-ink .hs-card-url{color:var(--hs-muted)}
+  .hs-home-main .hs-card-avatar{
+    width:46px;height:46px;border:1px solid #d7e3e7;border-radius:13px;
+    background:#f3f8f8;flex-shrink:0;font-size:19px
+  }
+  .hs-home-main .hs-card-title{flex:1;min-width:0}
+  .hs-home-main .hs-card-title h3{
+    font-size:17px;line-height:1.3;font-weight:650;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+  }
+  .hs-home-main .hs-card-url{font-size:11px;line-height:1.35;margin-top:3px}
+  .hs-home-main .hs-page-card-body{padding:1px 14px 13px}
+  .hs-home-main .hs-card-overview{flex-wrap:nowrap;gap:8px}
+  .hs-home-main .hs-page-status{font-size:10.5px;max-width:72%;padding:4px 7px}
+  .hs-home-main .hs-card-updated{font-size:10px;white-space:nowrap}
+  .hs-home-main .hs-card-stats{
+    display:flex;gap:8px;flex-wrap:nowrap;align-items:center;
+    margin:4px 0 10px;font-size:11px;min-width:0
+  }
+  .hs-home-main .hs-card-stats>span{min-height:32px;gap:4px}
+  .hs-home-main .hs-card-stats strong{font-size:13px}
+  .hs-shell .hs-home-main .hs-card-stats-action{
+    min-height:32px;padding:4px 7px;gap:4px;
+    font-size:11px;border-radius:8px;background:#eff7f6
+  }
+  .hs-home-main .hs-card-stats-action svg{width:15px;height:15px}
+  .hs-home-main .hs-card-actions{grid-template-columns:minmax(0,1fr) 46px;gap:8px}
+  .hs-home-main .hs-card-actions>.hs-button{
+    min-height:42px;padding:8px 12px;font-size:13px;gap:7px
+  }
+  .hs-home-main .hs-card-actions>.hs-outline{
+    width:46px;min-width:46px;font-size:0;gap:0;border-radius:11px
+  }
+  .hs-home-main .hs-card-actions>.hs-outline svg{width:18px;height:18px}
+  .hs-home-main .hs-card-secondary-actions{
+    display:block;margin-top:3px;position:relative
+  }
+  .hs-shell .hs-card-more-trigger{
+    display:inline-flex;align-items:center;gap:6px;
+    min-height:36px;padding:4px 1px;font-size:11px;color:#60787e
+  }
+  .hs-card-more-trigger svg:last-child{width:13px;height:13px}
+  .hs-shell .hs-card-secondary-menu{
+    display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;
+    padding:7px 0 2px;border-top:1px solid #e7eff0
+  }
+  .hs-shell .hs-card-secondary-menu[data-open="false"]{display:none}
+  .hs-card-secondary-menu>a,.hs-card-secondary-menu>button{
+    display:inline-flex;align-items:center;gap:6px;min-height:36px;
+    font-size:11px;padding:4px
+  }
+  .hs-page-card .hs-inline-confirm{margin:8px 0 2px;padding:12px}
+  .hs-hub-filters{gap:10px;margin-bottom:14px}
+  .hs-hub-filters>div{overflow-x:auto;scrollbar-width:none}
+  .hs-hub-filters>div>button{flex-shrink:0;font-size:11px}
+  .hs-account-section .hs-page-heading{margin-bottom:15px}
+  .hs-account-section .hs-page-heading h1{font-size:24px}
+  .hs-account-info{
+    padding:13px;gap:11px;border-radius:15px;
+    margin-bottom:12px;min-height:0
+  }
+  .hs-account-avatar{height:42px;width:42px;border-radius:13px;font-size:18px}
+  .hs-account-info strong{font-size:15px;line-height:1.3}
+  .hs-account-info>div>span{font-size:11px;line-height:1.5;margin-top:3px}
+  .hs-account-info .hs-plan{font-size:10px}
+  .hs-current-usage{
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+    padding:14px 12px;gap:0;margin-bottom:12px;border-radius:15px
+  }
+  .hs-current-usage>div{display:block;min-width:0;padding:0 10px}
+  .hs-current-usage>div:first-child{padding-left:0}
+  .hs-current-usage>div+div{border-left:1px solid #e3ebed}
+  .hs-current-usage>div>span{font-size:11px;display:block;line-height:1.35}
+  .hs-current-usage strong{display:block;margin:5px 0 0;font-size:18px}
+  .hs-current-usage .hs-usage-bar{margin-top:10px;height:4px}
+  .hs-current-usage p{display:none}
+  .hs-shell .hs-signout{
+    margin:10px 0 0;padding:8px 12px;min-height:42px;
+    border-radius:11px;font-size:12px
+  }
+  .hs-studio-footer{
+    margin-top:22px;padding:18px 1px calc(98px + env(safe-area-inset-bottom));
+    gap:7px 12px;flex-wrap:wrap;font-size:10px;line-height:1.5
+  }
+  .hs-studio-footer .hub-build-footer{margin:0!important;font-size:10px}
+  .hs-studio-footer .hub-build-trigger{padding:3px;font-size:10px}
+  .hs-editor-heading{margin-bottom:14px}
+  .hs-editor-heading h1{font-size:22px}
+  .hs-editor-tabs{margin-bottom:16px}
+  .hs-editor-tabs>button{min-height:45px;padding:10px 10px;font-size:12px}
+  .hs-panel{padding:17px 15px;border-radius:14px}
+  .hs-row-bottom>div:first-child>button{font-size:11px}
+  .hs-content-save,.hs-profile-save{bottom:calc(70px + env(safe-area-inset-bottom))}
+  .hs-toast{bottom:calc(91px + env(safe-area-inset-bottom))}
+  .hs-edit-note{padding:13px}
+  .hs-edit-note p{font-size:12px}
+  .hs-account-section .hb-account-plan-link{padding:14px;gap:12px}
+  .hs-account-section .hb-account-plan-link h2{font-size:15px}
+}
+@media(max-width:360px){
+  .hs-sidebar nav button>span{font-size:9.5px}
+  .hs-home-main .hs-workspace-metrics p{font-size:9px}
+  .hs-home-main .hs-card-stats-action>span{display:none}
+  .hs-home-main .hs-card-stats{gap:4px}
+  .hs-page-heading h1{font-size:23px}
+}
