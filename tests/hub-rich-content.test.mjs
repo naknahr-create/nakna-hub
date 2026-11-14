@@ -455,7 +455,7 @@ test('affiliate promotion shows 100 -> 80 baht as a 20% discount and counts a re
   assert.equal(published.links[0].content.originalPrice,'100');
   assert.equal(published.links[0].content.salePrice,'80');
   assert.equal((await publicAsset(img.url)).status,200,'published promotion image is public');
-  const redirect=await hub.goToLink(await request(`/go/${p.page.slug}/${promotion.id}`,{actor:null}),p.page.slug,promotion.id);
+  const redirect=await hub.goToLink(await request(`/go/${p.page.slug}/${promotion.id}`,{actor:null,headers:{"User-Agent":"Mozilla/5.0 Chrome/130.0 Safari/537.36"}}),p.page.slug,promotion.id);
   assert.equal(redirect.status,302);
   assert.equal(redirect.headers.get('Location'),'https://shop.example.com/item?affiliate=abc');
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM hub_events WHERE type='click'").get().n,1);
