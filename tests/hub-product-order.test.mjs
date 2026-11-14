@@ -85,8 +85,8 @@ test('single card uses a balanced responsive hero; multiple products are small s
   assert.match(css,/\.hc \.hc-card-carousel-compact \.hc-card-slide/);
   assert.match(css,/scroll-snap-type:x mandatory/);
   assert.match(css,/overflow-x:auto/);
-  assert.match(css,/clamp\(136px,43%,164px\)/);
-  assert.match(css,/clamp\(136px,44%,164px\)/);
+  assert.match(css,/flex:0 0 calc\(\(100% - 10px\)\/2\)/);
+  assert.match(css,/flex-basis:calc\(\(100% - 10px\)\/2\)/);
   assert.match(css,/\.hc \.hc-card-carousel-single \.hc-card-slide:only-child/);
   assert.match(css,/grid-template-columns:minmax\(140px,40%\) minmax\(0,1fr\)/);
   assert.match(css,/@media\(max-width:560px\)/);
@@ -182,7 +182,7 @@ test('same-height products share title, description, price and CTA rows without 
   assert.match(content,/block.type==='service'&&!discountEnabled&&content.price/);
   assert.doesNotMatch(content,/hcb-promo-disclosure/);
   assert.doesNotMatch(content,/ลิงก์แนะนำสินค้า · ราคาและส่วนลดอาจเปลี่ยนตามร้านค้า/);
-  assert.match(css,/grid-template-rows:25px 24px 45px 44px/);
+  assert.match(css,/\.hcb-product-stage/);
   assert.match(css,/\.hcb-product-action-slot>\.hcb-action/);
   assert.match(css,/\.hcb-product-price-slot>\.hcb-price/);
   assert.match(css,/\.hc-card-carousel-single \.hcb-product-body/);
@@ -201,9 +201,9 @@ test('mini product cards show two products on narrow phones with a shorter image
   const markup=readFileSync(new URL('../app/components/HubContentBlock.tsx',import.meta.url),'utf8');
   assert.match(css,/clamp\(136px,43%,164px\)/);
   assert.match(css,/clamp\(136px,44%,164px\)/);
-  assert.match(css,/grid-template-rows:25px 24px 45px 44px/);
-  assert.match(css,/aspect-ratio:2\.15\/1/);
-  assert.match(css,/max-height:76px/);
+  assert.match(css,/\.hcb-product-footer/);
+  assert.match(css,/\.hcb-product-stage/);
+  assert.match(css,/height:228px/);
   assert.match(css,/height:44px;min-height:44px;max-height:44px/);
   assert.match(css,/\.hc-card-carousel-compact:not\(\.hc-card-carousel-single\)/);
   assert.match(markup,/hcb-product-price-slot/);
@@ -220,4 +220,36 @@ test('single-product full-width layout remains separate from mini carousel',()=>
   const carousel=readFileSync(new URL('../app/components/HubCardCarousel.tsx',import.meta.url),'utf8');
   assert.match(carousel,/singleCard=compactCards&&blocks.length===1/);
   assert.match(carousel,/blocks.length>1&&/);
+});
+
+
+test('product picture and text overlap only in the image stage, never over the white CTA footer',()=>{
+ const card=readFileSync(new URL('../app/components/HubContentBlock.tsx',import.meta.url),'utf8');
+ const css=readFileSync(new URL('../app/hub-content.css',import.meta.url),'utf8');
+ const inStage=card.slice(card.indexOf('className="hcb-product-stage"'),card.indexOf('className="hcb-product-footer"'));
+ const inFooter=card.slice(card.indexOf('className="hcb-product-footer"'),card.indexOf('}:<>'));
+ assert.match(inStage,/hcb-product-photo/);
+ assert.match(inStage,/hcb-product-overlay hcb-product-body/);
+ assert.match(inStage,/hcb-product-price-slot/);
+ assert.doesNotMatch(inStage,/hcb-product-action-slot/);
+ assert.match(inFooter,/hcb-product-action-slot/);
+ assert.match(inFooter,/\{action\}/);
+ assert.match(css,/\.hc \.hc-card-carousel-compact \.hcb-product-footer/);
+ assert.match(css,/background:#fff;/);
+ assert.match(css,/border-top:1px solid #e1e9eb/);
+ assert.match(css,/\.hc \.hc-card-carousel-compact \.hcb-product-overlay/);
+ assert.match(css,/rgba\(255,255,255,\.985\) 100%/);
+ assert.doesNotMatch(css.slice(css.indexOf('White-mist product composition')),/rgba\(0,0,0/);
+});
+
+test('exactly two products fill one row and navigation appears only when overflowing',()=>{
+ const css=readFileSync(new URL('../app/hub-content.css',import.meta.url),'utf8');
+ const carousel=readFileSync(new URL('../app/components/HubCardCarousel.tsx',import.meta.url),'utf8');
+ assert.match(css,/flex:0 0 calc\(\(100% - 10px\)\/2\)/);
+ assert.match(css,/width:calc\(\(100% - 10px\)\/2\)/);
+ assert.match(css,/height:228px/);
+ assert.match(css,/min-height:62px/);
+ assert.match(carousel,/!compactCards\|\|edges\.prev\|\|edges\.next/);
+ assert.match(carousel,/onScroll=\{readPosition\}/);
+ assert.match(carousel,/function stepCompact\(/);
 });
