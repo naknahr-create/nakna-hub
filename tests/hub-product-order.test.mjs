@@ -85,8 +85,8 @@ test('single card uses a balanced responsive hero; multiple products are small s
   assert.match(css,/\.hc \.hc-card-carousel-compact \.hc-card-slide/);
   assert.match(css,/scroll-snap-type:x mandatory/);
   assert.match(css,/overflow-x:auto/);
-  assert.match(css,/flex:0 0 calc\(\(100% - 10px\)\/2\)/);
-  assert.match(css,/flex-basis:calc\(\(100% - 10px\)\/2\)/);
+  assert.match(css,/flex:0 0 calc\(50% - 5px\)/);
+  assert.match(css,/flex-basis:calc\(50% - 5px\)/);
   assert.match(css,/\.hc \.hc-card-carousel-single \.hc-card-slide:only-child/);
   assert.match(css,/grid-template-columns:minmax\(140px,40%\) minmax\(0,1fr\)/);
   assert.match(css,/@media\(max-width:560px\)/);
@@ -227,7 +227,10 @@ test('product picture and text overlap only in the image stage, never over the w
  const card=readFileSync(new URL('../app/components/HubContentBlock.tsx',import.meta.url),'utf8');
  const css=readFileSync(new URL('../app/hub-content.css',import.meta.url),'utf8');
  const inStage=card.slice(card.indexOf('className="hcb-product-stage"'),card.indexOf('className="hcb-product-footer"'));
- const inFooter=card.slice(card.indexOf('className="hcb-product-footer"'),card.indexOf('}:<>'));
+ const footerStart=card.indexOf('className="hcb-product-footer"');
+ const footerEnd=card.indexOf('</>:<>',footerStart);
+ assert.ok(footerStart>=0&&footerEnd>footerStart,'product footer is a sibling of the photo stage');
+ const inFooter=card.slice(footerStart,footerEnd);
  assert.match(inStage,/hcb-product-photo/);
  assert.match(inStage,/hcb-product-overlay hcb-product-body/);
  assert.match(inStage,/hcb-product-price-slot/);
@@ -246,7 +249,7 @@ test('exactly two products fill one row and navigation appears only when overflo
  const css=readFileSync(new URL('../app/hub-content.css',import.meta.url),'utf8');
  const carousel=readFileSync(new URL('../app/components/HubCardCarousel.tsx',import.meta.url),'utf8');
  assert.match(css,/flex:0 0 calc\(\(100% - 10px\)\/2\)/);
- assert.match(css,/width:calc\(\(100% - 10px\)\/2\)/);
+ assert.match(css,/width:calc\(50% - 5px\)/);
  assert.match(css,/height:228px/);
  assert.match(css,/min-height:62px/);
  assert.match(carousel,/!compactCards\|\|edges\.prev\|\|edges\.next/);
