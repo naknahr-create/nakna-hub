@@ -16,8 +16,7 @@ export function HubCanvas({profile,links,slug='',preview=false,compact=false,onD
  useEffect(()=>setImageFailed(false),[profile.avatarUrl]);
  useEffect(()=>{if(preview)return;let ref='';try{const r=new URL(document.referrer);if(r.origin!==location.origin)ref=r.hostname;}catch{}setSource((new URLSearchParams(location.search).get('utm_source')||ref).slice(0,100));},[preview]);
  const visible=links.filter(l=>l.enabled&&!l.archived).sort((a,b)=>a.sortOrder-b.sortOrder);
- const productCards=visible.filter(l=>l.type==='service');
- const promoCards=visible.filter(l=>l.type==='promotion');
+ const productCards=visible.filter(l=>l.type==='service'||l.type==='promotion');
  const themePreset=getHubTheme(profile.themeId);
  const accent=profile.accent||'#04878a';
  const luminance=(color:string)=>{const [r,g,b]=[1,3,5].map(i=>{const c=parseInt(color.slice(i,i+2),16)/255;return c<=.04045?c/12.92:((c+.055)/1.055)**2.4;});return .2126*r+.7152*g+.0722*b;};
@@ -34,11 +33,10 @@ export function HubCanvas({profile,links,slug='',preview=false,compact=false,onD
      <div className="hc-profile-main"><div className="hc-avatar">{profile.avatarUrl&&!imageFailed?<img src={profile.avatarUrl} alt={profile.name} onError={()=>setImageFailed(true)}/>:<span>{initials}</span>}</div><div className="hc-identity-copy">{profile.tagline&&<p className="hc-tagline">{profile.tagline}</p>}<h1>{profile.name||'ชื่อของคุณ'}</h1>{profile.bio&&<p className="hc-bio">{profile.bio}</p>}</div></div>
      <div className="hc-profile-rule"><span/><ArrowRight size={17}/></div>
    </section><section className="hc-links" aria-label="เนื้อหาของหน้าเว็บ">
-     {visible.map((l,index)=>l.type==='service'?(l.id!==productCards[0]?.id?null:<HubCardCarousel key={l.id} blocks={productCards} href={item=>item.url?href(item):undefined} onDemoClick={onDemoClick}/>):l.type==='promotion'?(l.id!==promoCards[0]?.id?null:
-       <section className="hc-promotion-showcase" key={l.id} aria-label="รายการโปรโมชั่น">
-         <div className="hc-promotion-heading"><h2>โปรโมชั่น</h2><span>{promoCards.length} รายการ</span></div>
-         <HubCardCarousel blocks={promoCards} compact href={item=>item.url?href(item):undefined} onDemoClick={onDemoClick}/>
-       </section>)
+     {visible.map((l,index)=>(l.type==='service'||l.type==='promotion')?
+       (l.id!==productCards[0]?.id?null:
+        <HubCardCarousel key={l.id} blocks={productCards} compact
+          href={item=>item.url?href(item):undefined} onDemoClick={onDemoClick}/>)
        :l.type==='heading'?<h2 key={l.id} className="hc-section-label">{l.title}</h2>:l.type!=='link'?<HubContentBlock key={l.id} block={l} href={l.url?href(l):undefined} onDemoClick={onDemoClick}/>:<a key={l.id} className={`hc-link ${l.featured?'hc-link-featured':''}`} href={href(l)} target="_blank" rel="noopener" aria-label={`${l.title} เปิดในแท็บใหม่`} onClick={e=>{if(onDemoClick){e.preventDefault();onDemoClick(l.title);}}}>
        <span className="hc-link-number">{String(index+1).padStart(2,'0')}</span><span className="hc-link-icon"><HubLinkIcon icon={l.icon} url={l.url} size={30}/></span><span className="hc-link-copy"><span className="hc-link-title">{l.title}</span>{l.description&&<span className="hc-link-description">{l.description}</span>}</span><ArrowUpRight className="hc-link-arrow" size={20}/>{l.featured&&<span className="hc-featured-label"><Sparkles size={11}/> แนะนำ</span>}
      </a>)}
