@@ -106,19 +106,16 @@ export function HubContentBlock({block,href,onDemoClick}:ContentBlockProps){
 
   return <article className={`hcb hcb-${block.type} ${discountEnabled&&block.type==='service'?'hcb-promotion':''} ${block.featured?'hcb-featured':''} ${!photo?'hcb-no-photo':''}`} aria-labelledby={titleId} data-block-type={block.type}>
     {block.featured&&!discountEnabled&&<span className="hcb-featured-label"><Sparkles size={12} aria-hidden="true"/>แนะนำ</span>}
-    {photo&&<div className="hcb-cover">
-      {hasAction?<a href={href} target="_blank" rel="noopener" aria-label={`${actionLabel}: ${block.title} เปิดในแท็บใหม่`} onClick={navigate}>{photo}</a>:photo}
-    </div>}
-    <div className={`hcb-body ${isProduct?'hcb-product-body':''}`}>
-      <h2 id={titleId} className="hcb-title">{block.title}</h2>
-      {isProduct?
-        <div className="hcb-product-description-slot">
-          {block.description&&<div className="hcb-description">{block.description.split(/\n\s*\n/).filter(Boolean).map((paragraph,index)=><p key={index}>{paragraph}</p>)}</div>}
-        </div>
-        :block.description&&<div className="hcb-description">{block.description.split(/\n\s*\n/).filter(Boolean).map((paragraph,index)=><p key={index}>{paragraph}</p>)}</div>}
-      {block.type==='gallery'&&(images.length?<Gallery images={images} title={block.title} layout={content.galleryLayout||'grid'}/>:<div className="hcb-gallery-empty"><ImageOff size={22} aria-hidden="true"/><span>รูปภาพกำลังจะมา</span></div>)}
-      {isProduct?
-        <>
+    {isProduct?<>
+      <div className="hcb-product-stage">
+        {photo?<div className="hcb-cover hcb-product-photo">
+          {hasAction?<a href={href} target="_blank" rel="noopener" aria-label={`${actionLabel}: ${block.title} เปิดในแท็บใหม่`} onClick={navigate}>{photo}</a>:photo}
+        </div>:<div className="hcb-product-placeholder" aria-hidden="true"><ImageOff size={26}/></div>}
+        <div className="hcb-product-overlay hcb-product-body">
+          <h2 id={titleId} className="hcb-title">{block.title}</h2>
+          <div className="hcb-product-description-slot">
+            {block.description&&<div className="hcb-description">{block.description.split(/\n\s*\n/).filter(Boolean).map((paragraph,index)=><p key={index}>{paragraph}</p>)}</div>}
+          </div>
           <div className="hcb-product-price-slot">
             {promo&&<div className="hcb-promo-prices" aria-label={`ราคาปกติ ${formatThaiBaht(promo.originalSatang)} ราคาหลังลด ${formatThaiBaht(promo.saleSatang)} ลด ${promo.discountPercent} เปอร์เซ็นต์`}>
               <div className="hcb-promo-amount">
@@ -129,9 +126,21 @@ export function HubContentBlock({block,href,onDemoClick}:ContentBlockProps){
             </div>}
             {block.type==='service'&&!discountEnabled&&content.price&&<p className="hcb-price">{content.price}</p>}
           </div>
-          <div className="hcb-product-action-slot">{action}</div>
-        </>
-        :action&&<div className="hcb-bottom">{action}</div>}
-    </div>
+        </div>
+      </div>
+      <div className="hcb-product-footer">
+        <div className="hcb-product-action-slot">{action}</div>
+      </div>
+    </>:<>
+      {photo&&<div className="hcb-cover">
+        {hasAction?<a href={href} target="_blank" rel="noopener" aria-label={`${actionLabel}: ${block.title} เปิดในแท็บใหม่`} onClick={navigate}>{photo}</a>:photo}
+      </div>}
+      <div className="hcb-body">
+        <h2 id={titleId} className="hcb-title">{block.title}</h2>
+        {block.description&&<div className="hcb-description">{block.description.split(/\n\s*\n/).filter(Boolean).map((paragraph,index)=><p key={index}>{paragraph}</p>)}</div>}
+        {block.type==='gallery'&&(images.length?<Gallery images={images} title={block.title} layout={content.galleryLayout||'grid'}/>:<div className="hcb-gallery-empty"><ImageOff size={22} aria-hidden="true"/><span>รูปภาพกำลังจะมา</span></div>)}
+        {action&&<div className="hcb-bottom">{action}</div>}
+      </div>
+    </>}
   </article>;
 }

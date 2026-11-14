@@ -99,7 +99,7 @@ export function HubCardCarousel({blocks,href,onDemoClick,compact=false}:Props){
        tabIndex={blocks.length>1?0:undefined} aria-roledescription="carousel" aria-label={blocks.length>1?`ปัดซ้ายหรือขวาเพื่อดู${label}ถัดไป`:`${label} 1 รายการ`}>
    {blocks.map((block,index)=><div className="hc-card-slide" role="group" aria-roledescription="slide" aria-label={`${label} ${index+1} จาก ${blocks.length}: ${block.title}`} key={block.id}><HubContentBlock block={block} href={href(block)} onDemoClick={onDemoClick}/></div>)}
   </div>
-  {blocks.length>1&&(compactCards?
+  {blocks.length>1&&(!compactCards||edges.prev||edges.next)&&(compactCards?
    <div className="hc-card-compact-controls">
     <span aria-live="polite">{current+1} / {blocks.length} <span aria-hidden="true">· เลื่อนดูสินค้า</span></span>
     <div>
