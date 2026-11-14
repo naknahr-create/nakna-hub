@@ -29,11 +29,12 @@ export function HubCardCarousel({blocks,href,onDemoClick}:{blocks:HubLink[];href
   });
   setCurrent(closest);
  }
- return <div className="hc-card-carousel" aria-label="สินค้าและบริการ">
+ const label=blocks[0]?.type==="promotion"?"โปรโมชั่น":"สินค้าและบริการ";
+ return <div className="hc-card-carousel" aria-label={label}>
   <div className="hc-card-rail" id={railId} ref={rail} onScroll={update}
        onKeyDown={event=>{if(event.key==='ArrowRight'){event.preventDefault();move(current+1);}else if(event.key==='ArrowLeft'){event.preventDefault();move(current-1);}}}
-       tabIndex={blocks.length>1?0:undefined} aria-roledescription="carousel" aria-label="ปัดซ้ายหรือขวาเพื่อดูสินค้าถัดไป">
-   {blocks.map((block,index)=><div className="hc-card-slide" role="group" aria-roledescription="slide" aria-label={`สินค้า ${index+1} จาก ${blocks.length}: ${block.title}`} key={block.id}><HubContentBlock block={block} href={href(block)} onDemoClick={onDemoClick}/></div>)}
+       tabIndex={blocks.length>1?0:undefined} aria-roledescription="carousel" aria-label={`ปัดซ้ายหรือขวาเพื่อดู${label}ถัดไป`}>
+   {blocks.map((block,index)=><div className="hc-card-slide" role="group" aria-roledescription="slide" aria-label={`${label} ${index+1} จาก ${blocks.length}: ${block.title}`} key={block.id}><HubContentBlock block={block} href={href(block)} onDemoClick={onDemoClick}/></div>)}
   </div>
   {blocks.length>1&&<>
     <span className="hc-card-floating-count" aria-live="polite">{current+1} / {blocks.length}</span>
