@@ -13,7 +13,7 @@ export type ContentDraft = Pick<HubLink,"type"|"title"|"description"|"url"|"icon
 export const CONTENT_OPTIONS = [
   {type:"image",label:"รูปภาพ / แบนเนอร์",short:"รูปภาพ",description:"ภาพใหญ่พร้อมเรื่องราวและปุ่ม",icon:ImageIcon,color:"peach"},
   {type:"gallery",label:"แกลเลอรี / ผลงาน",short:"แกลเลอรี",description:"รวมรูปสินค้า สถานที่ หรือผลงาน",icon:GalleryHorizontalEnd,color:"purple"},
-  {type:"service",label:"สินค้า / บริการ",short:"สินค้า / บริการ",description:"รูป รายละเอียด ราคา และปุ่มติดต่อ",icon:Package,color:"blue"},
+  {type:"service",label:"สินค้า / บริการ",short:"สินค้า / บริการ",description:"เพิ่มสินค้า ตั้งราคา เปิดส่วนลดได้ พร้อมลิงก์ซื้อ",icon:Package,color:"blue"},
   {type:"link",label:"ลิงก์",short:"ลิงก์",description:"เว็บไซต์ โซเชียล หรือช่องทางติดต่อ",icon:Link2,color:"teal"},
   {type:"text",label:"ข้อความ",short:"ข้อความ",description:"แนะนำธุรกิจหรือเล่าเรื่องของคุณ",icon:Type,color:"sand"},
   {type:"heading",label:"หัวข้อแบ่งหมวด",short:"หัวข้อ",description:"แบ่งเนื้อหาให้อ่านและเลือกดูง่าย",icon:Heading,color:"slate"},
