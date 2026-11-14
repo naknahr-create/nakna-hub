@@ -36,7 +36,7 @@ export function reorderProductGroupIds(
 ):string[]|null{
   const products=links.filter(link=>link.type==='service'||link.type==='promotion').map(link=>link.id);
   if(!products.length)return null;
-  const units:Array<{isProduct:boolean;ids:string[]}>= [];
+  const units: Array<{isProduct: boolean; ids: string[]}> = [];
   let inserted=false;
   for(const link of links){
     if(link.type==='service'||link.type==='promotion'){
@@ -49,7 +49,8 @@ export function reorderProductGroupIds(
   if(index<0)return null;
   const next=direction==='top'?0:direction==='up'?index-1:index+1;
   if(!Number.isInteger(next)||next<0||next>=units.length||next===index)return null;
-  const [group]=units.splice(index,1);
+  const group=units[index]!;
+  units.splice(index,1);
   units.splice(next,0,group);
   return units.flatMap(unit=>unit.ids);
 }
