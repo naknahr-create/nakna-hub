@@ -127,7 +127,7 @@ export function HubContentBlock({block,href,onDemoClick}:ContentBlockProps){
         <div className="hcb-product-overlay hcb-product-body">
           <h2 id={titleId} className="hcb-title">{block.title}</h2>
           <div className="hcb-product-description-slot">
-            {block.description&&<div className="hcb-description">{block.description.split(/\n\s*\n/).filter(Boolean).map((paragraph,index)=><p key={index}>{paragraph}</p>)}</div>}
+            {block.description&&<div className="hcb-description">{block.description.replace(/\s+/g," ").trim()}</div>}
           </div>
           <div className="hcb-product-price-slot">
             {promo&&<div className="hcb-promo-prices" aria-label={`ราคาปกติ ${formatThaiBaht(promo.originalSatang)} ราคาหลังลด ${formatThaiBaht(promo.saleSatang)} ลด ${promo.discountPercent} เปอร์เซ็นต์`}>
