@@ -143,7 +143,29 @@ export default function HubStudio(){
   function addContent(type:HubContentType){setNewBlockAfterId(type==="service"?productLinks[0]?.id??null:null);setNewBlockType(type);setNewBlockDraft(emptyContent(type));setContentPicker(false);setError("");}
   function addProductAfter(id:string){if(busy||newBlockType)return;setNewBlockAfterId(id);setNewBlockType("service");setNewBlockDraft(emptyContent("service"));setContentPicker(false);setError("");}
   function cancelNewContent(){setNewBlockAfterId(null);setNewBlockType(null);setNewBlockDraft(emptyContent("link"));setError("");}
-  async function createBlock(event:FormEvent){event.preventDefault();if(!editor||busy||!newBlockType)return;const validation=contentDraftError(newBlockDraft);if(validation){setError(validation);return;}setBusy("add");setError("");try{await api<{link:HubLink}>(`/api/pages/${editor.page.id}/links`,{method:"POST",body:JSON.stringify({...newBlockDraft,title:newBlockDraft.title.trim(),url:newBlockDraft.url.trim(),revision:editor.revision})});await reloadEditor();setNewBlockAfterId(null);setNewBlockType(null);setNewBlockDraft(emptyContent("link"));await refreshWorkspace();notify("เพิ่มเนื้อหาในฉบับร่างแล้ว");}catch(e){mutationError(e);}finally{setBusy(null);}}
+  async function createBlock(event:FormEvent){
+    event.preventDefault();
+    if(!editor||busy||!newBlockType)return;
+    const validation=contentDraftError(newBlockDraft);
+    if(validation){setError(validation);return;}
+    setBusy("add");setError("");
+    try{
+      const created=await api<{link:HubLink}>(`/api/pages/${editor.page.id}/links`,{
+        method:"POST",
+        body:JSON.stringify({...newBlockDraft,title:newBlockDraft.title.trim(),url:newBlockDraft.url.trim(),revision:editor.revision})
+      });
+      await reloadEditor();
+      setNewBlockAfterId(null);setNewBlockType(null);setNewBlockDraft(emptyContent("link"));
+      await refreshWorkspace();
+      notify(created.link.type==="service"?"เพิ่มสินค้าในกลุ่มเรียบร้อยแล้ว":"เพิ่มเนื้อหาในฉบับร่างแล้ว");
+      if(created.link.type==="service"){
+        window.requestAnimationFrame(()=>{
+          const row=document.getElementById(`studio-link-${created.link.id}`);
+          if(row)row.scrollIntoView({block:"center",behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?"auto":"smooth"});
+        });
+      }
+    }catch(e){mutationError(e);}finally{setBusy(null);}
+  }
   async function duplicateBlock(link:HubLink){if(!editor||busy)return;if(hasUnsaved){setError("บันทึกหรือยกเลิกการแก้ไขก่อนทำสำเนา");return;}setBusy("duplicate");setError("");try{await api<{link:HubLink}>(`/api/pages/${editor.page.id}/links`,{method:"POST",body:JSON.stringify({...draftOf(link),title:(link.title+" (สำเนา)").slice(0,100),enabled:false,revision:editor.revision})});await reloadEditor();await refreshWorkspace();notify("ทำสำเนาแล้ว รายการใหม่ยังซ่อนอยู่จนกว่าคุณจะเปิดใช้งาน");}catch(e){mutationError(e);}finally{setBusy(null);}}
   async function saveLink(link:HubLink,draft:LinkDraft):Promise<HubLink>{if(!editor||busy)throw new Error("กรุณารอให้รายการก่อนหน้าบันทึกเสร็จ");setBusy(link.id);setError("");try{const saved=await api<{link:HubLink}>(`/api/pages/${editor.page.id}/links/${link.id}`,{method:"PATCH",body:JSON.stringify({...draft,revision:editor.revision})});markDirty(link.id,false);await reloadEditor();notify("บันทึกเนื้อหาในฉบับร่างแล้ว");return saved.link;}catch(e){mutationError(e);throw e;}finally{setBusy(null);}}
   async function patchLink(link:HubLink,patch:Partial<HubLink>){if(!editor||busy)return;setBusy(link.id);setError("");try{await api(`/api/pages/${editor.page.id}/links/${link.id}`,{method:"PATCH",body:JSON.stringify({...patch,revision:editor.revision})});await reloadEditor();notify(patch.archived===false?"กู้คืนแล้ว ลิงก์ยังซ่อนอยู่จนกว่าจะเปิดใช้งาน":"บันทึกฉบับร่างแล้ว");}catch(e){mutationError(e);}finally{setBusy(null);}}
@@ -271,7 +293,7 @@ export default function HubStudio(){
                      onClick={()=>addProductAfter(productLinks[0].id)}>
                      <Plus size={18}/>เพิ่มสินค้าอีกรายการ
                    </button>
-                   <small>เพิ่มเป็นแถวใหม่ในกลุ่มนี้ ไม่ต้องสร้างการ์ดแยก</small>
+                   <small>เพิ่มในกลุ่มเดียวกัน · สินค้า 1 ตัวนับเป็น 1 รายการในแพ็กเกจ</small>
                  </div>
                </section>)
               :<LinkRow key={link.id} pageId={editor.page.id} link={link}
@@ -316,7 +338,7 @@ function LinkRow({pageId,link,index,total,busy,onSave,onArchive,onReorder,onDirt
   useEffect(()=>()=>{onDraft(link.id,null);onDirty(link.id,false);},[link.id,onDraft,onDirty]);
   async function save(event:FormEvent){event.preventDefault();if(busy)return;setError("");const validation=contentDraftError(draft);if(validation){setError(validation);if(rich)setExpanded(true);return;}try{const saved=await onSave(link,{...draft,title:draft.title.trim(),url:draft.url.trim()});setDraft(draftOf(saved));setBaseSignature(JSON.stringify(draftOf(saved)));setExpanded(false);setMediaExpanded(false);}catch(e){setError((e as Error).message);}}
   function cancel(){setDraft(draftOf(link));setBaseSignature(signature);setError("");setMediaExpanded(false);setExpanded(false);}
-  return <article className={`hs-link-row ${draft.type==="heading"?"hs-heading-row":""} ${!draft.enabled?"hs-row-hidden":""}`} aria-label={`${option.short}: ${link.title}`}>
+  return <article id={`studio-link-${link.id}`} className={`hs-link-row ${draft.type==="heading"?"hs-heading-row":""} ${!draft.enabled?"hs-row-hidden":""}`} aria-label={`${option.short}: ${link.title}`}>
     <form onSubmit={save} aria-busy={busy}>
       <div className="hs-row-top">
         <span className="hs-row-grip"><button type="button" aria-label={`เลื่อน ${link.title} ขึ้น`} data-tooltip={index===0?"รายการนี้อยู่บนสุดแล้ว":"เลื่อนรายการนี้ขึ้นหนึ่งตำแหน่ง"} disabled={busy||index===0} onClick={()=>void onReorder(index,-1)}><ChevronUp size={17}/></button><button type="button" aria-label={`เลื่อน ${link.title} ลง`} data-tooltip={index===total-1?"รายการนี้อยู่ท้ายสุดแล้ว":"เลื่อนรายการนี้ลงหนึ่งตำแหน่ง"} disabled={busy||index===total-1} onClick={()=>void onReorder(index,1)}><ChevronDown size={17}/></button></span>
