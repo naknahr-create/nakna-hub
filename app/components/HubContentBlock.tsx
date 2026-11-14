@@ -3,7 +3,7 @@
 import {useEffect,useId,useRef,useState,type MouseEvent} from 'react';
 import {ArrowUpRight,ChevronLeft,ChevronRight,Expand,ImageOff,Sparkles,X} from 'lucide-react';
 import type {HubBlockImage,HubLink} from '../../lib/hub-types';
-import {formatThaiBaht,getPromotionPricing} from '../../lib/hub-promotion';
+import {formatThaiBaht,getPromotionPricing,isProductDiscountEnabled} from '../../lib/hub-promotion';
 
 type ContentBlockProps = {
   block: HubLink;
@@ -94,16 +94,17 @@ export function HubContentBlock({block,href,onDemoClick}:ContentBlockProps){
   const content=block.content||{};
   const titleId=useId();
   const hasAction=!!(block.url&&href);
-  const actionLabel=content.buttonLabel||(block.type==='promotion'?'ดูสินค้า / ซื้อเลย':block.type==='service'?'สอบถามรายละเอียด':'ดูเพิ่มเติม');
-  const promo=block.type==='promotion'?getPromotionPricing(content.originalPrice,content.salePrice):null;
+  const discountEnabled=isProductDiscountEnabled(block.type,content);
+  const actionLabel=content.buttonLabel||(discountEnabled?'ดูสินค้า / ซื้อเลย':block.type==='service'?'สอบถามรายละเอียด':'ดูเพิ่มเติม');
+  const promo=discountEnabled?getPromotionPricing(content.originalPrice,content.salePrice):null;
   const images=Array.isArray(content.images)?content.images.slice(0,6):[];
   function navigate(event:MouseEvent<HTMLAnchorElement>){if(onDemoClick){event.preventDefault();onDemoClick(block.title);}}
   const action=hasAction?<a className="hcb-action" href={href} target="_blank" rel="noopener" aria-label={`${actionLabel}: ${block.title} เปิดในแท็บใหม่`} onClick={navigate}><span>{actionLabel}</span><ArrowUpRight size={18} aria-hidden="true"/></a>:null;
   const photo=content.imageUrl?<ContentImage url={content.imageUrl} alt={content.alt||block.title} ratio={content.aspectRatio||'landscape'} fit={content.fit||'cover'}/>:null;
   if(!['text','image','gallery','service','promotion'].includes(block.type))return null;
 
-  return <article className={`hcb hcb-${block.type} ${block.featured?'hcb-featured':''} ${!photo?'hcb-no-photo':''}`} aria-labelledby={titleId} data-block-type={block.type}>
-    {block.featured&&block.type!=='promotion'&&<span className="hcb-featured-label"><Sparkles size={12} aria-hidden="true"/>แนะนำ</span>}
+  return <article className={`hcb hcb-${block.type} ${discountEnabled&&block.type==='service'?'hcb-promotion':''} ${block.featured?'hcb-featured':''} ${!photo?'hcb-no-photo':''}`} aria-labelledby={titleId} data-block-type={block.type}>
+    {block.featured&&!discountEnabled&&<span className="hcb-featured-label"><Sparkles size={12} aria-hidden="true"/>แนะนำ</span>}
     {photo&&<div className="hcb-cover">
       {hasAction?<a href={href} target="_blank" rel="noopener" aria-label={`${actionLabel}: ${block.title} เปิดในแท็บใหม่`} onClick={navigate}>{photo}</a>:photo}
     </div>}
@@ -111,15 +112,15 @@ export function HubContentBlock({block,href,onDemoClick}:ContentBlockProps){
       <h2 id={titleId} className="hcb-title">{block.title}</h2>
       {block.description&&<div className="hcb-description">{block.description.split(/\n\s*\n/).filter(Boolean).map((paragraph,index)=><p key={index}>{paragraph}</p>)}</div>}
       {block.type==='gallery'&&(images.length?<Gallery images={images} title={block.title} layout={content.galleryLayout||'grid'}/>:<div className="hcb-gallery-empty"><ImageOff size={22} aria-hidden="true"/><span>รูปภาพกำลังจะมา</span></div>)}
-      {block.type==='promotion'&&promo&&<div className="hcb-promo-prices" aria-label={`ราคาปกติ ${formatThaiBaht(promo.originalSatang)} ราคาหลังลด ${formatThaiBaht(promo.saleSatang)} ลด ${promo.discountPercent} เปอร์เซ็นต์`}>
+      {promo&&<div className="hcb-promo-prices" aria-label={`ราคาปกติ ${formatThaiBaht(promo.originalSatang)} ราคาหลังลด ${formatThaiBaht(promo.saleSatang)} ลด ${promo.discountPercent} เปอร์เซ็นต์`}>
         <div className="hcb-promo-amount">
           <del>{formatThaiBaht(promo.originalSatang)}</del>
           <strong>{formatThaiBaht(promo.saleSatang)}</strong>
         </div>
         <span className="hcb-promo-discount">ลด {promo.discountPercent}%</span>
       </div>}
-      {(block.type==='service'&&content.price||action)&&<div className="hcb-bottom">{block.type==='service'&&content.price&&<p className="hcb-price">{content.price}</p>}{action}</div>}
-      {block.type==='promotion'&&<small className="hcb-promo-disclosure">ลิงก์แนะนำสินค้า · ราคาและส่วนลดอาจเปลี่ยนตามร้านค้า</small>}
+      {((block.type==='service'&&!discountEnabled&&content.price)||action)&&<div className="hcb-bottom">{block.type==='service'&&!discountEnabled&&content.price&&<p className="hcb-price">{content.price}</p>}{action}</div>}
+      {promo&&<small className="hcb-promo-disclosure">ลิงก์แนะนำสินค้า · ราคาและส่วนลดอาจเปลี่ยนตามร้านค้า</small>}
     </div>
   </article>;
 }
