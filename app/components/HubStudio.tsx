@@ -357,7 +357,7 @@ export default function HubStudio(){
                    <span className="hs-product-collection-icon"><BadgePercent size={22}/></span>
                    <div className="hs-product-collection-heading">
                      <h3 id="hs-promotion-collection-title">โปรโมชั่น / Affiliate</h3>
-                     <p>รูป ราคาเดิม ราคาลด และลิงก์ซื้อ · ลูกค้าเลื่อนดูซ้าย–ขวา</p>
+                     <p>เพิ่มได้หลายสินค้าในกลุ่มเดียว · หน้าเว็บแสดงเป็นการ์ดเล็ก เลื่อนซ้าย–ขวา</p>
                    </div>
                    <span className="hs-product-collection-count">{promotionLinks.length} โปรโมชั่น</span>
                  </header>
@@ -375,9 +375,9 @@ export default function HubStudio(){
                    <button type="button" className="hs-add-next-product"
                      disabled={!!busy||links.length>=editorLimit||!!newBlockType}
                      onClick={()=>addPromotionAfter(promotionLinks[0].id)}>
-                     <Plus size={18}/>เพิ่มโปรโมชั่นอีกชิ้น
+                     <Plus size={18}/>เพิ่มสินค้าโปรโมชั่น
                    </button>
-                   <small>เพิ่มในกลุ่มเดียวกัน · โปรโมชั่น 1 ใบนับเป็น 1 รายการในแพ็กเกจ</small>
+                   <small>{promotionLinks.length===1?"เพิ่มอีก 1 ชิ้นเพื่อให้ลูกค้าเลื่อนดูซ้าย–ขวาได้":"สินค้าทุกชิ้นอยู่ในแถบเลื่อนเดียวกัน"} · 1 ชิ้นนับเป็น 1 รายการในแพ็กเกจ</small>
                  </div>
                </section>)
               :<LinkRow key={`${link.id}:${saveEpoch}`} pageId={editor.page.id} link={link}
@@ -424,6 +424,7 @@ function LinkRow({pageId,link,index,total,busy,onArchive,onReorder,onDirty,onDra
   const option=CONTENT_OPTIONS.find(item=>item.type===draft.type)!;
   const ContentIcon=option.icon;
   const media=draft.type==="gallery"?draft.content?.images?.[0]?.url:draft.content?.imageUrl;
+  const promoPrice=draft.type==="promotion"?getPromotionPricing(draft.content?.originalPrice,draft.content?.salePrice):null;
   useEffect(()=>{if(!dirtyRef.current){setDraft(draftOf(link));setBaseSignature(signature);setError("");}},[signature]);
   useEffect(()=>{onDirty(link.id,dirty);onDraft(link.id,dirty?draft:null);},[dirty,draft,link.id,onDirty,onDraft]);
   useEffect(()=>()=>{onDraft(link.id,null);onDirty(link.id,false);},[link.id,onDraft,onDirty]);
@@ -432,7 +433,7 @@ function LinkRow({pageId,link,index,total,busy,onArchive,onReorder,onDirty,onDra
       <div className="hs-row-top">
         <span className="hs-row-grip"><button type="button" aria-label={`เลื่อน ${link.title} ขึ้น`} data-tooltip={index===0?"รายการนี้อยู่บนสุดแล้ว":"เลื่อนรายการนี้ขึ้นหนึ่งตำแหน่ง"} disabled={busy||index===0} onClick={()=>void onReorder(index,-1)}><ChevronUp size={17}/></button><button type="button" aria-label={`เลื่อน ${link.title} ลง`} data-tooltip={index===total-1?"รายการนี้อยู่ท้ายสุดแล้ว":"เลื่อนรายการนี้ลงหนึ่งตำแหน่ง"} disabled={busy||index===total-1} onClick={()=>void onReorder(index,1)}><ChevronDown size={17}/></button></span>
         {rich?<button type="button" className="hs-row-icon hce-row-media" disabled={busy} aria-label={`แก้ไขรูปและเนื้อหา ${link.title}`} data-tooltip={`แก้ไข${option.short}`} aria-expanded={expanded} onClick={()=>setExpanded(!expanded)}>{media?<img src={media} alt=""/>:<ContentIcon size={22}/>}</button>:draft.type==="heading"?<span className="hs-row-icon"><Heading size={20}/></span>:<button type="button" className="hs-row-icon hs-row-icon-button" disabled={busy} aria-label={`เปลี่ยนไอคอนหรือรูป ${link.title}`} data-tooltip="เลือกไอคอนจากเว็บไซต์ ไอคอนสำเร็จรูป หรืออัปโหลดรูป" aria-expanded={mediaExpanded} onClick={()=>setMediaExpanded(!mediaExpanded)}><HubLinkIcon icon={draft.icon} url={draft.url} size={32}/></button>}
-        <div className="hs-row-fields"><label><span className="hs-sr-only">{draft.type==="heading"?"ชื่อหัวข้อ":draft.type==="link"?"ชื่อลิงก์":"ชื่อรายการ"}</span><input className="hs-inline-title" value={draft.title} maxLength={100} required disabled={busy} placeholder="ชื่อรายการ" onChange={event=>setDraft({...draft,title:event.target.value})}/></label>{draft.type==="link"&&<label><span className="hs-sr-only">URL ปลายทาง</span><input className="hs-inline-url" value={draft.url} maxLength={2048} required disabled={busy} inputMode="url" placeholder="https://your-link.com" onChange={event=>setDraft({...draft,url:event.target.value})}/></label>}{draft.type!=="link"&&<span className="hce-block-kind"><ContentIcon size={13}/>{option.short}{draft.type==="gallery"?` · ${draft.content?.images?.length||0} รูป`:""}{draft.type==="service"&&draft.content?.price?` · ${draft.content.price}`:""}{draft.type==="promotion"&&getPromotionPricing(draft.content?.originalPrice,draft.content?.salePrice)?` · ${formatThaiBaht(getPromotionPricing(draft.content?.originalPrice,draft.content?.salePrice)!.saleSatang)} · โปรโมชั่น`:""}</span>}</div>
+        <div className="hs-row-fields"><label><span className="hs-sr-only">{draft.type==="heading"?"ชื่อหัวข้อ":draft.type==="link"?"ชื่อลิงก์":"ชื่อรายการ"}</span><input className="hs-inline-title" value={draft.title} maxLength={100} required disabled={busy} placeholder="ชื่อรายการ" onChange={event=>setDraft({...draft,title:event.target.value})}/></label>{draft.type==="link"&&<label><span className="hs-sr-only">URL ปลายทาง</span><input className="hs-inline-url" value={draft.url} maxLength={2048} required disabled={busy} inputMode="url" placeholder="https://your-link.com" onChange={event=>setDraft({...draft,url:event.target.value})}/></label>}{draft.type!=="link"&&<span className="hce-block-kind"><ContentIcon size={13}/>{option.short}{draft.type==="gallery"?` · ${draft.content?.images?.length||0} รูป`:""}{draft.type==="service"&&draft.content?.price?` · ${draft.content.price}`:""}{promoPrice?` · ${formatThaiBaht(promoPrice.saleSatang)} · ลด ${promoPrice.discountPercent}%`:""}</span>}</div>
         <div className="hs-row-visibility"><span>{draft.enabled?"แสดง":"ซ่อน"}</span><button type="button" className="hs-switch" role="switch" aria-checked={draft.enabled} aria-label={`${draft.enabled?"ซ่อน":"เปิดใช้งาน"} ${link.title}`} data-tooltip={draft.enabled?"ซ่อนรายการนี้จากหน้าฮับหลังบันทึกและเผยแพร่":"แสดงรายการนี้บนหน้าฮับหลังบันทึกและเผยแพร่"} disabled={busy} onClick={()=>setDraft({...draft,enabled:!draft.enabled})}><span/></button></div>
       </div>
       {mediaExpanded&&draft.type==="link"&&<div className="hs-link-media-editor"><LinkMediaPicker pageId={pageId} value={draft.icon} url={draft.url} disabled={busy} onChange={icon=>setDraft(current=>({...current,icon}))} onUploadingChange={onUploadState}/></div>}
