@@ -35,7 +35,7 @@ const BACKGROUNDS:{id:HubProfile["background"];name:string;color:string}[]=[{id:
 async function api<T>(url:string,init?:RequestInit):Promise<T>{let response:Response;try{response=await fetch(url,{...init,cache:"no-store",headers:{...(init?.body&&!(init.body instanceof FormData)?{"Content-Type":"application/json"}:{}),...init?.headers}});}catch{throw new Error("เชื่อมต่อไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองอีกครั้ง");}let body:any;try{body=await response.json();}catch{throw new Error("เซิร์ฟเวอร์ตอบกลับไม่สมบูรณ์ กรุณาลองใหม่");}if(!response.ok){const e:ApiError=new Error(typeof body.error==="string"?body.error:"ทำรายการไม่สำเร็จ กรุณาลองอีกครั้ง");e.status=response.status;e.signInUrl=body.signInUrl;e.provider=body.provider;e.code=body.code;throw e;}return body as T;}
 function draftOf(link:HubLink):LinkDraft{return contentDraftOf(link);}
 function dateLabel(n:number){return new Intl.DateTimeFormat("th-TH",{day:"numeric",month:"short",timeZone:"Asia/Bangkok"}).format(new Date(n));}
-function pageStatus(page:PageSummary){return page.suspended?"พักโดยผู้ดูแล":!page.published?"ฉบับร่าง":page.hasUnpublishedChanges?"มีฉบับร่างที่ยังไม่เผยแพร่":"เผยแพร่แล้ว";}
+function pageStatus(page:PageSummary){return page.suspended?"พักโดยผู้ดูแล":!page.published?"ฉบับร่าง":page.hasUnpublishedChanges?"มีร่างใหม่":"เผยแพร่แล้ว";}
 
 export default function HubStudio(){
   const [workspace,setWorkspace]=useState<WorkspaceData|null>(null);
