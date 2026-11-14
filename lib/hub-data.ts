@@ -3,6 +3,7 @@ import type {PageAccess} from './hub-team-types';
 import {getAuthConfiguration} from './hub-auth';
 import {imageAssetId} from './hub-link-media';
 import {HUB_GALLERY_LIMIT,hasBlockAction,isHubContentType,isRichContentType,readBlockContent} from './hub-content';
+import {getPromotionPricing} from './hub-promotion';
 import {applyHubTheme,getHubTheme} from './hub-themes';
 import {expireBillingEntitlement, hasAnalyticsEntitlement} from './hub-billing-entitlements';
 import {env} from 'cloudflare:workers';
@@ -117,7 +118,7 @@ const PUBLISHED_MEDIA_REFERENCE=`(
   OR EXISTS(SELECT 1 FROM json_each(p.snapshot_json,'$.links') l
     WHERE json_extract(l.value,'$.enabled')=1 AND COALESCE(json_extract(l.value,'$.archived'),0)=0 AND (
       (json_extract(l.value,'$.type')='link' AND json_extract(l.value,'$.icon')=media.icon)
-      OR (json_extract(l.value,'$.type') IN ('image','service') AND json_extract(l.value,'$.content.imageUrl')=media.url)
+      OR (json_extract(l.value,'$.type') IN ('image','service','promotion') AND json_extract(l.value,'$.content.imageUrl')=media.url)
       OR (json_extract(l.value,'$.type')='gallery' AND EXISTS(
         SELECT 1 FROM json_each(l.value,'$.content.images') image WHERE json_extract(image.value,'$.url')=media.url
       ))
@@ -274,11 +275,12 @@ async function validateBlockContent(value:unknown,type:HubLink['type'],title:str
   const input=value as Record<string,unknown>;
   const allowed=type==='gallery'?['images','galleryLayout','aspectRatio','fit','buttonLabel']
     :type==='image'?['imageUrl','alt','aspectRatio','fit','buttonLabel']
-    :type==='service'?['imageUrl','alt','aspectRatio','fit','buttonLabel','price']:[];
+    :type==='service'?['imageUrl','alt','aspectRatio','fit','buttonLabel','price']
+    :type==='promotion'?['imageUrl','alt','aspectRatio','fit','buttonLabel','originalPrice','salePrice']:[];
   keys(input,allowed);
-  if(!['image','gallery','service'].includes(type))return undefined;
+  if(!['image','gallery','service','promotion'].includes(type))return undefined;
   const content:HubBlockContent={};
-  if(type==='image'||type==='service'){
+  if(type==='image'||type==='service'||type==='promotion'){
     const url=await validateUploadedImage(input.imageUrl??'',account,pageId,actorId,'รูปภาพ',type==='image');
     if(url)content.imageUrl=url;
     content.alt=contentText(input.alt??title,'คำอธิบายรูป',240)||title;
@@ -304,6 +306,16 @@ async function validateBlockContent(value:unknown,type:HubLink['type'],title:str
   content.fit=(input.fit??'contain') as HubBlockContent['fit'];
   content.buttonLabel=contentText(input.buttonLabel??'','ข้อความปุ่ม',60);
   if(type==='service')content.price=contentText(input.price??'','ราคา',80);
+  if(type==='promotion'){
+    const originalPrice=contentText(input.originalPrice??'','ราคาปกติ',20,true);
+    const salePrice=contentText(input.salePrice??'','ราคาโปรโมชั่น',20,true);
+    if(!getPromotionPricing(originalPrice,salePrice)){
+      throw new HubError(400,'ราคาปกติต้องมากกว่าราคาโปรโมชั่น และเป็นจำนวนเงินบาทที่ถูกต้อง');
+    }
+    if(!content.imageUrl)throw new HubError(400,'กรุณาเพิ่มรูปสินค้าโปรโมชั่น');
+    content.originalPrice=originalPrice;
+    content.salePrice=salePrice;
+  }
   return content;
 }
 async function validateLink(data:Record<string,unknown>,account:AccountRow,existing?:HubLink,pageId?:string,actorId?:string):Promise<Omit<HubLink,'id'>>{
@@ -316,6 +328,10 @@ async function validateLink(data:Record<string,unknown>,account:AccountRow,exist
   link.icon=await validateLinkIcon('icon'in data?data.icon:link.icon,account,pageId,actorId);
   if('url'in data)link.url=text(data.url,'ลิงก์ปลายทาง',2048);
   if(link.type==='link')link.url=validateUrl(link.url);
+  else if(link.type==='promotion'){
+    link.url=validateUrl(link.url);
+    if(!/^https?:\/\//i.test(link.url))throw new HubError(400,'ลิงก์สินค้าโปรโมชั่นต้องเริ่มด้วย https:// หรือ http://');
+  }
   else if(['image','gallery','service'].includes(link.type)){if(link.url)link.url=validateUrl(link.url);}
   else {link.url='';link.featured=false;}
   const content=await validateBlockContent('content'in data?data.content:existing?.type===link.type?link.content:undefined,link.type,link.title,account,pageId,actorId);
@@ -473,16 +489,16 @@ export async function analytics(request:Request,pageId:string):Promise<Analytics
   const requestedLink=params.get('linkId');let selected:LinkRow|null=null;
   if(requestedLink!==null){
     if(!UUID.test(requestedLink)||params.getAll('linkId').length!==1)throw new HubError(400,'ลิงก์ที่เลือกไม่ถูกต้อง');
-    selected=await db().prepare("SELECT l.* FROM hub_links l WHERE l.id=? AND l.page_id=? AND ((l.type IN ('link','image','gallery','service') AND l.url<>'') OR EXISTS(SELECT 1 FROM hub_events e WHERE e.link_id=l.id AND e.page_id=l.page_id AND e.type='click'))").bind(requestedLink,pageId).first<LinkRow>();
+    selected=await db().prepare("SELECT l.* FROM hub_links l WHERE l.id=? AND l.page_id=? AND ((l.type IN ('link','image','gallery','service','promotion') AND l.url<>'') OR EXISTS(SELECT 1 FROM hub_events e WHERE e.link_id=l.id AND e.page_id=l.page_id AND e.type='click'))").bind(requestedLink,pageId).first<LinkRow>();
     if(!selected)throw new HubError(404,'ไม่พบลิงก์นี้ในฮับของคุณ');
   }
   const [totals,ranking,daily,devices,sources,active]=await Promise.all([
     db().prepare('SELECT type,COUNT(*) AS n FROM hub_events WHERE page_id=? AND created_at>=? AND created_at<=? GROUP BY type').bind(pageId,start,now).all<{type:string;n:number}>(),
-    db().prepare("SELECT l.id,l.title,l.url,l.icon,l.enabled,l.archived,COUNT(e.id) AS clicks FROM hub_links l LEFT JOIN hub_events e ON e.link_id=l.id AND e.page_id=l.page_id AND e.type='click' AND e.created_at>=? AND e.created_at<=? WHERE l.page_id=? AND ((l.type IN ('link','image','gallery','service') AND l.url<>'') OR EXISTS(SELECT 1 FROM hub_events old WHERE old.link_id=l.id AND old.page_id=l.page_id AND old.type='click')) GROUP BY l.id ORDER BY clicks DESC,l.sort_order,l.id").bind(start,now,pageId).all<{id:string;title:string;url:string;icon:string;enabled:number;archived:number;clicks:number}>(),
+    db().prepare("SELECT l.id,l.title,l.url,l.icon,l.enabled,l.archived,COUNT(e.id) AS clicks FROM hub_links l LEFT JOIN hub_events e ON e.link_id=l.id AND e.page_id=l.page_id AND e.type='click' AND e.created_at>=? AND e.created_at<=? WHERE l.page_id=? AND ((l.type IN ('link','image','gallery','service','promotion') AND l.url<>'') OR EXISTS(SELECT 1 FROM hub_events old WHERE old.link_id=l.id AND old.page_id=l.page_id AND old.type='click')) GROUP BY l.id ORDER BY clicks DESC,l.sort_order,l.id").bind(start,now,pageId).all<{id:string;title:string;url:string;icon:string;enabled:number;archived:number;clicks:number}>(),
     db().prepare("SELECT date(created_at/1000,'unixepoch','+7 hours') AS date,SUM(CASE WHEN type='click' THEN 1 ELSE 0 END) AS clicks,SUM(CASE WHEN type='view' THEN 1 ELSE 0 END) AS views FROM hub_events WHERE page_id=? AND created_at>=? AND created_at<=? GROUP BY date ORDER BY date").bind(pageId,start,now).all<{date:string;clicks:number;views:number}>(),
     db().prepare("SELECT device AS name,COUNT(*) AS count FROM hub_events WHERE page_id=? AND type='click' AND created_at>=? AND created_at<=? GROUP BY device ORDER BY count DESC").bind(pageId,start,now).all<{name:string;count:number}>(),
     db().prepare("SELECT source AS name,COUNT(*) AS count FROM hub_events WHERE page_id=? AND type='view' AND created_at>=? AND created_at<=? GROUP BY source ORDER BY count DESC").bind(pageId,start,now).all<{name:string;count:number}>(),
-    db().prepare("SELECT COUNT(*) AS n FROM hub_links WHERE page_id=? AND archived=0 AND enabled=1 AND type IN ('link','image','gallery','service') AND url<>''").bind(pageId).first<{n:number}>(),
+    db().prepare("SELECT COUNT(*) AS n FROM hub_links WHERE page_id=? AND archived=0 AND enabled=1 AND type IN ('link','image','gallery','service','promotion') AND url<>''").bind(pageId).first<{n:number}>(),
   ]);
   const totalClicks=totals.results.find(t=>t.type==='click')?.n??0,totalViews=totals.results.find(t=>t.type==='view')?.n??0,lookup=new Map(daily.results.map(d=>[d.date,d]));
   const days:AnalyticsData['daily']=[];if(range==='all')days.push(...daily.results);else{const first=new Date(start+25200000).toISOString().slice(0,10),last=new Date(now+25200000).toISOString().slice(0,10);for(let date=first;date<=last;date=new Date(Date.parse(date+'T00:00:00Z')+86400000).toISOString().slice(0,10))days.push(lookup.get(date)??{date,clicks:0,views:0});}
