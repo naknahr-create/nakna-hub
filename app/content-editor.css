@@ -206,3 +206,42 @@
 @media(prefers-reduced-motion:reduce){
  .hs-shell .hce-discount-switch:before,.hs-shell .hce-discount-switch>span{transition:none}
 }
+
+
+/* The entire product rail is a single block in Studio. Reorder buttons move
+   the rail among links/headings, while each product still has its own controls. */
+.hs-product-collection-toolbar{
+ display:flex;align-items:center;justify-content:flex-end;
+ gap:10px;flex-shrink:0;min-width:0
+}
+.hs-product-group-order{
+ display:inline-flex;align-items:center;gap:3px;
+ padding:3px;background:#f6faf9;border:1px solid #dce9e8;
+ border-radius:11px
+}
+.hs-product-group-order>button{
+ display:inline-flex;align-items:center;justify-content:center;gap:4px;
+ min-height:38px;min-width:54px;padding:7px 9px;
+ border-radius:8px;border:0;background:transparent;
+ color:#2b666c;font-size:11px;font-weight:600;line-height:1.2;
+ white-space:nowrap;cursor:pointer
+}
+.hs-product-group-order>button:hover:not(:disabled){
+ color:#03696c;background:#e2f2ef
+}
+.hs-product-group-order>button:disabled{opacity:.35;cursor:default}
+.hs-product-group-order>button:focus-visible{
+ outline:2px solid #04878a;outline-offset:2px
+}
+.hs-product-group-order>button svg{flex-shrink:0}
+@media(max-width:1100px){
+ .hs-product-collection-header{flex-wrap:wrap}
+ .hs-product-collection-toolbar{
+   display:flex;justify-content:space-between;width:100%
+ }
+}
+@media(max-width:600px){
+ .hs-product-collection-toolbar{gap:6px}
+ .hs-product-group-order{gap:1px;padding:2px;border-radius:10px}
+ .hs-product-group-order>button{min-height:40px;min-width:49px;padding:6px;font-size:10px}
+}
