@@ -85,7 +85,8 @@ test('single card uses a balanced responsive hero; multiple products are small s
   assert.match(css,/\.hc \.hc-card-carousel-compact \.hc-card-slide/);
   assert.match(css,/scroll-snap-type:x mandatory/);
   assert.match(css,/overflow-x:auto/);
-  assert.match(css,/clamp\(186px,58%,218px\)/);
+  assert.match(css,/clamp\(150px,47%,192px\)/);
+  assert.match(css,/clamp\(150px,47%,183px\)/);
   assert.match(css,/\.hc \.hc-card-carousel-single \.hc-card-slide:only-child/);
   assert.match(css,/grid-template-columns:minmax\(140px,40%\) minmax\(0,1fr\)/);
   assert.match(css,/@media\(max-width:560px\)/);
