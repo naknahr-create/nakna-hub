@@ -141,3 +141,11 @@
  .hce-promo-price-preview{padding:11px}
  .hce-promo-price-preview strong{font-size:22px}
 }
+
+
+.hs-promotion-collection{border-color:#badcd8!important}
+.hs-promotion-collection .hs-product-collection-header{background:linear-gradient(115deg,#f0f9f7,#fcfbf8)}
+.hs-promotion-collection .hs-product-collection-icon{background:#d9f0ea;color:#087c7c}
+.hs-promotion-collection .hs-product-collection-count{background:#e1f2ed;color:#087778;border-color:#badfd8}
+.hs-promotion-collection .hs-add-next-product{background:#ecf9f4;border-color:#8cc7bd}
+@media(max-width:600px){.hs-promotion-collection .hs-product-collection-heading p{font-size:10.5px;line-height:1.5}}
