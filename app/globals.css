@@ -29,3 +29,13 @@
 .hub-public .hub-owner-notice details>summary:focus-visible{outline:3px solid #39aeb2;outline-offset:3px;border-radius:4px}
 .hub-public .hub-owner-notice details[open]>p{padding-top:2px;border-top:1px solid #dce9e9}
 @media(max-width:700px){.hub-public .hub-owner-notice{margin-top:20px;padding:13px 14px;gap:10px}.hub-public .hub-owner-notice details>summary{min-height:44px;line-height:44px}}
+
+/* Live build identity: generated at build time so the label reflects deployed code. */
+.hub-build-version{min-width:0;max-width:100%;font-size:11px;line-height:1.65;color:#62777f}
+.hub-build-trigger{display:inline-flex;align-items:center;gap:7px;flex-wrap:wrap;max-width:100%;border:1px solid transparent;border-radius:8px;padding:5px 7px;background:transparent;color:inherit;font:inherit;font-size:11px;text-align:left;cursor:pointer}
+.hub-build-trigger:hover{border-color:#d7e6e6;background:#edf5f5}
+.hub-build-trigger:focus-visible,.hub-build-reload:focus-visible{outline:2px solid #04878a;outline-offset:2px}
+.hub-build-new{font-size:10px;font-weight:600;color:#087f83;white-space:nowrap}
+.hub-build-details{display:grid;gap:4px;max-width:270px;padding:10px 12px;border:1px solid #d7e6e6;background:#fff;color:#526971;border-radius:9px;box-shadow:0 6px 16px #123b4412}
+.hub-build-details>strong{font-size:12px;color:#17343b;font-weight:600}
+.hub-build-reload{justify-self:start;padding:6px 10px;margin-top:4px;background:#087f83;color:#fff;border:0;border-radius:7px;font-size:11px;cursor:pointer}

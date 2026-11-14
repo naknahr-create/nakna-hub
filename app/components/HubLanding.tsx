@@ -2,6 +2,7 @@
 import {useState,useEffect,useRef} from 'react';
 import {ArrowUpRight,ArrowRight,Check,ChevronDown,Link2,MousePointer2,Palette,Plus,Layers3,ShieldCheck,Smartphone,BarChart3,Menu,X,MoveUpRight,Sparkles,Globe2,Type,GripVertical} from 'lucide-react';
 import {HubBrand,HubIcon} from './ui';
+import {BuildVersion} from './BuildVersion';
 import {HubCanvas} from './HubCanvas';
 import {HUB_DEMOS} from '../../lib/hub-demo';
 import type {HubTemplate} from '../../lib/hub-types';
@@ -35,7 +36,7 @@ export default function HubLanding(){
    </div><p className="np-price-note">รายปีเรียกเก็บ 1,490 บาทครั้งเดียว · ต่ออายุตามรอบที่เลือก · ยกเลิกได้ มีผลสิ้นรอบที่ชำระแล้ว<br/><a href="/billing/terms">อ่านราคาและเงื่อนไขสมาชิก</a></p></section>
    <section className="nh-faq"><div><p className="nh-eyebrow">A FEW THINGS TO KNOW</p><h2>ก่อนมีฮับของตัวเอง</h2></div><div className="nh-faq-list"><details><summary>ต้องมีเว็บไซต์หรือเขียนโค้ดเป็นไหม?<Plus size={19}/></summary><p>ไม่ต้องมีเว็บไซต์เดิม เริ่มจากตั้งชื่อฮับ แล้วเพิ่มลิงก์ที่มีอยู่ได้เลย เช่น เว็บไซต์ ฟอร์มติดต่อ โซเชียล หรืออีเมล ทุกอย่างจัดการได้ในสตูดิโอ</p></details><details><summary>แต่ละบัญชีเห็นข้อมูลของกันและกันไหม?<Plus size={19}/></summary><p>แต่ละบัญชีจัดการได้เฉพาะฮับของตัวเอง ผู้เข้าชมเห็นเฉพาะหน้าที่เผยแพร่แล้ว ส่วนร่าง สถิติ และเครื่องมือแก้ไขอยู่ในบัญชีของเจ้าของ</p></details><details><summary>เปลี่ยนลิงก์แล้ว หน้าจริงเปลี่ยนทันทีไหม?<Plus size={19}/></summary><p>การแก้ไขจะบันทึกเป็นร่าง คุณตรวจตัวอย่างก่อนได้ แล้วกด “เผยแพร่การเปลี่ยนแปลง” เมื่อพร้อม หน้าจริงจึงจะเปลี่ยนเป็นเวอร์ชันใหม่</p></details><details><summary>รับสรุปยอดใน LINE ได้ไหม?<Plus size={19}/></summary><p>ได้ สมาชิก Pro ที่เชื่อมต่อ LINE และเพิ่มเพื่อน นากนะ HUB เลือกเปิดรับสรุปรายวันและตั้งเวลาได้ในหน้าบัญชีและการเชื่อมต่อ ข้อความรวมยอดเข้าชม คลิก และ 3 ลิงก์ยอดนิยมจากทุกฮับ พร้อมเทียบกับวันก่อน</p></details><details><summary>สถิติเริ่มนับเมื่อไหร่?<Plus size={19}/></summary><p>ทุกแพ็กเกจเริ่มเก็บเมื่อมีผู้เข้าชมและคลิกลิงก์บนหน้าที่เผยแพร่แล้ว สมาชิก Pro ดูรายงานและประวัติที่เก็บไว้ได้ สถิตินับจำนวนครั้ง ไม่ใช่จำนวนคนไม่ซ้ำ และไม่นับบัญชีเจ้าของฮับกับพรีวิว</p></details></div></section>
    <section className="nh-final-cta"><span className="nh-cta-decoration" aria-hidden="true">↗</span><div><p className="nh-eyebrow">YOUR NEXT CONNECTION STARTS HERE</p><h2>มีพื้นที่ที่เป็นคุณ<br/>เริ่มจากฮับเดียว</h2></div><div><a className="hub-btn hub-btn-cream hub-btn-lg" href="/studio">สร้างฮับของคุณ<ArrowUpRight size={20}/></a><span>ตั้งชื่อ · ใส่ลิงก์ · พร้อมเชื่อมต่อ</span></div></section>
-   </main><footer className="nh-footer"><a href="/"><HubBrand compact/></a><p>พื้นที่เล็ก ๆ สำหรับทุกสิ่งที่เป็นคุณ</p><div><a href="/studio">เข้าสู่สตูดิโอ<ArrowUpRight size={14}/></a><a href="/billing/terms">เงื่อนไขสมาชิก</a><span>© {new Date().getFullYear()} นากนะ HUB</span></div></footer>
+   </main><footer className="nh-footer"><a href="/"><HubBrand compact/></a><p>พื้นที่เล็ก ๆ สำหรับทุกสิ่งที่เป็นคุณ</p><div><a href="/studio">เข้าสู่สตูดิโอ<ArrowUpRight size={14}/></a><a href="/billing/terms">เงื่อนไขสมาชิก</a><span>© {new Date().getFullYear()} นากนะ HUB</span><BuildVersion location="footer"/></div></footer>
    {notice&&<div className="nh-demo-notice" role="status"><Sparkles size={18}/><span>{notice}</span><button aria-label="ปิดข้อความ" onClick={()=>setNotice('')}><X size={16}/></button></div>}
  </div>;
 }
