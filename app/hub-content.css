@@ -208,7 +208,7 @@
 .hc .hc-card-carousel-compact .hc-card-rail::-webkit-scrollbar{display:none}
 .hc .hc-card-carousel-compact .hc-card-slide,
 .hc .hc-card-carousel-compact .hc-card-slide:only-child{
- flex:0 0 clamp(186px,58%,218px);width:clamp(186px,58%,218px);
+ flex:0 0 clamp(150px,47%,192px);width:clamp(150px,47%,192px);
  min-width:0;max-width:none;scroll-snap-align:start;scroll-snap-stop:normal
 }
 .hc .hc-card-carousel-compact .hc-card-slide>.hcb{
@@ -321,7 +321,7 @@
 @media(max-width:560px){
  .hc .hc-card-carousel-compact .hc-card-slide,
  .hc .hc-card-carousel-compact .hc-card-slide:only-child{
-  flex-basis:clamp(174px,60%,208px);width:clamp(174px,60%,208px)
+  flex-basis:clamp(150px,47%,183px);width:clamp(150px,47%,183px)
  }
  .hc .hc-card-carousel-single .hc-card-slide:only-child{
   flex:0 0 100%;width:100%;max-width:100%
@@ -389,4 +389,20 @@
 }
 .hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-media img{
   object-position:center center;
+}
+
+
+/* Two tiles are fully visible at common 350–430px phone widths instead of
+   cutting the neighbor in half. Preserve readable touch targets. */
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-action{
+ min-height:40px;padding:7px 5px;font-size:10.5px;gap:3px
+}
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-action>svg{
+ width:12px;height:12px
+}
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-body{
+ padding:9px 10px 10px
+}
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-promo-amount strong{
+ font-size:19px
 }
