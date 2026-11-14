@@ -166,7 +166,7 @@ test('mixed product tiles keep prices and actions in their own overlay/footer re
   const card=readFileSync(new URL('../app/components/HubContentBlock.tsx',import.meta.url),'utf8');
   assert.match(css,/\.hc \.hc-card-carousel-compact \.hcb-product-stage/);
   assert.match(css,/\.hc \.hc-card-carousel-compact \.hcb-product-footer/);
-  assert.match(css,/background:rgba\(255,255,255,\.93\)/);
+  assert.match(css,/background:rgba\(255,255,255,\.80\)/);
   assert.match(css,/\.hc \.hc-card-carousel-compact \.hcb-product-price-slot/);
   assert.match(card,/hcb-product-overlay hcb-product-body/);
   assert.match(card,/hcb-product-action-slot/);
@@ -242,7 +242,7 @@ test('product picture and text overlap only in the image stage, never over the w
  assert.match(css,/background:#fff;/);
  assert.match(css,/border-top:1px solid #e8eef0/);
  assert.match(css,/\.hc \.hc-card-carousel-compact \.hcb-product-overlay/);
- assert.match(css,/background:rgba\(255,255,255,\.93\)/);
+ assert.match(css,/background:rgba\(255,255,255,\.80\)/);
  assert.doesNotMatch(css.slice(css.indexOf('NAKNA HUB · Clean Editorial Commerce')),/linear-gradient\(/);
 });
 
@@ -280,13 +280,13 @@ test('frosted product information panels stay equal height even when description
   const css=readFileSync(new URL('../app/hub-content.css',import.meta.url),'utf8');
   const card=readFileSync(new URL('../app/components/HubContentBlock.tsx',import.meta.url),'utf8');
   const clean=css.slice(css.indexOf('/* NAKNA HUB · Clean Editorial Commerce'));
-  assert.match(clean,/grid-template-rows:30px 30px 48px/);
-  assert.match(clean,/height:136px;\s*min-height:136px;\s*max-height:136px/);
-  assert.match(clean,/height:30px;\s*min-height:30px;\s*max-height:30px/);
+  assert.match(clean,/grid-template-rows:28px 24px 34px/);
+  assert.match(clean,/height:108px;\s*min-height:108px;\s*max-height:108px/);
+  assert.match(clean,/height:28px;\s*min-height:28px;\s*max-height:28px/);
   assert.match(clean,/\.hcb-product-description-slot:empty\{\s*display:block/);
-  assert.match(clean,/height:30px;\s*min-height:30px;\s*max-height:30px/);
+  assert.match(clean,/height:24px;\s*min-height:24px;\s*max-height:24px/);
   assert.match(clean,/\.hcb-product-price-slot:empty\{\s*display:flex/);
-  assert.match(clean,/height:48px;\s*min-height:48px;\s*max-height:48px/);
+  assert.match(clean,/height:34px;\s*min-height:34px;\s*max-height:34px/);
   assert.match(card,/className="hcb-product-description-slot"/);
   assert.match(card,/className="hcb-product-price-slot"/);
   assert.match(card,/\{promo&&<div className="hcb-promo-prices"/);
@@ -296,11 +296,11 @@ test('frosted product information panels stay equal height even when description
 test('single-product white information panel also has reserved title, description and price rows',()=>{
   const css=readFileSync(new URL('../app/hub-content.css',import.meta.url),'utf8');
   const clean=css.slice(css.indexOf('/* NAKNA HUB · Clean Editorial Commerce'));
-  assert.match(clean,/grid-template-rows:40px 32px 52px/);
-  assert.match(clean,/height:160px;\s*min-height:160px;\s*max-height:160px/);
-  assert.match(clean,/height:40px;\s*min-height:40px;\s*max-height:40px/);
-  assert.match(clean,/height:32px;\s*min-height:32px;\s*max-height:32px/);
-  assert.match(clean,/height:52px;\s*min-height:52px;\s*max-height:52px/);
+  assert.match(clean,/grid-template-rows:38px 28px 44px/);
+  assert.match(clean,/height:132px;\s*min-height:132px;\s*max-height:132px/);
+  assert.match(clean,/height:38px;\s*min-height:38px;\s*max-height:38px/);
+  assert.match(clean,/height:28px;\s*min-height:28px;\s*max-height:28px/);
+  assert.match(clean,/height:44px;\s*min-height:44px;\s*max-height:44px/);
   assert.match(clean,/\.hc \.hc-card-carousel-compact \.hcb-product-footer/);
   assert.match(clean,/background:#fff;/);
   assert.match(clean,/flex:0 0 calc\(50% - 5px\)/);
@@ -316,7 +316,7 @@ test('product description wraps to two visual lines without making white panels 
     clean.indexOf('.hc .hc-card-carousel-compact .hcb-product-description-slot p{')
   );
   assert.match(description,/-webkit-line-clamp:2/);
-  assert.match(description,/max-height:30px/);
+  assert.match(description,/max-height:24px/);
   assert.match(description,/overflow-wrap:anywhere/);
   const paragraph=clean.slice(
     clean.indexOf('.hc .hc-card-carousel-compact .hcb-product-description-slot p{'),
@@ -324,10 +324,10 @@ test('product description wraps to two visual lines without making white panels 
   );
   assert.match(paragraph,/white-space:normal/);
   assert.doesNotMatch(paragraph,/white-space:nowrap/);
-  assert.match(clean,/grid-template-rows:30px 30px 48px/);
-  assert.match(clean,/grid-template-rows:40px 32px 52px/);
-  assert.match(clean,/height:136px;\s*min-height:136px;\s*max-height:136px/);
-  assert.match(clean,/height:160px;\s*min-height:160px;\s*max-height:160px/);
+  assert.match(clean,/grid-template-rows:28px 24px 34px/);
+  assert.match(clean,/grid-template-rows:38px 28px 44px/);
+  assert.match(clean,/height:108px;\s*min-height:108px;\s*max-height:108px/);
+  assert.match(clean,/height:132px;\s*min-height:132px;\s*max-height:132px/);
   const inProduct=jsx.slice(
     jsx.indexOf('className="hcb-product-description-slot"'),
     jsx.indexOf('className="hcb-product-price-slot"')
@@ -346,4 +346,24 @@ test('two-line product copy keeps sale prices and a separate clickable button',(
   assert.match(photo,/hcb-promo-discount/);
   assert.doesNotMatch(photo,/hcb-product-action-slot/);
   assert.match(jsx.slice(photoEnd),/hcb-product-action-slot/);
+});
+
+
+test('smaller translucent info panels reveal more of both product photographs',()=>{
+  const css=readFileSync(new URL('../app/hub-content.css',import.meta.url),'utf8');
+  const clean=css.slice(css.indexOf('/* NAKNA HUB · Clean Editorial Commerce'));
+  const multi=clean.slice(
+    clean.indexOf('.hc .hc-card-carousel-compact .hcb-product-overlay,'),
+    clean.indexOf('.hc .hc-card-carousel-compact .hcb-product-overlay>.hcb-title,')
+  );
+  assert.match(multi,/grid-template-rows:28px 24px 34px/);
+  assert.match(multi,/height:108px;\s*min-height:108px;\s*max-height:108px/);
+  assert.match(multi,/background:rgba\(255,255,255,\.80\)/);
+  assert.match(multi,/backdrop-filter:blur\(3px\)/);
+  assert.doesNotMatch(multi,/height:136px|blur\(10px\)/);
+  const single=clean.slice(clean.indexOf('.hc .hc-card-carousel-single .hcb-product-overlay,'));
+  assert.match(single,/grid-template-rows:38px 28px 44px/);
+  assert.match(single,/height:132px;\s*min-height:132px;\s*max-height:132px/);
+  assert.match(clean,/\.hc \.hc-card-carousel-compact \.hcb-product-footer/);
+  assert.match(clean,/flex:0 0 calc\(50% - 5px\)/);
 });
