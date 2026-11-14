@@ -169,3 +169,28 @@ test('mixed product cards keep prices and CTAs near titles with no auto-stretche
   assert.match(css,/margin-top:8px/);
   assert.match(css,/height:auto/);
 });
+
+
+test('same-height products share title, description, price and CTA rows without a disclaimer',()=>{
+  const content=readFileSync(new URL('../app/components/HubContentBlock.tsx',import.meta.url),'utf8');
+  const css=readFileSync(new URL('../app/hub-content.css',import.meta.url),'utf8');
+  assert.match(content,/hcb-product-body/);
+  assert.match(content,/hcb-product-description-slot/);
+  assert.match(content,/hcb-product-price-slot/);
+  assert.match(content,/hcb-product-action-slot/);
+  assert.match(content,/\{promo&&<div className="hcb-promo-prices"/);
+  assert.match(content,/block.type==='service'&&!discountEnabled&&content.price/);
+  assert.doesNotMatch(content,/hcb-promo-disclosure/);
+  assert.doesNotMatch(content,/ลิงก์แนะนำสินค้า · ราคาและส่วนลดอาจเปลี่ยนตามร้านค้า/);
+  assert.match(css,/grid-template-rows:34px 34px 62px 46px/);
+  assert.match(css,/\.hcb-product-action-slot>\.hcb-action/);
+  assert.match(css,/\.hcb-product-price-slot>\.hcb-price/);
+  assert.match(css,/\.hc-card-carousel-single \.hcb-product-body/);
+});
+
+test('non-product content cards retain image/gallery actions unaffected by shared price slots',()=>{
+  const content=readFileSync(new URL('../app/components/HubContentBlock.tsx',import.meta.url),'utf8');
+  assert.match(content,/block.type==='gallery'&&/);
+  assert.match(content,/:action&&<div className="hcb-bottom">\{action\}<\/div>/);
+  assert.match(content,/hasAction\?<a href=\{href\}/);
+});
