@@ -486,3 +486,100 @@ test('promotion requires a real image, positive prices, discount and an affiliat
   }
   assert.equal((await readPage(id)).links.length,0);
 });
+
+
+test('service product discount switch saves sale pricing and removes the sale when turned off',async()=>{
+  const {db}=setup(),p=await page(),id=p.page.id;
+  paid(db,(await account()).id);
+  const image=await upload(id);
+  const discount=await link(id,{
+    type:'service',title:'กระเป๋าลดราคา',url:'https://shop.example.com/item?ref=partner',
+    content:{imageUrl:image.url,hasPromotion:true,originalPrice:'100',salePrice:'80',price:'สอบถามราคา',buttonLabel:'ดูสินค้า / ซื้อเลย'}
+  });
+  assert.equal(discount.type,'service','new discounted products are ordinary services');
+  assert.equal(discount.content.hasPromotion,true);
+  assert.equal(discount.content.originalPrice,'100');
+  assert.equal(discount.content.salePrice,'80');
+  const {getPromotionPricing,isProductDiscountEnabled}=await import('../lib/hub-promotion.ts');
+  assert.equal(isProductDiscountEnabled(discount.type,discount.content),true);
+  assert.equal(getPromotionPricing(discount.content.originalPrice,discount.content.salePrice).discountPercent,20);
+  await publish(id);
+  assert.equal((await publicHub(p.page.slug)).links[0].content.hasPromotion,true);
+  const originalRevision=await revision(id);
+  const without=await patchBlock(id,discount.id,{
+    url:'',
+    content:{...discount.content,hasPromotion:false,price:'฿80',buttonLabel:'สอบถามรายละเอียด'}
+  });
+  assert.equal(without.id,discount.id);
+  assert.equal(without.type,'service');
+  assert.equal(without.content.hasPromotion,false);
+  assert.equal(without.content.price,'฿80');
+  assert.equal(without.content.originalPrice,undefined,'old price must be cleared when discount is off');
+  assert.equal(without.content.salePrice,undefined,'sale price must not leak after disabling discount');
+  assert.equal(without.url,'','non-discounted services can omit a destination');
+  assert.ok((await revision(id))>originalRevision);
+  assert.equal((await publicHub(p.page.slug)).links[0].content.hasPromotion,true,
+    'published snapshot stays unchanged until a new publish');
+  await publish(id);
+  assert.equal((await publicHub(p.page.slug)).links[0].content.hasPromotion,false);
+});
+
+test('service discount switch validates boolean, image, prices, and outbound link',async()=>{
+  setup();const p=await page(),id=p.page.id,image=await upload(id);
+  const offer={imageUrl:image.url,hasPromotion:true,originalPrice:'100',salePrice:'80'};
+  const invalidOffers=[
+    {url:'',content:offer},
+    {url:'mailto:hello@example.com',content:offer},
+    {url:'https://shop.example.com',content:{...offer,imageUrl:''}},
+    {url:'https://shop.example.com',content:{...offer,originalPrice:'90',salePrice:'100'}},
+    {url:'https://shop.example.com',content:{...offer,originalPrice:'100',salePrice:'100'}},
+    {url:'https://shop.example.com',content:{...offer,hasPromotion:'yes'}},
+    {url:'https://shop.example.com',content:{...offer,salePrice:'0'}},
+  ];
+  for(const item of invalidOffers){
+    await assert.rejects(link(id,{type:'service',title:'Bad discount',...item}),invalid);
+  }
+  assert.equal((await readPage(id)).links.length,0);
+  const regular=await link(id,{
+    type:'service',title:'Normal product',url:'',
+    content:{price:'สอบถามราคา',hasPromotion:false,originalPrice:'100',salePrice:'80'}
+  });
+  assert.equal(regular.content.hasPromotion,false);
+  assert.equal(regular.content.originalPrice,undefined,'disabled discount must ignore old prices');
+  assert.equal(regular.content.salePrice,undefined);
+});
+
+test('legacy promotion converts in-place to product with enabled discount without losing IDs or click history',async()=>{
+  const {db}=setup(),p=await page(),id=p.page.id;
+  paid(db,(await account()).id);
+  const image=await upload(id);
+  const old=await link(id,{
+    type:'promotion',title:'Existing offer',url:'https://shop.example.com/legacy?aff=old',
+    content:{imageUrl:image.url,originalPrice:'100',salePrice:'80',buttonLabel:'ดูสินค้า / ซื้อเลย'}
+  });
+  await publish(id);
+  const redirect=await hub.goToLink(await request(`/go/${p.page.slug}/${old.id}`,{
+    actor:null,headers:{'User-Agent':'Mozilla/5.0 Chrome/130.0 Safari/537.36'}
+  }),p.page.slug,old.id);
+  assert.equal(redirect.status,302);
+  const clickCount=()=>db.prepare("SELECT COUNT(*) AS n FROM hub_events WHERE link_id=? AND type='click'").get(old.id).n;
+  assert.equal(clickCount(),1);
+  const saved=await hub.saveLinksBatch(await request(`/api/pages/${id}/links/batch`,{
+    method:'PATCH',body:{revision:await revision(id),links:[{
+      id:old.id,type:'service',title:old.title,description:old.description,url:old.url,icon:old.icon,
+      content:{...old.content,price:'฿80',hasPromotion:true},enabled:true,featured:false
+    }]}
+  }),id);
+  const migrated=saved.links.find(x=>x.id===old.id);
+  assert.ok(migrated);
+  assert.equal(migrated.type,'service');
+  assert.equal(migrated.content.hasPromotion,true);
+  assert.equal(migrated.content.originalPrice,'100');
+  assert.equal(migrated.content.salePrice,'80');
+  assert.equal(migrated.url,old.url);
+  assert.equal(clickCount(),1,'migration cannot reset historical clicks');
+  assert.equal((await publicHub(p.page.slug)).links[0].type,'promotion',
+    'existing published snapshot remains untouched until publishing again');
+  await publish(id);
+  assert.equal((await publicHub(p.page.slug)).links[0].type,'service');
+});
