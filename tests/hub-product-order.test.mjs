@@ -248,7 +248,7 @@ test('product picture and text overlap only in the image stage, never over the w
 test('exactly two products fill one row and navigation appears only when overflowing',()=>{
  const css=readFileSync(new URL('../app/hub-content.css',import.meta.url),'utf8');
  const carousel=readFileSync(new URL('../app/components/HubCardCarousel.tsx',import.meta.url),'utf8');
- assert.match(css,/flex:0 0 calc\(\(100% - 10px\)\/2\)/);
+ assert.match(css,/flex:0 0 calc\(50% - 5px\)/);
  assert.match(css,/width:calc\(50% - 5px\)/);
  assert.match(css,/height:228px/);
  assert.match(css,/min-height:62px/);
