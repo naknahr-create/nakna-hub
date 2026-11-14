@@ -32,6 +32,8 @@ export type HubBlockContent = {
   galleryLayout?: 'grid' | 'carousel';
   buttonLabel?: string;
   price?: string;
+  /** Optional discount switch for a normal service/product card. */
+  hasPromotion?: boolean;
   /** Original and discounted prices are positive THB amounts with up to 2 decimals. */
   originalPrice?: string;
   salePrice?: string;
