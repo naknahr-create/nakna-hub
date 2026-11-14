@@ -380,3 +380,56 @@ test('team editor can use assigned hub images but cannot reuse unrelated private
   assert.notEqual(a.id, b.id);
 });
 
+
+
+test('single Save updates several edited links under one page revision', async()=>{
+  setup();
+  const pageData=await page(),id=pageData.page.id;
+  const first=await link(id,{title:'First link',url:'https://example.com/one'});
+  const second=await link(id,{title:'Second link',url:'https://example.com/two'});
+  const before=await revision(id);
+  const updated=await hub.saveLinksBatch(await request(`/api/pages/${id}/links/batch`,{
+    method:'PATCH',body:{revision:before,links:[
+      {id:first.id,title:'First changed',enabled:false},
+      {id:second.id,title:'Second changed',url:'https://example.com/three'},
+    ]}
+  }),id);
+  assert.equal(updated.revision,before+1,'batch increments revision once');
+  assert.equal(updated.links.find(row=>row.id===first.id).title,'First changed');
+  assert.equal(updated.links.find(row=>row.id===first.id).enabled,false);
+  assert.equal(updated.links.find(row=>row.id===second.id).url,'https://example.com/three');
+  assert.equal((await readPage(id)).revision,before+1);
+});
+
+test('single Save validates every row before writing and refuses stale or foreign records', async()=>{
+  setup();
+  const pageData=await page(),id=pageData.page.id;
+  const a=await link(id,{title:'Original A',url:'https://example.com/a'});
+  const b=await link(id,{title:'Original B',url:'https://example.com/b'});
+  const before=await revision(id);
+  async function save(payload,actor='a'){
+    return hub.saveLinksBatch(await request(`/api/pages/${id}/links/batch`,{
+      actor,method:'PATCH',body:payload
+    }),id);
+  }
+  await assert.rejects(save({revision:before,links:[
+    {id:a.id,title:'Would be saved'},
+    {id:b.id,url:'javascript:alert(1)'}
+  ]}),invalid);
+  assert.equal((await readPage(id)).links.find(row=>row.id===a.id).title,'Original A');
+  assert.equal(await revision(id),before,'failed validation must not mutate a revision');
+  await assert.rejects(save({revision:before,links:[{id:a.id,title:'Repeated'}, {id:a.id,title:'Repeated again'}]}),invalid);
+  await assert.rejects(save({revision:before,links:[{id:'unknown-link',title:'Other account'}]}),invalid);
+  await assert.rejects(save({revision:before,links:[{id:a.id,title:'No access'}]},'b'),deny);
+  await patchBlock(id,a.id,{title:'Changed from another request'});
+  await assert.rejects(save({revision:before,links:[{id:b.id,title:'Stale'}]}),conflict);
+});
+
+test('Studio content cards use one Save control instead of individual buttons',()=>{
+  const source=readFileSync(new URL('../app/components/HubStudio.tsx',import.meta.url),'utf8');
+  assert.match(source,/className="hs-profile-save hs-content-save"/);
+  assert.match(source,/saveAllLinks\(\)/);
+  assert.match(source,/hs-row-unsaved/);
+  assert.doesNotMatch(source,/hs-save-link/);
+  assert.doesNotMatch(source,/บันทึกฉบับร่าง<\/button>/);
+});
