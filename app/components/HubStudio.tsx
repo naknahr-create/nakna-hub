@@ -55,6 +55,7 @@ export default function HubStudio(){
   const [profile,setProfile]=useState<HubProfile|null>(null);
   const [slug,setSlug]=useState("");
   const [dirtyRows,setDirtyRows]=useState<Record<string,boolean>>({});
+  const [saveEpoch,setSaveEpoch]=useState(0);
   const [busy,setBusy]=useState<string|null>(null);
   const [error,setError]=useState("");
   const [toast,setToast]=useState("");
@@ -167,7 +168,36 @@ export default function HubStudio(){
     }catch(e){mutationError(e);}finally{setBusy(null);}
   }
   async function duplicateBlock(link:HubLink){if(!editor||busy)return;if(hasUnsaved){setError("บันทึกหรือยกเลิกการแก้ไขก่อนทำสำเนา");return;}setBusy("duplicate");setError("");try{await api<{link:HubLink}>(`/api/pages/${editor.page.id}/links`,{method:"POST",body:JSON.stringify({...draftOf(link),title:(link.title+" (สำเนา)").slice(0,100),enabled:false,revision:editor.revision})});await reloadEditor();await refreshWorkspace();notify("ทำสำเนาแล้ว รายการใหม่ยังซ่อนอยู่จนกว่าคุณจะเปิดใช้งาน");}catch(e){mutationError(e);}finally{setBusy(null);}}
-  async function saveLink(link:HubLink,draft:LinkDraft):Promise<HubLink>{if(!editor||busy)throw new Error("กรุณารอให้รายการก่อนหน้าบันทึกเสร็จ");setBusy(link.id);setError("");try{const saved=await api<{link:HubLink}>(`/api/pages/${editor.page.id}/links/${link.id}`,{method:"PATCH",body:JSON.stringify({...draft,revision:editor.revision})});markDirty(link.id,false);await reloadEditor();notify("บันทึกเนื้อหาในฉบับร่างแล้ว");return saved.link;}catch(e){mutationError(e);throw e;}finally{setBusy(null);}}
+  function discardLinkEdits(){
+    setSaveEpoch(value=>value+1);
+    setDirtyRows({});setLinkDrafts({});setError("");
+  }
+  async function saveAllLinks(){
+    if(!editor||busy)return;
+    const changes=links.filter(link=>!!linkDrafts[link.id]).map(link=>({id:link.id,draft:linkDrafts[link.id]}));
+    if(!changes.length)return;
+    for(const {id,draft} of changes){
+      const validation=contentDraftError(draft);
+      if(validation){
+        setError(`กรุณาตรวจสอบ "${links.find(link=>link.id===id)?.title||'รายการ'}": ${validation}`);
+        document.getElementById(`studio-link-${id}`)?.scrollIntoView({block:"center",behavior:"smooth"});
+        return;
+      }
+    }
+    setBusy("save-all");setError("");
+    try{
+      const saved=await api<PageEditorData>(`/api/pages/${editor.page.id}/links/batch`,{
+        method:"PATCH",
+        body:JSON.stringify({revision:editor.revision,
+          links:changes.map(({id,draft})=>({id,...draft,title:draft.title.trim(),url:draft.url.trim()}))})
+      });
+      setSaveEpoch(value=>value+1);
+      setDirtyRows({});setLinkDrafts({});
+      adoptEditor(saved);
+      await refreshWorkspace();
+      notify(`บันทึกเรียบร้อย ${changes.length} รายการ · กดเผยแพร่เมื่อพร้อมให้ลูกค้าเห็น`);
+    }catch(e){mutationError(e);}finally{setBusy(null);}
+  }
   async function patchLink(link:HubLink,patch:Partial<HubLink>){if(!editor||busy)return;setBusy(link.id);setError("");try{await api(`/api/pages/${editor.page.id}/links/${link.id}`,{method:"PATCH",body:JSON.stringify({...patch,revision:editor.revision})});await reloadEditor();notify(patch.archived===false?"กู้คืนแล้ว ลิงก์ยังซ่อนอยู่จนกว่าจะเปิดใช้งาน":"บันทึกฉบับร่างแล้ว");}catch(e){mutationError(e);}finally{setBusy(null);}}
   async function archiveLink(link:HubLink){if(!editor||busy)return;setBusy(link.id);setError("");try{await api(`/api/pages/${editor.page.id}/links/${link.id}?revision=${editor.revision}`,{method:"DELETE"});markDirty(link.id,false);await reloadEditor();await refreshWorkspace();notify("เก็บเข้าคลังแล้ว ประวัติคลิกยังอยู่");}catch(e){mutationError(e);}finally{setBusy(null);}}
   async function reorder(index:number,direction:number){if(!editor||busy)return;const ordered=[...links],target=index+direction;if(target<0||target>=ordered.length)return;[ordered[index],ordered[target]]=[ordered[target],ordered[index]];setBusy("reorder");setError("");try{await api(`/api/pages/${editor.page.id}/reorder`,{method:"POST",body:JSON.stringify({ids:ordered.map(link=>link.id),revision:editor.revision})});await reloadEditor();notify("บันทึกลำดับในฉบับร่างแล้ว");}catch(e){mutationError(e);}finally{setBusy(null);}}
@@ -280,7 +310,7 @@ export default function HubStudio(){
                  <div className="hs-product-collection-list" role="group" aria-label="รายการสินค้า">
                    {productLinks.map((product,productIndex)=><LinkRow key={product.id}
                      pageId={editor.page.id} link={product} index={productIndex} total={productLinks.length}
-                     busy={!!busy} onSave={saveLink} onArchive={archiveLink}
+                     busy={!!busy} onArchive={archiveLink}
                      onReorder={reorderProduct} onDirty={markDirty} onDraft={markDraft}
                      onUploadState={setMediaUploading} onStatistics={showLinkStatistics}
                      hasAnalyticsAccess={editorAnalytics} onDuplicate={duplicateBlock}
@@ -298,7 +328,7 @@ export default function HubStudio(){
                </section>)
               :<LinkRow key={link.id} pageId={editor.page.id} link={link}
                 index={index} total={links.length} busy={!!busy}
-                onSave={saveLink} onArchive={archiveLink} onReorder={reorder}
+                onArchive={archiveLink} onReorder={reorder}
                 onDirty={markDirty} onDraft={markDraft} onUploadState={setMediaUploading}
                 onStatistics={showLinkStatistics} hasAnalyticsAccess={editorAnalytics}
                 onDuplicate={duplicateBlock} canDuplicate={links.length<editorLimit}/>)}</div>}
