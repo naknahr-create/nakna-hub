@@ -290,6 +290,8 @@
  grid-template-rows:auto;align-items:stretch;min-height:0;height:auto;
  border-radius:16px;max-width:100%
 }
+.hc .hc-card-carousel-single .hcb-no-photo{display:flex;flex-direction:column}
+.hc .hc-card-carousel-single .hcb-no-photo .hcb-body{width:100%;grid-column:1/-1}
 .hc .hc-card-carousel-single .hcb-cover{
  border-bottom:0;border-right:1px solid var(--hc-line);
  border-radius:15px 0 0 15px;min-width:0;height:100%
