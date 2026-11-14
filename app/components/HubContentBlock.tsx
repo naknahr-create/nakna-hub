@@ -104,9 +104,8 @@ export function HubContentBlock({block,href,onDemoClick}:ContentBlockProps){
 
   return <article className={`hcb hcb-${block.type} ${block.featured?'hcb-featured':''}`} aria-labelledby={titleId} data-block-type={block.type}>
     {block.featured&&block.type!=='promotion'&&<span className="hcb-featured-label"><Sparkles size={12} aria-hidden="true"/>แนะนำ</span>}
-    {photo&&<div className={`hcb-cover ${block.type==='promotion'?'hcb-promo-cover':''}`}>
+    {photo&&<div className="hcb-cover">
       {hasAction?<a href={href} target="_blank" rel="noopener" aria-label={`${actionLabel}: ${block.title} เปิดในแท็บใหม่`} onClick={navigate}>{photo}</a>:photo}
-      {block.type==='promotion'&&<span className="hcb-promo-label">โปรโมชั่น</span>}
     </div>}
     <div className="hcb-body">
       <h2 id={titleId} className="hcb-title">{block.title}</h2>
