@@ -120,7 +120,7 @@ export function HubContentBlock({block,href,onDemoClick}:ContentBlockProps){
         <span className="hcb-promo-discount">ลด {promo.discountPercent}%</span>
       </div>}
       {(block.type==='service'&&content.price||action)&&<div className="hcb-bottom">{block.type==='service'&&content.price&&<p className="hcb-price">{content.price}</p>}{action}</div>}
-      {block.type==='promotion'&&<small className="hcb-promo-disclosure">ลิงก์แนะนำสินค้า · ราคาและส่วนลดอาจเปลี่ยนตามร้านค้า</small>}}
+      {block.type==='promotion'&&<small className="hcb-promo-disclosure">ลิงก์แนะนำสินค้า · ราคาและส่วนลดอาจเปลี่ยนตามร้านค้า</small>}
     </div>
   </article>;
 }
