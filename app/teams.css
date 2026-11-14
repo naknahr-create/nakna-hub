@@ -17,3 +17,61 @@
 .ht-conflict-actions{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:8px;font-size:12px;line-height:1.7}.ht-conflict-actions a{display:inline-flex;gap:5px;align-items:center;color:inherit;font-weight:600;text-decoration:underline;text-underline-offset:3px}
 
 @media(max-width:600px){.ht-nav-tail{display:none}}
+
+
+/* NAKNA HUB compact team management on touch devices. */
+@media(max-width:600px){
+  .ht-page{min-width:0}
+  .ht-heading{
+    display:flex;flex-direction:row;flex-wrap:nowrap;
+    align-items:center;gap:10px;margin:4px 0 15px
+  }
+  .ht-heading>div{min-width:0;flex:1}
+  .ht-heading h1{font-size:24px;line-height:1.25;letter-spacing:-.6px;margin:0 0 3px}
+  .ht-heading>div>p:last-child{font-size:12px;line-height:1.45}
+  .ht-heading>.hs-button{
+    width:auto;max-width:142px;min-width:86px;flex-shrink:0;
+    min-height:42px;padding:8px 11px;font-size:12px;gap:5px
+  }
+  .ht-heading>.hs-button svg{width:16px;height:16px}
+  .ht-back{margin-bottom:7px;font-size:11px}
+  .ht-team-list{margin:18px 0}
+  .ht-team-list h2{font-size:16px;gap:7px;margin-bottom:9px}
+  .ht-team-list h2>span{font-size:10px;padding:2px 6px}
+  .ht-team-grid{gap:10px}
+  .ht-team-card{
+    min-height:0;padding:13px 12px;gap:11px;
+    border-radius:15px;box-shadow:0 2px 10px #153b3e05
+  }
+  .ht-card-icon{width:40px;height:40px;border-radius:11px}
+  .ht-card-icon svg{width:21px;height:21px;stroke-width:1.8}
+  .ht-team-card-info{align-items:center;gap:4px}
+  .ht-team-card-info>strong{font-size:15px;line-height:1.35}
+  .ht-team-card-info>small{font-size:11px;line-height:1.4}
+  .ht-team-card>svg{width:17px;height:17px}
+  .ht-role-badge,.ht-pending-badge{font-size:10px;line-height:1.3;padding:4px 6px}
+  .ht-panel{padding:15px;border-radius:15px;margin-bottom:12px}
+  .ht-panel-title{gap:10px;margin-bottom:14px}
+  .ht-panel-title h2{font-size:16px;line-height:1.35}
+  .ht-panel-title p{font-size:11px;line-height:1.5;margin-top:4px}
+  .ht-page-picker{margin:15px 0}
+  .ht-page-picker>p{font-size:11px;line-height:1.55}
+  .ht-hub-choice{padding:10px 12px;gap:10px;margin:7px 0}
+  .ht-hub-choice strong{font-size:13px}
+  .ht-hub-choice small{font-size:11px}
+  .ht-role-options{gap:8px}
+  .ht-role-options label{padding:12px;gap:8px}
+  .ht-role-options strong{font-size:13px}
+  .ht-role-options small{font-size:11px}
+  .ht-empty{padding:24px 16px;border-radius:15px}
+  .ht-empty-icon{width:52px;height:52px;border-radius:15px;margin-bottom:12px}
+  .ht-empty-icon svg{height:26px;width:26px}
+  .ht-empty h2{font-size:18px;margin-bottom:7px}
+  .ht-empty p{font-size:12px;line-height:1.6;margin-bottom:15px}
+  .ht-member-row{padding:11px 0;gap:9px}
+  .ht-member-actions{gap:9px}
+  .ht-invite-row{padding:11px 0}
+  .ht-invitation-card{padding:20px 15px;border-radius:15px}
+  .ht-invitation-card h1{font-size:21px}
+  .ht-invitation-intro{font-size:12px;line-height:1.6;margin-bottom:15px}
+}
