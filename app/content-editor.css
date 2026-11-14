@@ -118,3 +118,26 @@
   .hs-product-collection-actions{padding:14px}
   .hs-shell .hs-product-collection>.hs-inline-product-form{margin:12px;padding:16px}
 }
+
+
+/* Affiliate product pricing: one clear form, one trustworthy calculated offer. */
+.hce-promo-pricing{border:1px solid #d5e5e4;background:#f7fbfa;border-radius:14px;padding:18px;margin:4px 0 22px}
+.hce-promo-pricing .hce-field-heading{margin-bottom:13px}
+.hce-promo-pricing .hce-field-heading strong{display:inline-flex;align-items:center;gap:8px;color:#0b777b}
+.hce-promo-pricing .hce-field-heading span{color:#668187}
+.hce-promo-pricing .hs-form-columns{gap:12px}
+.hce-promo-pricing .hs-field{margin-bottom:10px}
+.hce-promo-price-preview{display:flex;flex-wrap:wrap;align-items:center;gap:6px 11px;padding:13px 14px;background:white;border:1px solid #dce8e9;border-radius:10px;margin:4px 0 9px;min-height:54px}
+.hce-promo-price-preview>span{color:#688087;font-size:11px}
+.hce-promo-price-preview del{color:#8b9b9f;font-size:14px}
+.hce-promo-price-preview strong{font-size:24px;line-height:1.15;letter-spacing:-.6px;color:#087b7d}
+.hce-promo-price-preview em{font-size:12px;font-style:normal;font-weight:700;background:#fff0e8;color:#aa4929;border-radius:99px;padding:4px 9px;white-space:nowrap}
+.hce-promo-pricing>small{font-size:11px;line-height:1.7;color:#687e84}
+@media(max-width:600px){
+ .hce-promo-pricing{padding:14px;margin-bottom:18px}
+ .hce-promo-pricing .hs-form-columns{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+ .hce-promo-pricing .hs-field{font-size:12px}
+ .hce-promo-pricing .hs-field input{min-width:0;font-size:16px}
+ .hce-promo-price-preview{padding:11px}
+ .hce-promo-price-preview strong{font-size:22px}
+}
