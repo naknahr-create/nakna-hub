@@ -88,7 +88,7 @@ test('single card uses a balanced responsive hero; multiple products are small s
   assert.match(css,/flex:0 0 calc\(50% - 5px\)/);
   assert.match(css,/flex-basis:calc\(50% - 5px\)/);
   assert.match(css,/\.hc \.hc-card-carousel-single \.hc-card-slide:only-child/);
-  assert.match(css,/grid-template-columns:minmax\(140px,40%\) minmax\(0,1fr\)/);
+  assert.match(css,/\.hc \.hc-card-carousel-single \.hcb-product-stage/);
   assert.match(css,/@media\(max-width:560px\)/);
 });
 
@@ -161,15 +161,16 @@ test('Studio exposes explicit move-to-top, up, down buttons for the entire produ
   assert.match(style,/\.hs-product-group-order/);
 });
 
-test('mixed product cards keep prices and CTAs near titles with no auto-stretched gap',()=>{
+test('mixed product tiles keep prices and actions in their own overlay/footer regions',()=>{
   const css=readFileSync(new URL('../app/hub-content.css',import.meta.url),'utf8');
-  assert.match(css,/\.hc-card-carousel-compact:not\(\.hc-card-carousel-single\) \.hc-card-rail/);
-  assert.match(css,/align-items:flex-start/);
-  assert.match(css,/\.hc-card-carousel-compact:not\(\.hc-card-carousel-single\) \.hc-card-slide \.hcb-bottom/);
-  assert.match(css,/margin-top:8px/);
-  assert.match(css,/height:auto/);
+  const card=readFileSync(new URL('../app/components/HubContentBlock.tsx',import.meta.url),'utf8');
+  assert.match(css,/\.hc \.hc-card-carousel-compact \.hcb-product-stage/);
+  assert.match(css,/\.hc \.hc-card-carousel-compact \.hcb-product-footer/);
+  assert.match(css,/background:rgba\(255,255,255,\.93\)/);
+  assert.match(css,/\.hc \.hc-card-carousel-compact \.hcb-product-price-slot/);
+  assert.match(card,/hcb-product-overlay hcb-product-body/);
+  assert.match(card,/hcb-product-action-slot/);
 });
-
 
 test('same-height products share title, description, price and CTA rows without a disclaimer',()=>{
   const content=readFileSync(new URL('../app/components/HubContentBlock.tsx',import.meta.url),'utf8');
@@ -185,7 +186,7 @@ test('same-height products share title, description, price and CTA rows without 
   assert.match(css,/\.hcb-product-stage/);
   assert.match(css,/\.hcb-product-action-slot>\.hcb-action/);
   assert.match(css,/\.hcb-product-price-slot>\.hcb-price/);
-  assert.match(css,/\.hc-card-carousel-single \.hcb-product-body/);
+  assert.match(css,/\.hc-card-carousel-single \.hcb-product-overlay/);
 });
 
 test('non-product content cards retain image/gallery actions unaffected by shared price slots',()=>{
@@ -196,16 +197,16 @@ test('non-product content cards retain image/gallery actions unaffected by share
 });
 
 
-test('mini product cards show two products on narrow phones with a shorter image and equal rows',()=>{
+test('exactly two products fit the preview width with tall bright imagery',()=>{
   const css=readFileSync(new URL('../app/hub-content.css',import.meta.url),'utf8');
   const markup=readFileSync(new URL('../app/components/HubContentBlock.tsx',import.meta.url),'utf8');
-  assert.match(css,/clamp\(136px,43%,164px\)/);
-  assert.match(css,/clamp\(136px,44%,164px\)/);
-  assert.match(css,/\.hcb-product-footer/);
-  assert.match(css,/\.hcb-product-stage/);
-  assert.match(css,/height:228px/);
-  assert.match(css,/height:44px;min-height:44px;max-height:44px/);
-  assert.match(css,/\.hc-card-carousel-compact:not\(\.hc-card-carousel-single\)/);
+  assert.match(css,/flex:0 0 calc\(50% - 5px\)/);
+  assert.match(css,/width:calc\(50% - 5px\)/);
+  assert.match(css,/flex:0 0 244px/);
+  assert.match(css,/height:244px/);
+  assert.match(css,/height:44px/);
+  assert.match(css,/max-height:15px/);
+  assert.match(css,/\.hc \.hc-card-carousel-compact \.hcb-product-footer/);
   assert.match(markup,/hcb-product-price-slot/);
   assert.match(markup,/hcb-product-action-slot/);
   assert.match(markup,/hcb-promo-discount/);
@@ -215,8 +216,8 @@ test('mini product cards show two products on narrow phones with a shorter image
 test('single-product full-width layout remains separate from mini carousel',()=>{
   const css=readFileSync(new URL('../app/hub-content.css',import.meta.url),'utf8');
   assert.match(css,/\.hc \.hc-card-carousel-single \.hc-card-slide>.hcb/);
-  assert.match(css,/\.hc \.hc-card-carousel-single \.hcb-media/);
-  assert.match(css,/\.hc \.hc-card-carousel-single \.hcb-product-body/);
+  assert.match(css,/\.hc \.hc-card-carousel-single \.hcb-product-stage/);
+  assert.match(css,/\.hc \.hc-card-carousel-single \.hcb-product-overlay/);
   const carousel=readFileSync(new URL('../app/components/HubCardCarousel.tsx',import.meta.url),'utf8');
   assert.match(carousel,/singleCard=compactCards&&blocks.length===1/);
   assert.match(carousel,/blocks.length>1&&/);
@@ -239,10 +240,10 @@ test('product picture and text overlap only in the image stage, never over the w
  assert.match(inFooter,/\{action\}/);
  assert.match(css,/\.hc \.hc-card-carousel-compact \.hcb-product-footer/);
  assert.match(css,/background:#fff;/);
- assert.match(css,/border-top:1px solid #e1e9eb/);
+ assert.match(css,/border-top:1px solid #e8eef0/);
  assert.match(css,/\.hc \.hc-card-carousel-compact \.hcb-product-overlay/);
- assert.match(css,/rgba\(255,255,255,\.985\) 100%/);
- assert.doesNotMatch(css.slice(css.indexOf('White-mist product composition')),/rgba\(0,0,0/);
+ assert.match(css,/background:rgba\(255,255,255,\.93\)/);
+ assert.doesNotMatch(css.slice(css.indexOf('NAKNA HUB · Clean Editorial Commerce')),/linear-gradient\(/);
 });
 
 test('exactly two products fill one row and navigation appears only when overflowing',()=>{
@@ -250,9 +251,26 @@ test('exactly two products fill one row and navigation appears only when overflo
  const carousel=readFileSync(new URL('../app/components/HubCardCarousel.tsx',import.meta.url),'utf8');
  assert.match(css,/flex:0 0 calc\(50% - 5px\)/);
  assert.match(css,/width:calc\(50% - 5px\)/);
- assert.match(css,/height:228px/);
+ assert.match(css,/height:244px/);
  assert.match(css,/min-height:62px/);
  assert.match(carousel,/!compactCards\|\|edges\.prev\|\|edges\.next/);
  assert.match(carousel,/onScroll=\{readPosition\}/);
  assert.match(carousel,/function stepCompact\(/);
+});
+
+
+test('Studio photo framing offers compact live preview with focus and zoom controls',()=>{
+  const editor=readFileSync(new URL('../app/components/HubContentEditor.tsx',import.meta.url),'utf8');
+  const style=readFileSync(new URL('../app/content-editor.css',import.meta.url),'utf8');
+  const render=readFileSync(new URL('../app/components/HubContentBlock.tsx',import.meta.url),'utf8');
+  assert.match(editor,/<details className="hce-photo-framing">/);
+  assert.match(editor,/imageFocusX:Number\(event\.target\.value\)/);
+  assert.match(editor,/imageFocusY:Number\(event\.target\.value\)/);
+  assert.match(editor,/imageZoom:Number\(event\.target\.value\)/);
+  assert.match(editor,/imageFocusX:50,imageFocusY:35,imageZoom:100/);
+  assert.match(editor,/content\.fit\|\|"contain"/);
+  assert.match(style,/\.hce-photo-framing-preview/);
+  assert.match(render,/focusX=\{isProduct\?content\.imageFocusX\?\?50:undefined\}/);
+  assert.match(render,/objectPosition/);
+  assert.match(render,/transformOrigin/);
 });

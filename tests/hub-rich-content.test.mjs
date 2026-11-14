@@ -583,3 +583,55 @@ test('legacy promotion converts in-place to product with enabled discount withou
   await publish(id);
   assert.equal((await publicHub(p.page.slug)).links[0].type,'service');
 });
+
+
+test('product photo focus and zoom persist in drafts and published snapshots',async()=>{
+  setup();const p=await page(),id=p.page.id;
+  const image=await upload(id);
+  const product=await link(id,{
+    type:'service',title:'Product with focal image',url:'https://example.com/order',
+    content:{imageUrl:image.url,fit:'cover',price:'1000',imageFocusX:25,imageFocusY:15,imageZoom:145}
+  });
+  assert.equal(product.content.imageFocusX,25);
+  assert.equal(product.content.imageFocusY,15);
+  assert.equal(product.content.imageZoom,145);
+  const draft=(await readPage(id)).links.find(item=>item.id===product.id);
+  assert.equal(draft.content.imageZoom,145);
+  await publish(id);
+  const publicProduct=(await publicHub(p.page.slug)).links.find(item=>item.id===product.id);
+  assert.equal(publicProduct.content.imageFocusX,25);
+  assert.equal(publicProduct.content.imageFocusY,15);
+  assert.equal(publicProduct.content.imageZoom,145);
+  const updated=await patchBlock(id,product.id,{content:{
+    ...product.content,imageFocusX:80,imageFocusY:65,imageZoom:110
+  }});
+  assert.equal(updated.id,product.id);
+  assert.equal(updated.content.imageFocusX,80);
+  assert.equal(updated.content.imageFocusY,65);
+  assert.equal(updated.content.imageZoom,110);
+  assert.equal((await publicHub(p.page.slug)).links[0].content.imageZoom,145,
+    'new framing does not go live until the owner publishes');
+  await publish(id);
+  assert.equal((await publicHub(p.page.slug)).links[0].content.imageZoom,110);
+});
+
+test('product photo framing accepts only bounded integer percentages',async()=>{
+  setup();const p=await page(),id=p.page.id;const image=await upload(id);
+  const base={imageUrl:image.url,fit:'cover',price:'500'};
+  const badCases=[
+    {imageFocusX:-1},{imageFocusX:101},{imageFocusX:35.5},{imageFocusX:'50'},
+    {imageFocusY:-1},{imageFocusY:101},{imageFocusY:null},
+    {imageZoom:99},{imageZoom:181},{imageZoom:125.2},{imageZoom:'135'},
+  ];
+  for(const bad of badCases){
+    await assert.rejects(link(id,{
+      type:'service',title:'Invalid focal point',url:'https://example.com/order',
+      content:{...base,...bad}
+    }),invalid,'out-of-range photo framing must not save');
+  }
+  assert.equal((await readPage(id)).links.length,0);
+  const normal=await link(id,{type:'service',title:'Default picture',url:'',content:base});
+  assert.equal(normal.content.imageFocusX,undefined,'older products need no new fields');
+  assert.equal(normal.content.imageFocusY,undefined);
+  assert.equal(normal.content.imageZoom,undefined);
+});

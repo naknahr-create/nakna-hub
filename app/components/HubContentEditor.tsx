@@ -1,6 +1,7 @@
 "use client";
 
 import {ArrowDown, ArrowUp, ArrowUpRight, Check, GalleryHorizontalEnd, Heading, Image as ImageIcon, Layers3, Link2, Package, BadgePercent, Share2, Type, X} from "lucide-react";
+import type {CSSProperties} from "react";
 import type {HubBlockContent, HubContentType, HubLink, HubProfile} from "../../lib/hub-types";
 import {HUB_GALLERY_LIMIT} from "../../lib/hub-content";
 import {formatThaiBaht,getPromotionPricing,isProductDiscountEnabled} from "../../lib/hub-promotion";
@@ -20,7 +21,7 @@ export const CONTENT_OPTIONS = [
 ] as const;
 
 export function emptyContent(type:HubContentType):ContentDraft {
-  const content:HubBlockContent = type === "gallery" ? {images:[],galleryLayout:"grid",buttonLabel:"ดูเพิ่มเติม"} : type === "promotion" ? {imageUrl:"",alt:"",aspectRatio:"square",fit:"contain",buttonLabel:"ดูสินค้า / ซื้อเลย",originalPrice:"",salePrice:"",hasPromotion:true} : type === "image" || type === "service" ? {imageUrl:"",alt:"",aspectRatio:type === "image" ? "auto" : "landscape",fit:"contain",buttonLabel:type === "service" ? "สอบถามรายละเอียด" : "ดูเพิ่มเติม",...(type==="service"?{hasPromotion:false}:{})} : {};
+  const content:HubBlockContent = type === "gallery" ? {images:[],galleryLayout:"grid",buttonLabel:"ดูเพิ่มเติม"} : type === "promotion" ? {imageUrl:"",alt:"",aspectRatio:"square",fit:"contain",buttonLabel:"ดูสินค้า / ซื้อเลย",originalPrice:"",salePrice:"",hasPromotion:true} : type === "image" || type === "service" ? {imageUrl:"",alt:"",aspectRatio:type === "image" ? "auto" : "landscape",fit:type === "service" ? "cover" : "contain",buttonLabel:type === "service" ? "สอบถามรายละเอียด" : "ดูเพิ่มเติม",...(type==="service"?{hasPromotion:false}:{})} : {};
   return {type,title:"",description:"",url:"",icon:type === "link" ? "auto" : "link",enabled:true,featured:false,...(Object.keys(content).length ? {content} : {})};
 }
 
@@ -89,6 +90,40 @@ export function ContentFields({pageId,draft,onChange,disabled,onUploadingChange,
     {draft.type === "link"&&<><label className="hs-field">ลิงก์ปลายทาง<input required inputMode="url" maxLength={2048} disabled={disabled} value={draft.url} onChange={event=>onChange({...draft,url:event.target.value})} placeholder="https://"/></label><label className="hs-field">คำอธิบายสั้น ๆ <span className="hce-optional">ไม่จำเป็น</span><input maxLength={220} disabled={disabled} value={draft.description} onChange={event=>onChange({...draft,description:event.target.value})} placeholder="คลิกแล้วจะเจออะไร"/></label><LinkMediaPicker pageId={pageId} value={draft.icon} url={draft.url} disabled={disabled} onChange={icon=>onChange({...draft,icon})} onUploadingChange={onUploadingChange}/></>}
 
     {(draft.type === "image"||draft.type === "service"||draft.type === "promotion")&&<div className="hce-image-fields"><HubMediaUpload pageId={pageId} value={content.imageUrl||""} onChange={imageUrl=>setContent({imageUrl})} disabled={disabled} onUploadingChange={onUploadingChange} label={draft.type === "promotion" ? "รูปสินค้าลดราคา" : draft.type === "service" ? "รูปสินค้า / บริการ" : "ภาพที่จะแสดง"} hint={draft.type === "promotion" ? "รูปสินค้าจริงที่มีสิทธิ์ใช้งาน · แนะนำภาพสี่เหลี่ยม 1:1" : draft.type === "service" ? "รูปจริงช่วยให้คนเข้าใจบริการได้เร็วขึ้น · จะเพิ่มภายหลังก็ได้" : "เลือกรูปแนวนอน สี่เหลี่ยม หรือแนวตั้งได้ ระบบจัดให้ตามธีม"}/>{content.imageUrl&&<><label className="hs-field hce-alt-field">คำอธิบายภาพ <span className="hce-optional">สำหรับผู้อ่านหน้าจอ</span><input maxLength={200} disabled={disabled} value={content.alt||""} onChange={event=>setContent({alt:event.target.value})} placeholder="เช่น ทีมงานกำลังแนะนำสินค้าให้ลูกค้า"/><small>ถ้าเว้นไว้ ระบบจะใช้ชื่อรายการเป็นคำอธิบายภาพ</small></label><div className="hs-form-columns"><label className="hs-field">สัดส่วนภาพ<select disabled={disabled} value={content.aspectRatio||"auto"} onChange={event=>setContent({aspectRatio:event.target.value as HubBlockContent["aspectRatio"]})}><option value="auto">ตามรูปต้นฉบับ</option><option value="landscape">แนวนอน 16:9</option><option value="square">สี่เหลี่ยม 1:1</option><option value="portrait">แนวตั้ง 4:5</option></select></label><label className="hs-field">การวางภาพ<select disabled={disabled} value={content.fit||"contain"} onChange={event=>setContent({fit:event.target.value as HubBlockContent["fit"]})}><option value="contain">แสดงรูปครบ</option><option value="cover">เต็มกรอบ อาจตัดขอบภาพ</option></select></label></div></>}</div>}
+
+    {(draft.type==="service"||draft.type==="promotion")&&content.imageUrl&&
+      <details className="hce-photo-framing">
+        <summary><Layers3 size={17}/><span>จัดตำแหน่งรูปบนการ์ด</span><small>มุมภาพและซูม</small></summary>
+        <div className="hce-photo-framing-inner">
+          <div className="hce-photo-framing-preview" role="img" aria-label="ตัวอย่างการจัดตำแหน่งรูปบนการ์ดสินค้า">
+            <img src={content.imageUrl} alt="" loading="lazy" decoding="async"
+              style={{
+                objectFit:content.fit||"contain",
+                objectPosition:`${content.imageFocusX??50}% ${content.imageFocusY??35}%`,
+                transform:`scale(${(content.imageZoom??100)/100})`,
+                transformOrigin:`${content.imageFocusX??50}% ${content.imageFocusY??35}%`
+              } as CSSProperties}/>
+            <span>ตัวอย่างการแสดงรูป</span>
+          </div>
+          <div className="hce-photo-framing-controls">
+            <label>เลื่อนภาพแนวนอน <output>{content.imageFocusX??50}%</output>
+              <input type="range" min={0} max={100} step={5} value={content.imageFocusX??50}
+                disabled={disabled} onChange={event=>setContent({imageFocusX:Number(event.target.value)})}/>
+            </label>
+            <label>เลื่อนภาพแนวตั้ง <output>{content.imageFocusY??35}%</output>
+              <input type="range" min={0} max={100} step={5} value={content.imageFocusY??35}
+                disabled={disabled} onChange={event=>setContent({imageFocusY:Number(event.target.value)})}/>
+            </label>
+            <label>ซูมรูป <output>{content.imageZoom??100}%</output>
+              <input type="range" min={100} max={180} step={5} value={content.imageZoom??100}
+                disabled={disabled} onChange={event=>setContent({imageZoom:Number(event.target.value)})}/>
+            </label>
+            <button className="hce-photo-framing-reset" type="button" disabled={disabled}
+              onClick={()=>setContent({imageFocusX:50,imageFocusY:35,imageZoom:100})}>คืนค่ามุมมอง</button>
+          </div>
+        </div>
+        <p>จัดตำแหน่งให้ภาพสินค้าสวยขึ้นโดยไม่ต้องแก้ไฟล์ต้นฉบับ รูปที่คุณอัปโหลดจะยังเป็นรูปเดิม</p>
+      </details>}
 
     {draft.type === "gallery"&&<section className="hce-gallery-editor" aria-label="รูปในแกลเลอรี"><div className="hce-field-heading"><strong>รูปในแกลเลอรี</strong><span>{images.length}/{HUB_GALLERY_LIMIT} รูป</span></div>{images.length>0&&<div className="hce-gallery-items">{images.map((image,index)=><article key={image.url} className="hce-gallery-item"><img src={image.url} alt={image.alt||`รูปที่ ${index+1}`}/><div className="hce-gallery-item-copy"><strong>รูปที่ {index+1}</strong><label className="hs-field"><span className="hs-sr-only">คำบรรยายรูปที่ {index+1}</span><input maxLength={240} disabled={disabled} placeholder="คำบรรยายภาพ (ไม่จำเป็น)" value={image.caption||""} onChange={event=>setContent({images:images.map((item,i)=>i===index?{...item,caption:event.target.value}:item)})}/></label><details><summary>คำอธิบายภาพสำหรับผู้อ่านหน้าจอ</summary><label className="hs-field"><span className="hs-sr-only">คำอธิบายรูปที่ {index+1}</span><input maxLength={200} disabled={disabled} value={image.alt} placeholder="บอกสิ่งที่อยู่ในภาพ" onChange={event=>setContent({images:images.map((item,i)=>i===index?{...item,alt:event.target.value}:item)})}/></label></details></div><div className="hce-gallery-item-actions"><button type="button" aria-label={`เลื่อนรูปที่ ${index+1} ขึ้น`} data-tooltip="เลื่อนรูปขึ้น" disabled={disabled||index===0} onClick={()=>moveImage(index,-1)}><ArrowUp size={16}/></button><button type="button" aria-label={`เลื่อนรูปที่ ${index+1} ลง`} data-tooltip="เลื่อนรูปลง" disabled={disabled||index===images.length-1} onClick={()=>moveImage(index,1)}><ArrowDown size={16}/></button><button type="button" aria-label={`นำรูปที่ ${index+1} ออกจากแกลเลอรี`} data-tooltip="นำรูปนี้ออกจากชุด" disabled={disabled} onClick={()=>setContent({images:images.filter((_,i)=>i!==index)})}><X size={17}/></button></div></article>)}</div>}{images.length<HUB_GALLERY_LIMIT&&<HubMediaUpload pageId={pageId} value="" onChange={url=>{if(url)setContent({images:[...images,{url,alt:"",caption:""}]});}} disabled={disabled} onUploadingChange={onUploadingChange} label={images.length ? "เพิ่มรูปถัดไป" : "เพิ่มรูปแรกในแกลเลอรี"} hint={`เพิ่มได้สูงสุด ${HUB_GALLERY_LIMIT} รูปต่อชุด · ทั้งชุดนับเป็น 1 รายการ`} removable={false}/>}<fieldset className="hce-gallery-layout"><legend>การแสดงแกลเลอรี</legend><div role="group" aria-label="รูปแบบแกลเลอรี"><button type="button" disabled={disabled} aria-pressed={(content.galleryLayout||"grid")==="grid"} onClick={()=>setContent({galleryLayout:"grid"})}><span className="hce-layout-grid" aria-hidden="true"><i/><i/><i/><i/></span>ตารางรูป</button><button type="button" disabled={disabled} aria-pressed={content.galleryLayout==="carousel"} onClick={()=>setContent({galleryLayout:"carousel"})}><span className="hce-layout-carousel" aria-hidden="true"><i/><i/><i/></span>เลื่อนดูทีละรูป</button></div></fieldset></section>}
 

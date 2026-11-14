@@ -275,8 +275,8 @@ async function validateBlockContent(value:unknown,type:HubLink['type'],title:str
   const input=value as Record<string,unknown>;
   const allowed=type==='gallery'?['images','galleryLayout','aspectRatio','fit','buttonLabel']
     :type==='image'?['imageUrl','alt','aspectRatio','fit','buttonLabel']
-    :type==='service'?['imageUrl','alt','aspectRatio','fit','buttonLabel','price','hasPromotion','originalPrice','salePrice']
-    :type==='promotion'?['imageUrl','alt','aspectRatio','fit','buttonLabel','originalPrice','salePrice']:[];
+    :type==='service'?['imageUrl','alt','aspectRatio','fit','imageFocusX','imageFocusY','imageZoom','buttonLabel','price','hasPromotion','originalPrice','salePrice']
+    :type==='promotion'?['imageUrl','alt','aspectRatio','fit','imageFocusX','imageFocusY','imageZoom','buttonLabel','originalPrice','salePrice']:[];
   keys(input,allowed);
   if(!['image','gallery','service','promotion'].includes(type))return undefined;
   const content:HubBlockContent={};
@@ -304,6 +304,21 @@ async function validateBlockContent(value:unknown,type:HubLink['type'],title:str
   if('fit'in input&&(typeof input.fit!=='string'||!['cover','contain'].includes(input.fit)))throw new HubError(400,'การแสดงรูปไม่ถูกต้อง');
   content.aspectRatio=(input.aspectRatio??(type==='gallery'?'square':'landscape')) as HubBlockContent['aspectRatio'];
   content.fit=(input.fit??'contain') as HubBlockContent['fit'];
+  if(type==='service'||type==='promotion'){
+    const framing=[
+      ['imageFocusX',0,100],
+      ['imageFocusY',0,100],
+      ['imageZoom',100,180],
+    ] as const;
+    for(const [name,min,max] of framing){
+      if(!(name in input))continue;
+      const value=input[name];
+      if(typeof value!=='number'||!Number.isInteger(value)||value<min||value>max){
+        throw new HubError(400,'ค่าการจัดตำแหน่งหรือซูมรูปสินค้าไม่ถูกต้อง');
+      }
+      content[name]=value;
+    }
+  }
   content.buttonLabel=contentText(input.buttonLabel??'','ข้อความปุ่ม',60);
   if(type==='service'){
     content.price=contentText(input.price??'','ราคา',80);

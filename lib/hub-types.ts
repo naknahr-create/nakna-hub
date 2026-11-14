@@ -28,6 +28,11 @@ export type HubBlockContent = {
   alt?: string;
   aspectRatio?: 'landscape' | 'square' | 'portrait' | 'auto';
   fit?: 'cover' | 'contain';
+  /** Product photo focus in percentages; 0 = left/top, 100 = right/bottom. */
+  imageFocusX?: number;
+  imageFocusY?: number;
+  /** Product photo zoom in percent; 100 to 180. */
+  imageZoom?: number;
   images?: HubBlockImage[];
   galleryLayout?: 'grid' | 'carousel';
   buttonLabel?: string;

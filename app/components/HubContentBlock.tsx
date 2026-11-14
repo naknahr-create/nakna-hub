@@ -1,6 +1,6 @@
 'use client';
 
-import {useEffect,useId,useRef,useState,type MouseEvent} from 'react';
+import {useEffect,useId,useRef,useState,type CSSProperties,type MouseEvent} from 'react';
 import {ArrowUpRight,ChevronLeft,ChevronRight,Expand,ImageOff,Sparkles,X} from 'lucide-react';
 import type {HubBlockImage,HubLink} from '../../lib/hub-types';
 import {formatThaiBaht,getPromotionPricing,isProductDiscountEnabled} from '../../lib/hub-promotion';
@@ -12,11 +12,20 @@ type ContentBlockProps = {
   onDemoClick?: (title:string)=>void;
 };
 
-function ContentImage({url,alt,ratio='landscape',fit='cover',large=false}:{url:string;alt:string;ratio?:string;fit?:'cover'|'contain';large?:boolean}){
+function ContentImage({url,alt,ratio='landscape',fit='cover',large=false,focusX,focusY,zoom}:{url:string;alt:string;ratio?:string;fit?:'cover'|'contain';large?:boolean;focusX?:number;focusY?:number;zoom?:number}){
+  const framed=focusX!==undefined||focusY!==undefined||zoom!==undefined;
+  const x=typeof focusX==='number'&&Number.isFinite(focusX)?Math.max(0,Math.min(100,focusX)):50;
+  const y=typeof focusY==='number'&&Number.isFinite(focusY)?Math.max(0,Math.min(100,focusY)):35;
+  const zoomRatio=typeof zoom==='number'&&Number.isFinite(zoom)?Math.max(1,Math.min(1.8,zoom/100)):1;
+  const imageStyle:CSSProperties={objectFit:fit,...(framed?{
+    objectPosition:`${x}% ${y}%`,
+    transform:`scale(${zoomRatio})`,
+    transformOrigin:`${x}% ${y}%`
+  }: {})};
   const [failed,setFailed]=useState(false);
   useEffect(()=>setFailed(false),[url]);
   return <span className={`hcb-media hcb-ratio-${ratio} ${large?'hcb-media-large':''}`}>
-    {url&&!failed?<img src={url} alt={alt} loading={large?'eager':'lazy'} decoding="async" style={{objectFit:fit}} onError={()=>setFailed(true)}/>:<span className="hcb-image-fallback"><ImageOff size={24} aria-hidden="true"/><span>{alt||'รูปภาพยังไม่พร้อมแสดง'}</span></span>}
+    {url&&!failed?<img src={url} alt={alt} loading={large?'eager':'lazy'} decoding="async" style={imageStyle} onError={()=>setFailed(true)}/>:<span className="hcb-image-fallback"><ImageOff size={24} aria-hidden="true"/><span>{alt||'รูปภาพยังไม่พร้อมแสดง'}</span></span>}
   </span>;
 }
 
@@ -101,7 +110,11 @@ export function HubContentBlock({block,href,onDemoClick}:ContentBlockProps){
   const isProduct=block.type==='service'||block.type==='promotion';
   function navigate(event:MouseEvent<HTMLAnchorElement>){if(onDemoClick){event.preventDefault();onDemoClick(block.title);}}
   const action=hasAction?<a className="hcb-action" href={href} target="_blank" rel="noopener" aria-label={`${actionLabel}: ${block.title} เปิดในแท็บใหม่`} onClick={navigate}><span>{actionLabel}</span><ArrowUpRight size={18} aria-hidden="true"/></a>:null;
-  const photo=content.imageUrl?<ContentImage url={content.imageUrl} alt={content.alt||block.title} ratio={content.aspectRatio||'landscape'} fit={content.fit||'cover'}/>:null;
+  const photo=content.imageUrl?<ContentImage url={content.imageUrl} alt={content.alt||block.title}
+    ratio={content.aspectRatio||'landscape'} fit={content.fit||'cover'}
+    focusX={isProduct?content.imageFocusX??50:undefined}
+    focusY={isProduct?content.imageFocusY??35:undefined}
+    zoom={isProduct?content.imageZoom??100:undefined}/>:null;
   if(!['text','image','gallery','service','promotion'].includes(block.type))return null;
 
   return <article className={`hcb hcb-${block.type} ${discountEnabled&&block.type==='service'?'hcb-promotion':''} ${block.featured?'hcb-featured':''} ${!photo?'hcb-no-photo':''}`} aria-labelledby={titleId} data-block-type={block.type}>
