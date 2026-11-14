@@ -1,10 +1,10 @@
 "use client";
 
 import {useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent} from "react";
-import {Archive, ArrowLeft, ArrowRight, ArrowUpRight, BarChart3, Check, CreditCard, ChevronDown, ChevronUp, Copy, ExternalLink, Eye, Globe2, Heading, Image as ImageIcon, LayoutGrid, Link2, LoaderCircle, LockKeyhole, LogOut, MessageCircle, MoreHorizontal, Palette, Package, PencilLine, Plus, RefreshCw, RotateCcw, Search, Settings2, ShieldCheck, Sparkles, Upload, Users, X} from "lucide-react";
+import {Archive, ArrowLeft, ArrowRight, ArrowUpRight, BarChart3, Check, CreditCard, ChevronDown, ChevronUp, ChevronsUp, Copy, ExternalLink, Eye, Globe2, Heading, Image as ImageIcon, LayoutGrid, Link2, LoaderCircle, LockKeyhole, LogOut, MessageCircle, MoreHorizontal, Palette, Package, PencilLine, Plus, RefreshCw, RotateCcw, Search, Settings2, ShieldCheck, Sparkles, Upload, Users, X} from "lucide-react";
 import type {HubContentType, HubLink, HubProfile, HubTemplate, PageEditorData, PageSummary, WorkspaceData} from "../../lib/hub-types";
 import {hasBlockAction, isRichContentType} from "../../lib/hub-content";
-import {reorderProductIds} from "../../lib/hub-product-order";
+import {reorderProductIds,reorderProductGroupIds,type ProductGroupMove} from "../../lib/hub-product-order";
 import {formatThaiBaht,getPromotionPricing,isProductDiscountEnabled} from "../../lib/hub-promotion";
 import {CONTENT_OPTIONS, ContentFields, ContentTypePicker, HubShareSettings, contentDraftOf, contentDraftError, emptyContent, type ContentDraft} from "./HubContentEditor";
 import {HubBrand} from "./ui";
@@ -216,6 +216,21 @@ export default function HubStudio(){
       notify("เปลี่ยนลำดับสินค้าในฉบับร่างแล้ว");
     }catch(e){mutationError(e);}finally{setBusy(null);}
   }
+  async function moveProductGroup(direction:ProductGroupMove){
+    if(!editor||busy)return;
+    if(unsavedRows){setError("กรุณากดบันทึกการแก้ไขก่อนย้ายกลุ่มสินค้า");return;}
+    const ids=reorderProductGroupIds(links,direction);
+    if(!ids)return;
+    setBusy("reorder-group");setError("");
+    try{
+      await api(`/api/pages/${editor.page.id}/reorder`,{
+        method:"POST",
+        body:JSON.stringify({ids,revision:editor.revision})
+      });
+      await reloadEditor();
+      notify("ย้ายกลุ่มสินค้าแล้ว · กดเผยแพร่เพื่อให้ลูกค้าเห็นลำดับใหม่");
+    }catch(e){mutationError(e);}finally{setBusy(null);}
+  }
   async function saveProfile(event:FormEvent){event.preventDefault();if(!editor||!profile||busy)return;setBusy("profile");setError("");try{const result=await api<PageEditorData>(`/api/pages/${editor.page.id}`,{method:"PATCH",body:JSON.stringify({profile,...(slug!==editor.page.slug?{slug}:{}),revision:editor.revision})});adoptEditor(result);await refreshWorkspace();notify("บันทึกหน้าตาในฉบับร่างแล้ว");}catch(e){mutationError(e);}finally{setBusy(null);}}
   async function setAvatar(url:string){if(!editor)return;const result=await api<PageEditorData>(`/api/pages/${editor.page.id}`,{method:"PATCH",body:JSON.stringify({profile:{avatarUrl:url},revision:editor.revision})});setEditor(result);setProfile(previous=>previous?{...previous,avatarUrl:url}:result.profile);notify(url?"บันทึกรูปในฉบับร่างแล้ว":"นำรูปออกจากฉบับร่างแล้ว");}
   async function uploadAvatar(file?:File){if(!file||!editor||busy)return;if(!["image/png","image/jpeg","image/webp"].includes(file.type)||file.size>2*1024*1024){setError("เลือกรูป PNG, JPG หรือ WebP ขนาดไม่เกิน 2 MB");return;}setBusy("avatar");setError("");try{const form=new FormData();form.append("file",file);form.append("pageId",editor.page.id);const result=await api<{url:string}>("/api/uploads",{method:"POST",body:form});await setAvatar(result.url);}catch(e){mutationError(e);}finally{setBusy(null);if(uploadRef.current)uploadRef.current.value="";}}
@@ -316,7 +331,20 @@ export default function HubStudio(){
                      <h3 id="hs-product-collection-title">สินค้า / บริการ</h3>
                      <p>สินค้าแต่ละชิ้นเปิดหรือปิดส่วนลดได้ · หน้าเว็บเลื่อนดูซ้าย–ขวา</p>
                    </div>
-                   <span className="hs-product-collection-count">{productLinks.length} สินค้า</span>
+                   <div className="hs-product-collection-toolbar">
+                     <span className="hs-product-collection-count">{productLinks.length} สินค้า</span>
+                     <div className="hs-product-group-order" role="group" aria-label="เลื่อนตำแหน่งกลุ่มสินค้า">
+                       <button type="button" disabled={!!busy||!reorderProductGroupIds(links,"top")}
+                         aria-label="ย้ายกลุ่มสินค้าขึ้นบนสุด" title="ย้ายกลุ่มสินค้าขึ้นบนสุด"
+                         onClick={()=>void moveProductGroup("top")}><ChevronsUp size={16}/>ขึ้นสุด</button>
+                       <button type="button" disabled={!!busy||!reorderProductGroupIds(links,"up")}
+                         aria-label="เลื่อนกลุ่มสินค้าขึ้น" title="เลื่อนกลุ่มสินค้าขึ้นหนึ่งตำแหน่ง"
+                         onClick={()=>void moveProductGroup("up")}><ChevronUp size={16}/>ขึ้น</button>
+                       <button type="button" disabled={!!busy||!reorderProductGroupIds(links,"down")}
+                         aria-label="เลื่อนกลุ่มสินค้าลง" title="เลื่อนกลุ่มสินค้าลงหนึ่งตำแหน่ง"
+                         onClick={()=>void moveProductGroup("down")}><ChevronDown size={16}/>ลง</button>
+                     </div>
+                   </div>
                  </header>
                  <div className="hs-product-collection-list" role="group" aria-label="รายการสินค้า">
                    {productLinks.map((product,productIndex)=><LinkRow key={`${product.id}:${saveEpoch}`}
