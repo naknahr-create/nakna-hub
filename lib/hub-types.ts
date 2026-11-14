@@ -21,7 +21,7 @@ export type HubProfile = {
   background: 'sand' | 'mint' | 'lavender' | 'ink';
   showBranding: boolean;
 };
-export type HubContentType = 'link' | 'heading' | 'text' | 'image' | 'gallery' | 'service';
+export type HubContentType = 'link' | 'heading' | 'text' | 'image' | 'gallery' | 'service' | 'promotion';
 export type HubBlockImage = {url: string; alt: string; caption?: string};
 export type HubBlockContent = {
   imageUrl?: string;
@@ -32,6 +32,9 @@ export type HubBlockContent = {
   galleryLayout?: 'grid' | 'carousel';
   buttonLabel?: string;
   price?: string;
+  /** Original and discounted prices are positive THB amounts with up to 2 decimals. */
+  originalPrice?: string;
+  salePrice?: string;
 };
 export type HubLink = {
   id: string;
