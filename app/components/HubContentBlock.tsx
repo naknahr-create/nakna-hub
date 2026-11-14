@@ -102,7 +102,7 @@ export function HubContentBlock({block,href,onDemoClick}:ContentBlockProps){
   const photo=content.imageUrl?<ContentImage url={content.imageUrl} alt={content.alt||block.title} ratio={content.aspectRatio||'landscape'} fit={content.fit||'cover'}/>:null;
   if(!['text','image','gallery','service','promotion'].includes(block.type))return null;
 
-  return <article className={`hcb hcb-${block.type} ${block.featured?'hcb-featured':''}`} aria-labelledby={titleId} data-block-type={block.type}>
+  return <article className={`hcb hcb-${block.type} ${block.featured?'hcb-featured':''} ${!photo?'hcb-no-photo':''}`} aria-labelledby={titleId} data-block-type={block.type}>
     {block.featured&&block.type!=='promotion'&&<span className="hcb-featured-label"><Sparkles size={12} aria-hidden="true"/>แนะนำ</span>}
     {photo&&<div className="hcb-cover">
       {hasAction?<a href={href} target="_blank" rel="noopener" aria-label={`${actionLabel}: ${block.title} เปิดในแท็บใหม่`} onClick={navigate}>{photo}</a>:photo}
@@ -111,7 +111,7 @@ export function HubContentBlock({block,href,onDemoClick}:ContentBlockProps){
       <h2 id={titleId} className="hcb-title">{block.title}</h2>
       {block.description&&<div className="hcb-description">{block.description.split(/\n\s*\n/).filter(Boolean).map((paragraph,index)=><p key={index}>{paragraph}</p>)}</div>}
       {block.type==='gallery'&&(images.length?<Gallery images={images} title={block.title} layout={content.galleryLayout||'grid'}/>:<div className="hcb-gallery-empty"><ImageOff size={22} aria-hidden="true"/><span>รูปภาพกำลังจะมา</span></div>)}
-      {block.type==='promotion'&&promo&&<div className="hcb-promo-prices" aria-label={`ราคาปกติ ${formatThaiBaht(promo.originalSatang)} ราคาโปรโมชั่น ${formatThaiBaht(promo.saleSatang)} ลด ${promo.discountPercent} เปอร์เซ็นต์`}>
+      {block.type==='promotion'&&promo&&<div className="hcb-promo-prices" aria-label={`ราคาปกติ ${formatThaiBaht(promo.originalSatang)} ราคาหลังลด ${formatThaiBaht(promo.saleSatang)} ลด ${promo.discountPercent} เปอร์เซ็นต์`}>
         <div className="hcb-promo-amount">
           <del>{formatThaiBaht(promo.originalSatang)}</del>
           <strong>{formatThaiBaht(promo.saleSatang)}</strong>
