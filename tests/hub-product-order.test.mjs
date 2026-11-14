@@ -274,3 +274,34 @@ test('Studio photo framing offers compact live preview with focus and zoom contr
   assert.match(render,/objectPosition/);
   assert.match(render,/transformOrigin/);
 });
+
+
+test('frosted product information panels stay equal height even when description or discount is absent',()=>{
+  const css=readFileSync(new URL('../app/hub-content.css',import.meta.url),'utf8');
+  const card=readFileSync(new URL('../app/components/HubContentBlock.tsx',import.meta.url),'utf8');
+  const clean=css.slice(css.indexOf('/* NAKNA HUB · Clean Editorial Commerce'));
+  assert.match(clean,/grid-template-rows:34px 16px 52px/);
+  assert.match(clean,/height:136px;\s*min-height:136px;\s*max-height:136px/);
+  assert.match(clean,/height:34px;\s*min-height:34px;\s*max-height:34px/);
+  assert.match(clean,/\.hcb-product-description-slot:empty\{\s*display:block/);
+  assert.match(clean,/height:16px;\s*min-height:16px;\s*max-height:16px/);
+  assert.match(clean,/\.hcb-product-price-slot:empty\{\s*display:flex/);
+  assert.match(clean,/height:52px;\s*min-height:52px;\s*max-height:52px/);
+  assert.match(card,/className="hcb-product-description-slot"/);
+  assert.match(card,/className="hcb-product-price-slot"/);
+  assert.match(card,/\{promo&&<div className="hcb-promo-prices"/);
+  assert.match(card,/block.type==='service'&&!discountEnabled&&content.price/);
+});
+
+test('single-product white information panel also has reserved title, description and price rows',()=>{
+  const css=readFileSync(new URL('../app/hub-content.css',import.meta.url),'utf8');
+  const clean=css.slice(css.indexOf('/* NAKNA HUB · Clean Editorial Commerce'));
+  assert.match(clean,/grid-template-rows:46px 20px 56px/);
+  assert.match(clean,/height:160px;\s*min-height:160px;\s*max-height:160px/);
+  assert.match(clean,/height:46px;\s*min-height:46px;\s*max-height:46px/);
+  assert.match(clean,/height:20px;\s*min-height:20px;\s*max-height:20px/);
+  assert.match(clean,/height:56px;\s*min-height:56px;\s*max-height:56px/);
+  assert.match(clean,/\.hc \.hc-card-carousel-compact \.hcb-product-footer/);
+  assert.match(clean,/background:#fff;/);
+  assert.match(clean,/flex:0 0 calc\(50% - 5px\)/);
+});
