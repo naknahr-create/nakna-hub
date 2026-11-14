@@ -188,6 +188,7 @@ export default function LineNotifications({hasAccess, onUpgrade, onAccountRefres
           <span>{time} น.<ChevronDown size={16}/></span>
         </button>
         <div className={`ln-advanced-body ${advancedOpen?"is-open":""}`} id="ln-advanced-settings">
+          <p className="ln-advanced-intro">สรุปยอดเข้าชมและคลิก พร้อม 3 ลิงก์ยอดนิยมและเปรียบเทียบกับวันก่อน</p>
         <div className="ln-schedule">
           <div className="ln-schedule-label"><Clock3 size={18}/><div><strong>เวลาที่อยากรับสรุป</strong><span>สรุปข้อมูลเมื่อวาน · เวลาไทย</span></div></div>
           <div className="ln-time-fields"><label><span className="ln-sr-only">ชั่วโมง</span><select value={hour} disabled={!!busy || !enabled || !ready} onChange={event => {setTime(`${event.target.value}:${minute}`); setNotice("");}}>{HOURS.map(value => <option key={value} value={value}>{value}</option>)}</select><ChevronDown size={14}/></label><b>:</b><label><span className="ln-sr-only">นาที</span><select value={minute} disabled={!!busy || !enabled || !ready} onChange={event => {setTime(`${hour}:${event.target.value}`); setNotice("");}}>{MINUTES.map(value => <option key={value} value={value}>{value}</option>)}</select><ChevronDown size={14}/></label><span>น.</span></div>
