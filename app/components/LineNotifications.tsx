@@ -73,6 +73,7 @@ export default function LineNotifications({hasAccess, onUpgrade, onAccountRefres
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewSendStatus, setPreviewSendStatus] = useState<"unsent" | "accepted" | "retry">("unsent");
   const [sendConfirm, setSendConfirm] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -181,12 +182,19 @@ export default function LineNotifications({hasAccess, onUpgrade, onAccountRefres
           <div><strong id="line-daily-label">รับสรุปรายวัน</strong><p id="line-daily-description">รวมผลจากทุกฮับในบัญชี ส่งถึง LINE ของคุณ</p></div>
           <div className="ln-toggle-control"><span aria-hidden="true">{enabled ? "เปิด" : "ปิด"}</span><button type="button" className="ln-switch" role="switch" aria-checked={enabled} aria-labelledby="line-daily-label" aria-describedby="line-daily-description" data-tooltip={ready ? "เลือกเปิดหรือปิด แล้วกดบันทึกการตั้งค่า" : "บริการต้องพร้อมและเพิ่มเพื่อน LINE ก่อนเปิดรับสรุป"} disabled={!!busy || (!ready && !enabled)} onClick={() => {setEnabled(value => !value); setNotice("");}}><span/></button></div>
         </div>
+        <button type="button" className="ln-advanced-toggle" aria-expanded={advancedOpen}
+          aria-controls="ln-advanced-settings" onClick={()=>setAdvancedOpen(value=>!value)}>
+          <span><Clock3 size={17}/>ตั้งเวลาและดูตัวอย่าง</span>
+          <span>{time} น.<ChevronDown size={16}/></span>
+        </button>
+        <div className={`ln-advanced-body ${advancedOpen?"is-open":""}`} id="ln-advanced-settings">
         <div className="ln-schedule">
           <div className="ln-schedule-label"><Clock3 size={18}/><div><strong>เวลาที่อยากรับสรุป</strong><span>สรุปข้อมูลเมื่อวาน · เวลาไทย</span></div></div>
           <div className="ln-time-fields"><label><span className="ln-sr-only">ชั่วโมง</span><select value={hour} disabled={!!busy || !enabled || !ready} onChange={event => {setTime(`${event.target.value}:${minute}`); setNotice("");}}>{HOURS.map(value => <option key={value} value={value}>{value}</option>)}</select><ChevronDown size={14}/></label><b>:</b><label><span className="ln-sr-only">นาที</span><select value={minute} disabled={!!busy || !enabled || !ready} onChange={event => {setTime(`${hour}:${event.target.value}`); setNotice("");}}>{MINUTES.map(value => <option key={value} value={value}>{value}</option>)}</select><ChevronDown size={14}/></label><span>น.</span></div>
         </div>
-        <div className="ln-save-row"><p>{dirty ? <><span className="ln-unsaved-dot"/>มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก</> : settings.enabled && ready ? <><Bell size={14}/>ส่งทุกวัน เวลา {settings.time} น.</> : <><BellOff size={14}/>ยังไม่ส่งสรุปอัตโนมัติ</>}</p><button type="button" className="ln-button ln-primary" disabled={!!busy || !dirty || (enabled && !ready)} onClick={() => void save()}>{busy === "save" ? <LoaderCircle className="hs-spin" size={16}/> : <Check size={16}/>}บันทึกการตั้งค่า</button></div>
         <div className="ln-preview-actions"><button type="button" className="ln-link-button" data-tooltip="ดูข้อความสรุปก่อนส่ง โดยยังไม่ส่งไปยัง LINE" disabled={!!busy} onClick={() => void showPreview()}>{busy === "preview" ? <LoaderCircle className="hs-spin" size={16}/> : <Eye size={16}/>}ดูตัวอย่างจากข้อมูลจริง</button><button type="button" className="ln-link-button" data-tooltip="ดูตัวอย่างแล้วเลือกยืนยันส่ง 1 ข้อความถึงบัญชีของคุณ" disabled={!!busy || !ready} onClick={() => void showPreview(true)}><Send size={15}/>ส่งตัวอย่างไปยัง LINE</button></div>
+        </div>
+        <div className="ln-save-row"><p>{dirty ? <><span className="ln-unsaved-dot"/>มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก</> : settings.enabled && ready ? <><Bell size={14}/>ส่งทุกวัน เวลา {settings.time} น.</> : <><BellOff size={14}/>ยังไม่ส่งสรุปอัตโนมัติ</>}</p><button type="button" className="ln-button ln-primary" disabled={!!busy || !dirty || (enabled && !ready)} onClick={() => void save()}>{busy === "save" ? <LoaderCircle className="hs-spin" size={16}/> : <Check size={16}/>}บันทึกการตั้งค่า</button></div>
       </>}
 
       {error && <div className="ln-feedback ln-error" role="alert"><span>{error}</span>{!settings && <button type="button" className="ln-link-button" disabled={loading} onClick={() => void load()}><RefreshCw size={14}/>ลองอีกครั้ง</button>}</div>}
