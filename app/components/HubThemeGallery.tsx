@@ -1,7 +1,7 @@
 "use client";
 
 import {useMemo, useState} from "react";
-import {ArrowRight, Check, ChevronDown, Eye, Layers3, LoaderCircle, Search, Sparkles, X} from "lucide-react";
+import {ArrowRight, ChevronDown, Eye, Layers3, Search, Sparkles, X} from "lucide-react";
 import type {HubLink, HubProfile} from "../../lib/hub-types";
 import {applyHubTheme, getHubTheme, HUB_THEMES, HUB_THEME_CATEGORIES, type HubThemeCategory} from "../../lib/hub-themes";
 import {HubThemeThumbnail} from "./HubThemeThumbnail";
@@ -14,12 +14,11 @@ type Props = {
   savedThemeId?: string;
   dirty: boolean;
   busy: boolean;
-  saving: boolean;
   onChange: (profile: HubProfile) => void;
   onPreview: () => void;
 };
 
-export default function HubThemeGallery({profile, links, savedThemeId, dirty, busy, saving, onChange, onPreview}: Props) {
+export default function HubThemeGallery({profile, links, savedThemeId, dirty, busy, onChange, onPreview}: Props) {
   const [filter, setFilter] = useState<ThemeFilter>("recommended");
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState(false);
@@ -44,9 +43,8 @@ export default function HubThemeGallery({profile, links, savedThemeId, dirty, bu
 
     <div className="htg-current">
       <span className="htg-current-mark"><Sparkles size={20} aria-hidden="true"/></span>
-      <div className="htg-current-copy" role="status" aria-live="polite"><span>{trying ? "กำลังลองธีม" : "สไตล์ที่เลือก"}</span><strong>{selected?.name || "สไตล์ของคุณ"}</strong><p>{dirty ? "บันทึกฉบับร่างก่อน แล้วเผยแพร่เมื่อพร้อม" : selected ? "เลือกธีมอื่นเพื่อดูตัวอย่างได้เลย" : "เลือกธีมด้านล่างเพื่อเปลี่ยนหน้าตาทั้งชุด"}</p></div>
+      <div className="htg-current-copy" role="status" aria-live="polite"><span>{trying ? "กำลังลองธีม" : "สไตล์ที่เลือก"}</span><strong>{selected?.name || "สไตล์ของคุณ"}</strong><p>{dirty ? "กดบันทึกด้านล่าง แล้วเผยแพร่เมื่อพร้อม" : selected ? "เลือกธีมอื่นเพื่อดูตัวอย่างได้เลย" : "เลือกธีมด้านล่างเพื่อเปลี่ยนหน้าตาทั้งชุด"}</p></div>
       <button type="button" className="hs-button hs-outline htg-preview-button" onClick={onPreview}><Eye size={17}/>ดูตัวอย่าง</button>
-      <button type="submit" className="hs-button hs-primary htg-save" disabled={!dirty || busy}>{saving ? <LoaderCircle size={17} className="hs-spin"/> : <Check size={17}/>}บันทึกฉบับร่าง</button>
     </div>
 
     <div className="htg-tools">
