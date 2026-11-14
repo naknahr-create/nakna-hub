@@ -1,7 +1,7 @@
 "use client";
 
 import {useEffect, useState} from "react";
-import {ArrowRight, ArrowUpRight, Check, CheckCircle2, CreditCard, ExternalLink, Info, Layers, LoaderCircle, LockKeyhole, RefreshCw, ShieldCheck, Sparkles} from "lucide-react";
+import {ArrowRight, ArrowUpRight, Check, CheckCircle2, ChevronDown, CreditCard, ExternalLink, Info, Layers, LoaderCircle, LockKeyhole, RefreshCw, ShieldCheck, Sparkles} from "lucide-react";
 import type {HubPlan} from "../../lib/hub-types";
 import type {BillingInterval, BillingStatus} from "../../lib/hub-billing-types";
 import {HubBrand} from "./ui";
@@ -24,6 +24,7 @@ function goToStripe(value: string, kind: "checkout" | "portal") {
 
 export default function HubBilling({accountPlan, onAccountRefresh}: {accountPlan: HubPlan; onAccountRefresh: () => Promise<unknown>}) {
   const [interval, setInterval] = useState<BillingInterval>("year");
+  const [showComparison, setShowComparison] = useState(accountPlan!=="pro");
   const [revision, setRevision] = useState(0);
   const [result, setResult] = useState<{revision: number; data: BillingStatus | null; error: string; returned: string}>({revision: -1, data: null, error: "", returned: ""});
   const [busy, setBusy] = useState<"checkout" | "portal" | null>(null);
@@ -87,6 +88,13 @@ export default function HubBilling({accountPlan, onAccountRefresh}: {accountPlan
       <div className="hb-membership-detail">{data?.subscription && data.subscription.currentPeriodEnd > 0 && <p>{data.subscription.cancelAtPeriodEnd ? "ใช้สิทธิ์ได้ถึง" : data.subscription.status === "active" ? "รอบถัดไป" : "สิ้นสุดรอบปัจจุบัน"}<strong>{dateLabel(data.subscription.currentPeriodEnd)}</strong></p>}{data?.subscription?.cancelAtPeriodEnd && <small>ยกเลิกการต่ออายุแล้ว</small>}{data?.canManage && <button className="hb-button hb-button-outline" disabled={!!busy} onClick={() => void openStripe("portal")} data-tooltip="ดูใบเสร็จ เปลี่ยนวิธีชำระเงิน หรือยกเลิกการต่ออายุใน Stripe">{busy === "portal" ? <LoaderCircle size={16} className="hs-spin"/> : <ExternalLink size={16}/>}จัดการสมาชิก</button>}</div>
     </section>}
 
+    {plan==="pro"&&<button type="button" className="hb-compare-toggle"
+      aria-expanded={showComparison} aria-controls="hb-plan-comparison"
+      onClick={()=>setShowComparison(value=>!value)}>
+      <span>{showComparison?"ซ่อนการเปรียบเทียบแพ็กเกจ":"ดูราคาและสิทธิ์ของแพ็กเกจทั้งหมด"}</span>
+      <ChevronDown size={18}/>
+    </button>}
+    {(plan!=="pro"||showComparison)&&<div id="hb-plan-comparison" className="hb-plan-comparison">
     <div className="hb-cycle-row"><div className="hb-cycle-copy"><h2>เลือกรอบชำระเงินของ Pro</h2><p>รายปีประหยัด ฿{money.format(annualSaving)} เทียบกับจ่ายรายเดือน 12 รอบ</p></div><div className="hb-cycle" role="group" aria-label="รอบการเรียกเก็บเงิน"><button type="button" aria-pressed={interval === "month"} className={interval === "month" ? "is-selected" : ""} onClick={() => setInterval("month")} disabled={!!busy}>รายเดือน</button><button type="button" aria-pressed={interval === "year"} className={interval === "year" ? "is-selected" : ""} onClick={() => setInterval("year")} disabled={!!busy}>รายปี<span>ประหยัด ฿{money.format(annualSaving)}</span></button></div></div>
     <div className="hb-plans">
       <article className={`hb-plan ${plan === "starter" ? "hb-current" : ""}`}>
@@ -105,6 +113,8 @@ export default function HubBilling({accountPlan, onAccountRefresh}: {accountPlan
 
     <section className="hb-terms"><div><Layers size={20}/><h2>Pro เหมาะกับคุณเมื่อ…</h2></div><div className="hb-reasons"><p><strong>อยากให้คนจำแบรนด์คุณ</strong>ใช้ฮับเป็นหน้าร้านหรือนามบัตร โดยไม่มีโลโก้แพลตฟอร์มท้ายหน้า</p><p><strong>มีหลายโปรเจกต์ต้องดูแล</strong>สร้างฮับแยกแบรนด์ สาขา ผลงาน หรือแคมเปญ แล้วดูผลแต่ละหน้า</p><p><strong>อยากรู้ว่าอะไรพาคนไปต่อ</strong>ดูอันดับลิงก์ อัตราคลิก และแนวโน้ม พร้อมรับสรุป LINE ทุกวัน</p></div></section>
     <section className="hb-conditions" aria-label="เงื่อนไขสมาชิก"><h2>ก่อนสมัคร Pro</h2><ul><li>ชำระค่าบริการตามรอบที่เลือก และต่ออายุอัตโนมัติ ยอดรวมจะแสดงใน Stripe ก่อนยืนยัน</li><li>ยกเลิกการต่ออายุได้ใน “จัดการสมาชิก” และใช้สิทธิ์ต่อได้จนสิ้นสุดรอบที่ชำระแล้ว</li><li>เมื่อสิทธิ์ Pro สิ้นสุด การดูสถิติและส่งออก CSV จะล็อก สรุป LINE จะพัก และแบรนด์ท้ายหน้าจะกลับมา ข้อมูลและประวัติเดิมยังอยู่</li><li>หากใช้เกินโควตา Starter ต้องจัดรายการให้อยู่ในโควตาก่อนเพิ่มรายการใหม่ หรือกลับมาใช้ Pro</li></ul><a href="/billing/terms" target="_blank" rel="noopener">อ่านเงื่อนไขการสมัครและการชำระเงิน<ExternalLink size={14}/></a></section>
+    </div>}
+
     <footer className="hb-footer"><span><ShieldCheck size={16}/>กรอกข้อมูลบัตรใน Stripe โดยตรง</span><button type="button" disabled={loading || !!busy} onClick={() => setRevision(value => value + 1)} data-tooltip="ตรวจสอบสถานะสมาชิกและการชำระเงินล่าสุดจาก Stripe"><RefreshCw size={14} className={loading ? "hs-spin" : ""}/>ตรวจสอบสถานะอีกครั้ง</button></footer>
   </section>;
 }
