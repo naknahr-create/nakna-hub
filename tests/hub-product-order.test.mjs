@@ -280,13 +280,13 @@ test('frosted product information panels stay equal height even when description
   const css=readFileSync(new URL('../app/hub-content.css',import.meta.url),'utf8');
   const card=readFileSync(new URL('../app/components/HubContentBlock.tsx',import.meta.url),'utf8');
   const clean=css.slice(css.indexOf('/* NAKNA HUB · Clean Editorial Commerce'));
-  assert.match(clean,/grid-template-rows:34px 16px 52px/);
+  assert.match(clean,/grid-template-rows:30px 30px 48px/);
   assert.match(clean,/height:136px;\s*min-height:136px;\s*max-height:136px/);
-  assert.match(clean,/height:34px;\s*min-height:34px;\s*max-height:34px/);
+  assert.match(clean,/height:30px;\s*min-height:30px;\s*max-height:30px/);
   assert.match(clean,/\.hcb-product-description-slot:empty\{\s*display:block/);
-  assert.match(clean,/height:16px;\s*min-height:16px;\s*max-height:16px/);
+  assert.match(clean,/height:30px;\s*min-height:30px;\s*max-height:30px/);
   assert.match(clean,/\.hcb-product-price-slot:empty\{\s*display:flex/);
-  assert.match(clean,/height:52px;\s*min-height:52px;\s*max-height:52px/);
+  assert.match(clean,/height:48px;\s*min-height:48px;\s*max-height:48px/);
   assert.match(card,/className="hcb-product-description-slot"/);
   assert.match(card,/className="hcb-product-price-slot"/);
   assert.match(card,/\{promo&&<div className="hcb-promo-prices"/);
@@ -296,12 +296,54 @@ test('frosted product information panels stay equal height even when description
 test('single-product white information panel also has reserved title, description and price rows',()=>{
   const css=readFileSync(new URL('../app/hub-content.css',import.meta.url),'utf8');
   const clean=css.slice(css.indexOf('/* NAKNA HUB · Clean Editorial Commerce'));
-  assert.match(clean,/grid-template-rows:46px 20px 56px/);
+  assert.match(clean,/grid-template-rows:40px 32px 52px/);
   assert.match(clean,/height:160px;\s*min-height:160px;\s*max-height:160px/);
-  assert.match(clean,/height:46px;\s*min-height:46px;\s*max-height:46px/);
-  assert.match(clean,/height:20px;\s*min-height:20px;\s*max-height:20px/);
-  assert.match(clean,/height:56px;\s*min-height:56px;\s*max-height:56px/);
+  assert.match(clean,/height:40px;\s*min-height:40px;\s*max-height:40px/);
+  assert.match(clean,/height:32px;\s*min-height:32px;\s*max-height:32px/);
+  assert.match(clean,/height:52px;\s*min-height:52px;\s*max-height:52px/);
   assert.match(clean,/\.hc \.hc-card-carousel-compact \.hcb-product-footer/);
   assert.match(clean,/background:#fff;/);
   assert.match(clean,/flex:0 0 calc\(50% - 5px\)/);
+});
+
+
+test('product description wraps to two visual lines without making white panels taller',()=>{
+  const css=readFileSync(new URL('../app/hub-content.css',import.meta.url),'utf8');
+  const jsx=readFileSync(new URL('../app/components/HubContentBlock.tsx',import.meta.url),'utf8');
+  const clean=css.slice(css.indexOf('/* NAKNA HUB · Clean Editorial Commerce'));
+  const description=clean.slice(
+    clean.indexOf('.hc .hc-card-carousel-compact .hcb-product-description-slot .hcb-description{'),
+    clean.indexOf('.hc .hc-card-carousel-compact .hcb-product-description-slot p{')
+  );
+  assert.match(description,/-webkit-line-clamp:2/);
+  assert.match(description,/max-height:30px/);
+  assert.match(description,/overflow-wrap:anywhere/);
+  const paragraph=clean.slice(
+    clean.indexOf('.hc .hc-card-carousel-compact .hcb-product-description-slot p{'),
+    clean.indexOf('.hc .hc-card-carousel-compact .hcb-product-price-slot,')
+  );
+  assert.match(paragraph,/white-space:normal/);
+  assert.doesNotMatch(paragraph,/white-space:nowrap/);
+  assert.match(clean,/grid-template-rows:30px 30px 48px/);
+  assert.match(clean,/grid-template-rows:40px 32px 52px/);
+  assert.match(clean,/height:136px;\s*min-height:136px;\s*max-height:136px/);
+  assert.match(clean,/height:160px;\s*min-height:160px;\s*max-height:160px/);
+  const inProduct=jsx.slice(
+    jsx.indexOf('className="hcb-product-description-slot"'),
+    jsx.indexOf('className="hcb-product-price-slot"')
+  );
+  assert.match(inProduct,/block\.description\.replace\(\/\\s\+\/g," "\)\.trim\(\)/);
+  assert.match(jsx,/block\.description\.split\(\/\\n/);
+});
+
+test('two-line product copy keeps sale prices and a separate clickable button',()=>{
+  const jsx=readFileSync(new URL('../app/components/HubContentBlock.tsx',import.meta.url),'utf8');
+  const photoEnd=jsx.indexOf('className="hcb-product-footer"');
+  const photo=jsx.slice(jsx.indexOf('className="hcb-product-stage"'),photoEnd);
+  assert.match(photo,/className="hcb-title"/);
+  assert.match(photo,/className="hcb-product-description-slot"/);
+  assert.match(photo,/className="hcb-product-price-slot"/);
+  assert.match(photo,/hcb-promo-discount/);
+  assert.doesNotMatch(photo,/hcb-product-action-slot/);
+  assert.match(jsx.slice(photoEnd),/hcb-product-action-slot/);
 });
