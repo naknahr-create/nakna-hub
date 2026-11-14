@@ -354,3 +354,39 @@
 @media(prefers-reduced-motion:reduce){
  .hc .hc-card-carousel-compact .hc-card-rail{scroll-behavior:auto}
 }
+
+
+/* FIX: The legacy generic carousel stretched every product to the height of
+   the tallest offer and used margin-top:auto, leaving enormous empty areas
+   inside shorter products. Content-sized cards keep price and CTA next to
+   the title even when a neighboring card has a longer description. */
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hc-card-rail{
+  align-items:flex-start;
+}
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hc-card-slide{
+  align-self:flex-start;
+}
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hc-card-slide>.hcb{
+  height:auto;
+  min-height:0;
+}
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hc-card-slide>.hcb>.hcb-body{
+  flex:0 1 auto;
+  justify-content:flex-start;
+}
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hc-card-slide .hcb-bottom,
+.hc.hc-grid .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-service .hcb-bottom{
+  margin-top:8px;
+  padding-top:0;
+  justify-content:flex-start;
+}
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-promo-prices{
+  margin-top:8px;
+}
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-cover,
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-media{
+  min-height:0;
+}
+.hc .hc-card-carousel-compact:not(.hc-card-carousel-single) .hcb-media img{
+  object-position:center center;
+}
