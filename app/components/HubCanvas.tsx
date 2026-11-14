@@ -37,7 +37,7 @@ export function HubCanvas({profile,links,slug='',preview=false,compact=false,onD
      {visible.map((l,index)=>l.type==='service'?(l.id!==productCards[0]?.id?null:<HubCardCarousel key={l.id} blocks={productCards} href={item=>item.url?href(item):undefined} onDemoClick={onDemoClick}/>):l.type==='promotion'?(l.id!==promoCards[0]?.id?null:
        <section className="hc-promotion-showcase" key={l.id} aria-label="รายการโปรโมชั่น">
          <div className="hc-promotion-heading"><h2>โปรโมชั่น</h2><span>{promoCards.length} รายการ</span></div>
-         <HubCardCarousel blocks={promoCards} href={item=>item.url?href(item):undefined} onDemoClick={onDemoClick}/>
+         <HubCardCarousel blocks={promoCards} compact href={item=>item.url?href(item):undefined} onDemoClick={onDemoClick}/>
        </section>)
        :l.type==='heading'?<h2 key={l.id} className="hc-section-label">{l.title}</h2>:l.type!=='link'?<HubContentBlock key={l.id} block={l} href={l.url?href(l):undefined} onDemoClick={onDemoClick}/>:<a key={l.id} className={`hc-link ${l.featured?'hc-link-featured':''}`} href={href(l)} target="_blank" rel="noopener" aria-label={`${l.title} เปิดในแท็บใหม่`} onClick={e=>{if(onDemoClick){e.preventDefault();onDemoClick(l.title);}}}>
        <span className="hc-link-number">{String(index+1).padStart(2,'0')}</span><span className="hc-link-icon"><HubLinkIcon icon={l.icon} url={l.url} size={30}/></span><span className="hc-link-copy"><span className="hc-link-title">{l.title}</span>{l.description&&<span className="hc-link-description">{l.description}</span>}</span><ArrowUpRight className="hc-link-arrow" size={20}/>{l.featured&&<span className="hc-featured-label"><Sparkles size={11}/> แนะนำ</span>}
