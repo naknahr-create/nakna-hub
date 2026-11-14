@@ -3,7 +3,7 @@ import type {PageAccess} from './hub-team-types';
 import {getAuthConfiguration} from './hub-auth';
 import {imageAssetId} from './hub-link-media';
 import {HUB_GALLERY_LIMIT,hasBlockAction,isHubContentType,isRichContentType,readBlockContent} from './hub-content';
-import {getPromotionPricing} from './hub-promotion';
+import {getPromotionPricing,isProductDiscountEnabled} from './hub-promotion';
 import {applyHubTheme,getHubTheme} from './hub-themes';
 import {expireBillingEntitlement, hasAnalyticsEntitlement} from './hub-billing-entitlements';
 import {env} from 'cloudflare:workers';
@@ -275,7 +275,7 @@ async function validateBlockContent(value:unknown,type:HubLink['type'],title:str
   const input=value as Record<string,unknown>;
   const allowed=type==='gallery'?['images','galleryLayout','aspectRatio','fit','buttonLabel']
     :type==='image'?['imageUrl','alt','aspectRatio','fit','buttonLabel']
-    :type==='service'?['imageUrl','alt','aspectRatio','fit','buttonLabel','price']
+    :type==='service'?['imageUrl','alt','aspectRatio','fit','buttonLabel','price','hasPromotion','originalPrice','salePrice']
     :type==='promotion'?['imageUrl','alt','aspectRatio','fit','buttonLabel','originalPrice','salePrice']:[];
   keys(input,allowed);
   if(!['image','gallery','service','promotion'].includes(type))return undefined;
@@ -305,8 +305,14 @@ async function validateBlockContent(value:unknown,type:HubLink['type'],title:str
   content.aspectRatio=(input.aspectRatio??(type==='gallery'?'square':'landscape')) as HubBlockContent['aspectRatio'];
   content.fit=(input.fit??'contain') as HubBlockContent['fit'];
   content.buttonLabel=contentText(input.buttonLabel??'','ข้อความปุ่ม',60);
-  if(type==='service')content.price=contentText(input.price??'','ราคา',80);
-  if(type==='promotion'){
+  if(type==='service'){
+    content.price=contentText(input.price??'','ราคา',80);
+    if('hasPromotion'in input && typeof input.hasPromotion!=='boolean'){
+      throw new HubError(400,'กรุณาเลือกเปิดหรือปิดส่วนลดสินค้าให้ถูกต้อง');
+    }
+  }
+  const discountEnabled=type==='promotion'||(type==='service'&&input.hasPromotion===true);
+  if(discountEnabled){
     const originalPrice=contentText(input.originalPrice??'','ราคาปกติ',20,true);
     const salePrice=contentText(input.salePrice??'','ราคาหลังลด',20,true);
     if(!getPromotionPricing(originalPrice,salePrice)){
@@ -315,6 +321,10 @@ async function validateBlockContent(value:unknown,type:HubLink['type'],title:str
     if(!content.imageUrl)throw new HubError(400,'กรุณาเพิ่มรูปสินค้าลดราคา');
     content.originalPrice=originalPrice;
     content.salePrice=salePrice;
+    if(type==='service')content.hasPromotion=true;
+  }else if(type==='service'&&'hasPromotion'in input){
+    // Clearing the switch also clears the public discount, never stale old prices.
+    content.hasPromotion=false;
   }
   return content;
 }
@@ -327,15 +337,17 @@ async function validateLink(data:Record<string,unknown>,account:AccountRow,exist
   if(link.type==='text'&&!link.description)throw new HubError(400,'กรอกข้อความที่ต้องการแสดง');
   link.icon=await validateLinkIcon('icon'in data?data.icon:link.icon,account,pageId,actorId);
   if('url'in data)link.url=text(data.url,'ลิงก์ปลายทาง',2048);
+  // Validate all content first: the same service can require a purchase link
+  // only when its discount switch is on.
+  const content=await validateBlockContent('content'in data?data.content:existing?.type===link.type?link.content:undefined,link.type,link.title,account,pageId,actorId);
+  if(content)link.content=content;else delete link.content;
   if(link.type==='link')link.url=validateUrl(link.url);
-  else if(link.type==='promotion'){
+  else if(isProductDiscountEnabled(link.type,link.content)){
     link.url=validateUrl(link.url);
     if(!/^https?:\/\//i.test(link.url))throw new HubError(400,'ลิงก์สินค้าลดราคาต้องเริ่มด้วย https:// หรือ http://');
   }
   else if(['image','gallery','service'].includes(link.type)){if(link.url)link.url=validateUrl(link.url);}
   else {link.url='';link.featured=false;}
-  const content=await validateBlockContent('content'in data?data.content:existing?.type===link.type?link.content:undefined,link.type,link.title,account,pageId,actorId);
-  if(content)link.content=content;else delete link.content;
   for(const field of ['enabled','featured','archived'] as const)if(field in data){if(typeof data[field]!=='boolean')throw new HubError(400,'สถานะบล็อกไม่ถูกต้อง');link[field]=data[field] as boolean;}
   if(link.type==='heading'||link.type==='text')link.featured=false;
   if('sortOrder'in data){if(!Number.isInteger(data.sortOrder)||(data.sortOrder as number)<0||(data.sortOrder as number)>100000)throw new HubError(400,'ลำดับไม่ถูกต้อง');link.sortOrder=data.sortOrder as number;}
