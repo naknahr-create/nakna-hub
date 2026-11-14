@@ -49,8 +49,8 @@ async function boundedBody(request:Request,max:number):Promise<Uint8Array>{
   while(true){const {done,value}=await reader.read();if(done)break;length+=value.byteLength;if(length>max){await reader.cancel();throw new HubError(413,'ข้อมูลมีขนาดใหญ่เกินไป');}chunks.push(value);}
   const data=new Uint8Array(length);let offset=0;for(const chunk of chunks){data.set(chunk,offset);offset+=chunk.byteLength;}return data;
 }
-export async function body(request:Request,optional=false):Promise<Record<string,unknown>>{
-  const bytes=await boundedBody(request,24000);if(optional&&!bytes.length)return {};
+export async function body(request:Request,optional=false,maxBytes=24000):Promise<Record<string,unknown>>{
+  const bytes=await boundedBody(request,maxBytes);if(optional&&!bytes.length)return {};
   if(!(request.headers.get('content-type')??'').toLowerCase().includes('application/json'))throw new HubError(415,'กรุณาส่งข้อมูลในรูปแบบ JSON');
   let value:unknown;try{value=JSON.parse(new TextDecoder().decode(bytes));}catch{throw new HubError(400,'รูปแบบข้อมูลไม่ถูกต้อง');}
   if(!value||typeof value!=='object'||Array.isArray(value))throw new HubError(400,'รูปแบบข้อมูลไม่ถูกต้อง');return value as Record<string,unknown>;
@@ -344,6 +344,47 @@ export async function updateLink(request:Request,pageId:string,linkId:string):Pr
     db().prepare('UPDATE hub_pages SET revision=revision+1,updated_at=? WHERE id=? AND account_id=? AND changes()>0').bind(Date.now(),pageId,account.id),
   ]);
   if(!results[0].meta.changes)throw new HubError(409,'ร่างหรือสิทธิ์มีการเปลี่ยนแปลง หรือจำนวนบล็อกเต็ม กรุณาโหลดใหม่ก่อนแก้ไข');await recordTeamPageActivity(actor,account.id,pageId,'แก้ไขลิงก์หรือรูปภาพ');return {id:linkId,...link};
+}
+/** Save all dirty existing blocks as one revision. All fields are validated
+ * before the D1 transaction so malformed rows cannot partially save. */
+export async function saveLinksBatch(request:Request,pageId:string):Promise<PageEditorData>{
+  const actor=await requireAccount(request);
+  sameOrigin(request);
+  const {page,owner:account}=await pageContext(actor,pageId,'edit');
+  const input=await body(request,false,320000);
+  keys(input,['revision','links']);
+  clientRevision(input.revision,page);
+  if(!Array.isArray(input.links)||!input.links.length||input.links.length>100){
+    throw new HubError(400,'กรุณาเลือกเนื้อหาที่ต้องการบันทึก (สูงสุด 100 รายการ)');
+  }
+  const existingRows=await db().prepare('SELECT * FROM hub_links WHERE page_id=? AND archived=0').bind(pageId).all<LinkRow>();
+  const existing=new Map(existingRows.results.map(row=>[row.id,fromLink(row)]));
+  const seen=new Set<string>();
+  const validated:Array<{id:string;link:Omit<HubLink,'id'>}>=[];
+  for(const item of input.links){
+    if(!item||typeof item!=='object'||Array.isArray(item))throw new HubError(400,'รูปแบบรายการที่ต้องการบันทึกไม่ถูกต้อง');
+    const data={...(item as Record<string,unknown>)};
+    keys(data,['id','type','title','description','url','icon','content','enabled','featured']);
+    const id=data.id;
+    if(typeof id!=='string'||!existing.has(id)||seen.has(id))throw new HubError(400,'มีรายการซ้ำหรือรายการที่ไม่อยู่ในฮับนี้');
+    seen.add(id);
+    delete data.id;
+    const link=await validateLink(data,account,existing.get(id),pageId,actor.id);
+    validated.push({id,link});
+  }
+  const now=Date.now();
+  const results=await db().batch([
+    ...validated.map(({id,link})=>db().prepare(
+      'UPDATE hub_links SET type=?,title=?,description=?,url=?,icon=?,content_json=?,enabled=?,featured=? WHERE id=? AND page_id=? AND archived=0 AND EXISTS(SELECT 1 FROM hub_pages WHERE id=? AND account_id=? AND archived=0 AND revision=? AND '+teamWriteGuard()+')'
+    ).bind(link.type,link.title,link.description,link.url,link.icon,JSON.stringify(link.content??{}),+link.enabled,+link.featured,id,pageId,pageId,account.id,page.revision,actor.id,actor.id)),
+    db().prepare('UPDATE hub_pages SET revision=revision+1,updated_at=? WHERE id=? AND account_id=? AND archived=0 AND revision=? AND '+teamWriteGuard())
+      .bind(now,pageId,account.id,page.revision,actor.id,actor.id),
+  ]);
+  if(results.some(result=>result.meta.changes!==1)){
+    throw new HubError(409,'ข้อมูลหรือสิทธิ์เปลี่ยนไปแล้ว กรุณาโหลดข้อมูลล่าสุดก่อนบันทึก',{code:'revision_conflict'});
+  }
+  await recordTeamPageActivity(actor,account.id,pageId,'บันทึกเนื้อหาหลายรายการ');
+  return editorData(actor,await ownPage(account,pageId));
 }
 export async function archiveLink(request:Request,pageId:string,linkId:string):Promise<void>{
   const actor=await requireAccount(request);sameOrigin(request);const {page,owner:account}=await pageContext(actor,pageId,'edit');clientRevision(Number(new URL(request.url).searchParams.get('revision')),page);
