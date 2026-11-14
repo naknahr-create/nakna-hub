@@ -27,6 +27,7 @@ export default function HubBilling({accountPlan, onAccountRefresh}: {accountPlan
   const [showComparison, setShowComparison] = useState(accountPlan!=="pro");
   const [starterDetails,setStarterDetails]=useState(false);
   const [proDetails,setProDetails]=useState(false);
+  const [showMoreAbout,setShowMoreAbout]=useState(false);
   const [revision, setRevision] = useState(0);
   const [result, setResult] = useState<{revision: number; data: BillingStatus | null; error: string; returned: string}>({revision: -1, data: null, error: "", returned: ""});
   const [busy, setBusy] = useState<"checkout" | "portal" | null>(null);
@@ -121,10 +122,16 @@ export default function HubBilling({accountPlan, onAccountRefresh}: {accountPlan
       </article>
     </div>
 
+    <button type="button" className="hb-extra-toggle" aria-controls="hb-extra-benefits"
+      aria-expanded={showMoreAbout} onClick={()=>setShowMoreAbout(value=>!value)}>
+      สิทธิ์เพิ่มเติมและเงื่อนไข <ChevronDown size={17}/>
+    </button>
+    <div className={`hb-extra-body ${showMoreAbout?"is-open":""}`} id="hb-extra-benefits">
     <section className="hb-brand-preview" aria-label="ตัวอย่างซ่อนแบรนด์ท้ายหน้า"><div><span className="hb-feature-icon"><LockKeyhole size={20}/></span><h2>คนเห็นแบรนด์คุณเป็นหลัก</h2><p>Pro ซ่อนโลโก้ “นากนะ HUB” และข้อความท้ายหน้าสาธารณะ ชื่อฮับและโลโก้ของคุณยังแสดงตามที่ตั้งไว้</p><small>อัปเกรดแล้วไปที่ ออกแบบ → แบรนด์ท้ายหน้า เพื่อปิดและเผยแพร่</small></div><div className="hb-brand-comparison"><div><span>STARTER</span><div className="hb-mini-footer"><small>พื้นที่เล็ก ๆ ที่เป็นคุณ</small><HubBrand compact/></div></div><ArrowRight size={18}/><div><span>PRO</span><div className="hb-mini-footer hb-mini-clear"><CheckCircle2 size={24}/><strong>พื้นที่ของแบรนด์คุณ</strong><small>ไม่มีแบรนด์แพลตฟอร์มท้ายหน้า</small></div></div></div></section>
 
     <section className="hb-terms"><div><Layers size={20}/><h2>Pro เหมาะกับคุณเมื่อ…</h2></div><div className="hb-reasons"><p><strong>อยากให้คนจำแบรนด์คุณ</strong>ใช้ฮับเป็นหน้าร้านหรือนามบัตร โดยไม่มีโลโก้แพลตฟอร์มท้ายหน้า</p><p><strong>มีหลายโปรเจกต์ต้องดูแล</strong>สร้างฮับแยกแบรนด์ สาขา ผลงาน หรือแคมเปญ แล้วดูผลแต่ละหน้า</p><p><strong>อยากรู้ว่าอะไรพาคนไปต่อ</strong>ดูอันดับลิงก์ อัตราคลิก และแนวโน้ม พร้อมรับสรุป LINE ทุกวัน</p></div></section>
     <section className="hb-conditions" aria-label="เงื่อนไขสมาชิก"><h2>ก่อนสมัคร Pro</h2><ul><li>ชำระค่าบริการตามรอบที่เลือก และต่ออายุอัตโนมัติ ยอดรวมจะแสดงใน Stripe ก่อนยืนยัน</li><li>ยกเลิกการต่ออายุได้ใน “จัดการสมาชิก” และใช้สิทธิ์ต่อได้จนสิ้นสุดรอบที่ชำระแล้ว</li><li>เมื่อสิทธิ์ Pro สิ้นสุด การดูสถิติและส่งออก CSV จะล็อก สรุป LINE จะพัก และแบรนด์ท้ายหน้าจะกลับมา ข้อมูลและประวัติเดิมยังอยู่</li><li>หากใช้เกินโควตา Starter ต้องจัดรายการให้อยู่ในโควตาก่อนเพิ่มรายการใหม่ หรือกลับมาใช้ Pro</li></ul><a href="/billing/terms" target="_blank" rel="noopener">อ่านเงื่อนไขการสมัครและการชำระเงิน<ExternalLink size={14}/></a></section>
+    </div>
     </div>}
 
     <footer className="hb-footer"><span><ShieldCheck size={16}/>กรอกข้อมูลบัตรใน Stripe โดยตรง</span><button type="button" disabled={loading || !!busy} onClick={() => setRevision(value => value + 1)} data-tooltip="ตรวจสอบสถานะสมาชิกและการชำระเงินล่าสุดจาก Stripe"><RefreshCw size={14} className={loading ? "hs-spin" : ""}/>ตรวจสอบสถานะอีกครั้ง</button></footer>
