@@ -19,3 +19,14 @@ test('reordering stays within the product group boundaries',()=>{
   assert.equal(reorderProductIds(links,-1,1),null);
   assert.deepEqual(links.map(link=>link.id),['house','website','gym','heading','hotel']);
 });
+
+test('Studio nests products under one collection while retaining independent editors', async()=>{
+  const {readFileSync}=await import('node:fs');
+  const source=readFileSync(new URL('../app/components/HubStudio.tsx',import.meta.url),'utf8');
+  assert.match(source,/className="hs-product-collection"/);
+  assert.match(source,/productLinks\.map\(\(product,productIndex\)/);
+  assert.match(source,/onReorder=\{reorderProduct\}/);
+  assert.match(source,/setNewBlockAfterId\(type==="service"\?/);
+  assert.equal((source.match(/เพิ่มสินค้าอีกรายการ/g)||[]).length,1);
+  assert.doesNotMatch(source,/onAddProduct/);
+});
