@@ -85,8 +85,8 @@ test('single card uses a balanced responsive hero; multiple products are small s
   assert.match(css,/\.hc \.hc-card-carousel-compact \.hc-card-slide/);
   assert.match(css,/scroll-snap-type:x mandatory/);
   assert.match(css,/overflow-x:auto/);
-  assert.match(css,/clamp\(150px,47%,192px\)/);
-  assert.match(css,/clamp\(150px,47%,183px\)/);
+  assert.match(css,/clamp\(136px,43%,164px\)/);
+  assert.match(css,/clamp\(136px,44%,164px\)/);
   assert.match(css,/\.hc \.hc-card-carousel-single \.hc-card-slide:only-child/);
   assert.match(css,/grid-template-columns:minmax\(140px,40%\) minmax\(0,1fr\)/);
   assert.match(css,/@media\(max-width:560px\)/);
@@ -182,7 +182,7 @@ test('same-height products share title, description, price and CTA rows without 
   assert.match(content,/block.type==='service'&&!discountEnabled&&content.price/);
   assert.doesNotMatch(content,/hcb-promo-disclosure/);
   assert.doesNotMatch(content,/ลิงก์แนะนำสินค้า · ราคาและส่วนลดอาจเปลี่ยนตามร้านค้า/);
-  assert.match(css,/grid-template-rows:34px 34px 62px 46px/);
+  assert.match(css,/grid-template-rows:25px 24px 45px 44px/);
   assert.match(css,/\.hcb-product-action-slot>\.hcb-action/);
   assert.match(css,/\.hcb-product-price-slot>\.hcb-price/);
   assert.match(css,/\.hc-card-carousel-single \.hcb-product-body/);
@@ -193,4 +193,31 @@ test('non-product content cards retain image/gallery actions unaffected by share
   assert.match(content,/block.type==='gallery'&&/);
   assert.match(content,/:action&&<div className="hcb-bottom">\{action\}<\/div>/);
   assert.match(content,/hasAction\?<a href=\{href\}/);
+});
+
+
+test('mini product cards show two products on narrow phones with a shorter image and equal rows',()=>{
+  const css=readFileSync(new URL('../app/hub-content.css',import.meta.url),'utf8');
+  const markup=readFileSync(new URL('../app/components/HubContentBlock.tsx',import.meta.url),'utf8');
+  assert.match(css,/clamp\(136px,43%,164px\)/);
+  assert.match(css,/clamp\(136px,44%,164px\)/);
+  assert.match(css,/grid-template-rows:25px 24px 45px 44px/);
+  assert.match(css,/aspect-ratio:2\.15\/1/);
+  assert.match(css,/max-height:76px/);
+  assert.match(css,/height:44px;min-height:44px;max-height:44px/);
+  assert.match(css,/\.hc-card-carousel-compact:not\(\.hc-card-carousel-single\)/);
+  assert.match(markup,/hcb-product-price-slot/);
+  assert.match(markup,/hcb-product-action-slot/);
+  assert.match(markup,/hcb-promo-discount/);
+  assert.doesNotMatch(markup,/hcb-promo-disclosure/);
+});
+
+test('single-product full-width layout remains separate from mini carousel',()=>{
+  const css=readFileSync(new URL('../app/hub-content.css',import.meta.url),'utf8');
+  assert.match(css,/\.hc \.hc-card-carousel-single \.hc-card-slide>.hcb/);
+  assert.match(css,/\.hc \.hc-card-carousel-single \.hcb-media/);
+  assert.match(css,/\.hc \.hc-card-carousel-single \.hcb-product-body/);
+  const carousel=readFileSync(new URL('../app/components/HubCardCarousel.tsx',import.meta.url),'utf8');
+  assert.match(carousel,/singleCard=compactCards&&blocks.length===1/);
+  assert.match(carousel,/blocks.length>1&&/);
 });
