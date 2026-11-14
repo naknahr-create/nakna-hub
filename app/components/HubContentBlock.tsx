@@ -98,6 +98,7 @@ export function HubContentBlock({block,href,onDemoClick}:ContentBlockProps){
   const actionLabel=content.buttonLabel||(discountEnabled?'ดูสินค้า / ซื้อเลย':block.type==='service'?'สอบถามรายละเอียด':'ดูเพิ่มเติม');
   const promo=discountEnabled?getPromotionPricing(content.originalPrice,content.salePrice):null;
   const images=Array.isArray(content.images)?content.images.slice(0,6):[];
+  const isProduct=block.type==='service'||block.type==='promotion';
   function navigate(event:MouseEvent<HTMLAnchorElement>){if(onDemoClick){event.preventDefault();onDemoClick(block.title);}}
   const action=hasAction?<a className="hcb-action" href={href} target="_blank" rel="noopener" aria-label={`${actionLabel}: ${block.title} เปิดในแท็บใหม่`} onClick={navigate}><span>{actionLabel}</span><ArrowUpRight size={18} aria-hidden="true"/></a>:null;
   const photo=content.imageUrl?<ContentImage url={content.imageUrl} alt={content.alt||block.title} ratio={content.aspectRatio||'landscape'} fit={content.fit||'cover'}/>:null;
@@ -108,19 +109,29 @@ export function HubContentBlock({block,href,onDemoClick}:ContentBlockProps){
     {photo&&<div className="hcb-cover">
       {hasAction?<a href={href} target="_blank" rel="noopener" aria-label={`${actionLabel}: ${block.title} เปิดในแท็บใหม่`} onClick={navigate}>{photo}</a>:photo}
     </div>}
-    <div className="hcb-body">
+    <div className={`hcb-body ${isProduct?'hcb-product-body':''}`}>
       <h2 id={titleId} className="hcb-title">{block.title}</h2>
-      {block.description&&<div className="hcb-description">{block.description.split(/\n\s*\n/).filter(Boolean).map((paragraph,index)=><p key={index}>{paragraph}</p>)}</div>}
-      {block.type==='gallery'&&(images.length?<Gallery images={images} title={block.title} layout={content.galleryLayout||'grid'}/>:<div className="hcb-gallery-empty"><ImageOff size={22} aria-hidden="true"/><span>รูปภาพกำลังจะมา</span></div>)}
-      {promo&&<div className="hcb-promo-prices" aria-label={`ราคาปกติ ${formatThaiBaht(promo.originalSatang)} ราคาหลังลด ${formatThaiBaht(promo.saleSatang)} ลด ${promo.discountPercent} เปอร์เซ็นต์`}>
-        <div className="hcb-promo-amount">
-          <del>{formatThaiBaht(promo.originalSatang)}</del>
-          <strong>{formatThaiBaht(promo.saleSatang)}</strong>
+      {isProduct?
+        <div className="hcb-product-description-slot">
+          {block.description&&<div className="hcb-description">{block.description.split(/\n\s*\n/).filter(Boolean).map((paragraph,index)=><p key={index}>{paragraph}</p>)}</div>}
         </div>
-        <span className="hcb-promo-discount">ลด {promo.discountPercent}%</span>
-      </div>}
-      {((block.type==='service'&&!discountEnabled&&content.price)||action)&&<div className="hcb-bottom">{block.type==='service'&&!discountEnabled&&content.price&&<p className="hcb-price">{content.price}</p>}{action}</div>}
-      {promo&&<small className="hcb-promo-disclosure">ลิงก์แนะนำสินค้า · ราคาและส่วนลดอาจเปลี่ยนตามร้านค้า</small>}
+        :block.description&&<div className="hcb-description">{block.description.split(/\n\s*\n/).filter(Boolean).map((paragraph,index)=><p key={index}>{paragraph}</p>)}</div>}
+      {block.type==='gallery'&&(images.length?<Gallery images={images} title={block.title} layout={content.galleryLayout||'grid'}/>:<div className="hcb-gallery-empty"><ImageOff size={22} aria-hidden="true"/><span>รูปภาพกำลังจะมา</span></div>)}
+      {isProduct?
+        <>
+          <div className="hcb-product-price-slot">
+            {promo&&<div className="hcb-promo-prices" aria-label={`ราคาปกติ ${formatThaiBaht(promo.originalSatang)} ราคาหลังลด ${formatThaiBaht(promo.saleSatang)} ลด ${promo.discountPercent} เปอร์เซ็นต์`}>
+              <div className="hcb-promo-amount">
+                <del>{formatThaiBaht(promo.originalSatang)}</del>
+                <strong>{formatThaiBaht(promo.saleSatang)}</strong>
+              </div>
+              <span className="hcb-promo-discount">ลด {promo.discountPercent}%</span>
+            </div>}
+            {block.type==='service'&&!discountEnabled&&content.price&&<p className="hcb-price">{content.price}</p>}
+          </div>
+          <div className="hcb-product-action-slot">{action}</div>
+        </>
+        :action&&<div className="hcb-bottom">{action}</div>}
     </div>
   </article>;
 }
