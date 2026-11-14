@@ -103,3 +103,10 @@
   .hs-studio-footer>.hub-build-footer{display:block;margin-left:auto}
   .hs-studio-footer{flex-wrap:wrap}
 }
+
+/* Single save action for all edited content; the save control stays visible while scrolling. */
+.hs-row-unsaved{display:inline-flex;align-items:center;gap:6px;margin-left:auto;padding:5px 8px;border-radius:8px;background:#fff4df;color:#93601b;font-size:12px;font-weight:500;white-space:nowrap}
+.hs-row-unsaved:before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.hs-content-save{margin-top:18px}
+.hs-content-save .hs-button{min-width:108px}
+@media(max-width:600px){.hs-content-save .hs-button{min-width:0}}
