@@ -433,3 +433,56 @@ test('Studio content cards use one Save control instead of individual buttons',(
   assert.doesNotMatch(source,/hs-save-link/);
   assert.doesNotMatch(source,/บันทึกฉบับร่าง<\/button>/);
 });
+
+
+test('affiliate promotion shows 100 -> 80 baht as a 20% discount and counts a real outbound click',async()=>{
+  const {db}=setup(),p=await page(),id=p.page.id;
+  paid(db,(await account()).id);
+  const img=await upload(id);
+  const promotion=await link(id,{type:'promotion',title:'สินค้าลดราคา',url:'https://shop.example.com/item?affiliate=abc',
+    content:{imageUrl:img.url,alt:'สินค้าทดลอง',aspectRatio:'square',fit:'contain',buttonLabel:'ดูสินค้า / ซื้อเลย',originalPrice:'100',salePrice:'80'}});
+  const pricing=await import('../lib/hub-promotion.ts');
+  assert.deepEqual(pricing.getPromotionPricing('100','80'),{
+    originalSatang:10000,saleSatang:8000,savingsSatang:2000,discountPercent:20
+  });
+  assert.equal(pricing.formatThaiBaht(8000),'฿80');
+  assert.equal(hasBlockAction(promotion),true);
+  assert.equal(blockImageUrls(promotion)[0],img.url);
+  await assert.rejects(publicAsset(img.url),missing,'draft image stays private before publishing');
+  await publish(id);
+  const published=await publicHub(p.page.slug);
+  assert.equal(published.links[0].type,'promotion');
+  assert.equal(published.links[0].content.originalPrice,'100');
+  assert.equal(published.links[0].content.salePrice,'80');
+  assert.equal((await publicAsset(img.url)).status,200,'published promotion image is public');
+  const redirect=await hub.goToLink(await request(`/go/${p.page.slug}/${promotion.id}`,{actor:null}),p.page.slug,promotion.id);
+  assert.equal(redirect.status,302);
+  assert.equal(redirect.headers.get('Location'),'https://shop.example.com/item?affiliate=abc');
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM hub_events WHERE type='click'").get().n,1);
+  await patchBlock(id,promotion.id,{enabled:false});
+  await publish(id);
+  await assert.rejects(publicAsset(img.url),missing,'disabled promo images become private');
+});
+
+test('promotion requires a real image, positive prices, discount and an affiliate product URL',async()=>{
+  setup();const p=await page(),id=p.page.id,img=await upload(id);
+  const valid={imageUrl:img.url,originalPrice:'100',salePrice:'80'};
+  const invalidSpecs=[
+    {url:'',content:valid},
+    {url:'mailto:hello@example.com',content:valid},
+    {url:'javascript:alert(1)',content:valid},
+    {url:'https://shop.example.com/a',content:{...valid,imageUrl:''}},
+    {url:'https://shop.example.com/a',content:{...valid,originalPrice:'80',salePrice:'100'}},
+    {url:'https://shop.example.com/a',content:{...valid,originalPrice:'100',salePrice:'100'}},
+    {url:'https://shop.example.com/a',content:{...valid,originalPrice:'-100'}},
+    {url:'https://shop.example.com/a',content:{...valid,originalPrice:'฿100'}},
+    {url:'https://shop.example.com/a',content:{...valid,salePrice:'0'}},
+    {url:'https://shop.example.com/a',content:{...valid,salePrice:'80.999'}},
+    {url:'https://shop.example.com/a',content:{...valid,discountPercent:20}},
+  ];
+  for(const spec of invalidSpecs){
+    await assert.rejects(link(id,{type:'promotion',title:'Invalid sale',...spec}),invalid,
+      'invalid promotion must be rejected');
+  }
+  assert.equal((await readPage(id)).links.length,0);
+});
