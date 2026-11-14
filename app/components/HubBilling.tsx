@@ -35,6 +35,7 @@ export default function HubBilling({accountPlan, onAccountRefresh}: {accountPlan
   const loading = result.revision !== revision;
   const data = loading ? null : result.data;
   const plan = data?.plan ?? accountPlan;
+  useEffect(()=>{if(plan==="pro")setShowComparison(false);},[plan]);
   const monthly = data?.prices.monthly ?? 149;
   const yearly = data?.prices.yearly ?? 1490;
   const annualSaving = monthly * 12 - yearly;
