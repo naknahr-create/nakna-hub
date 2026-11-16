@@ -106,11 +106,15 @@ export function HubContentBlock({block,href,onDemoClick}:ContentBlockProps){
   const discountEnabled=isProductDiscountEnabled(block.type,content);
   const actionLabel=content.buttonLabel||(discountEnabled?'ดูสินค้า / ซื้อเลย':block.type==='service'?'สอบถามรายละเอียด':'ดูเพิ่มเติม');
   const promo=discountEnabled?getPromotionPricing(content.originalPrice,content.salePrice):null;
+  const saleText=promo?formatThaiBaht(promo.saleSatang):"";
+  const saleSize=saleText.length>=13?"extra-long":saleText.length>=10?"long":saleText.length>=8?"compact":"regular";
+  const regularPrice=block.type==='service'&&!discountEnabled?content.price?.trim()||"":"";
+  const regularPriceSize=regularPrice.length>=13?"extra-long":regularPrice.length>=10?"long":regularPrice.length>=8?"compact":"regular";
   const images=Array.isArray(content.images)?content.images.slice(0,6):[];
   const isProduct=block.type==='service'||block.type==='promotion';
   function navigate(event:MouseEvent<HTMLAnchorElement>){if(onDemoClick){event.preventDefault();onDemoClick(block.title);}}
   const action=hasAction?<a className="hcb-action" href={href} target="_blank" rel="noopener" aria-label={`${actionLabel}: ${block.title} เปิดในแท็บใหม่`} onClick={navigate}><span>{actionLabel}</span><ArrowUpRight size={18} aria-hidden="true"/></a>:null;
-  const photo=content.imageUrl?<ContentImage url={content.imageUrl} alt={content.alt||block.title}
+  const photo=content.imageUrl?<ContentImage url={content.imageUrl} alt={isProduct?block.title:content.alt||block.title}
     ratio={content.aspectRatio||'landscape'} fit={content.fit||'cover'}
     focusX={isProduct?content.imageFocusX??50:undefined}
     focusY={isProduct?content.imageFocusY??35:undefined}
@@ -133,11 +137,11 @@ export function HubContentBlock({block,href,onDemoClick}:ContentBlockProps){
             {promo&&<div className="hcb-promo-prices" aria-label={`ราคาปกติ ${formatThaiBaht(promo.originalSatang)} ราคาหลังลด ${formatThaiBaht(promo.saleSatang)} ลด ${promo.discountPercent} เปอร์เซ็นต์`}>
               <div className="hcb-promo-amount">
                 <del>{formatThaiBaht(promo.originalSatang)}</del>
-                <strong>{formatThaiBaht(promo.saleSatang)}</strong>
+                <strong className={`hcb-sale-price hcb-sale-price-${saleSize}`}>{saleText}</strong>
               </div>
               <span className="hcb-promo-discount">ลด {promo.discountPercent}%</span>
             </div>}
-            {block.type==='service'&&!discountEnabled&&content.price&&<p className="hcb-price">{content.price}</p>}
+            {regularPrice&&<p className={`hcb-price hcb-regular-price-${regularPriceSize}`}>{regularPrice}</p>}
           </div>
         </div>
       </div>
