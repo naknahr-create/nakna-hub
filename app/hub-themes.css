@@ -286,3 +286,62 @@
   .hc-theme-art,.ht-thumb-art{display:none}
   .hc.hc-themed .hc-link,.ht-thumb-link{border:1px solid CanvasText;box-shadow:none!important}
 }
+
+/*
+ * Amber Window used to render a split editorial desktop grid while its
+ * small-screen preview was stacked. Legacy published profiles keep their
+ * saved layout=editorial, so normalize that variant to the preset's new
+ * centered, single-column layout without rewriting any customer data.
+ * New selections already use stack in the theme catalog.
+ */
+.hc.hc-themed[data-theme="amber-window"].hc-editorial .hc-inner{
+  display:block;
+  width:100%;
+  max-width:520px;
+  margin-inline:auto;
+}
+.hc.hc-themed[data-theme="amber-window"].hc-editorial .hc-profile{
+  width:100%;
+  min-width:0;
+}
+.hc.hc-themed[data-theme="amber-window"].hc-editorial .hc-profile-main{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  text-align:center;
+  gap:0;
+}
+.hc.hc-themed[data-theme="amber-window"].hc-editorial .hc-avatar{
+  width:88px;
+  height:88px;
+  margin:0 0 19px;
+}
+.hc.hc-themed[data-theme="amber-window"].hc-editorial h1{
+  font-size:29px;
+  line-height:1.45;
+}
+.hc.hc-themed[data-theme="amber-window"].hc-editorial .hc-profile-rule{
+  margin:26px 0;
+}
+.hc.hc-themed[data-theme="amber-window"].hc-editorial .hc-links{
+  width:100%;
+  min-width:0;
+  padding-top:0;
+  gap:16px;
+}
+.hc.hc-themed.hc-compact[data-theme="amber-window"].hc-editorial .hc-avatar{
+  width:62px;
+  height:62px;
+  margin-bottom:13px;
+}
+.hc.hc-themed.hc-compact[data-theme="amber-window"].hc-editorial h1{
+  font-size:22px;
+}
+@media(max-width:700px){
+  .hc.hc-themed[data-theme="amber-window"].hc-editorial .hc-avatar{
+    width:72px;
+    height:72px;
+    margin-bottom:15px;
+  }
+}
+
