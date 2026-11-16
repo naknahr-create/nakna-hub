@@ -56,11 +56,11 @@ export const HUB_THEMES: readonly HubThemePreset[] = [
   },
   {
     id: 'amber-window', name: 'Amber Window', description: 'กระจกอุ่น เส้นเรียบ และแสงสีอำพัน', category: 'glass', style: 'glass',
-    profile: {accent: '#8D5A2D', theme: 'light', layout: 'editorial', background: 'sand'},
+    profile: {accent: '#8D5A2D', theme: 'light', layout: 'stack', background: 'sand'},
     tokens: {
       paper: '#F7EEE3', ink: '#44372B', muted: '#6D5948', card: '#FFFCF7', line: '#DCC4A8',
       shadow: '0 12px 30px rgba(124,85,43,0.08), inset 0 1px 0 rgba(255,255,255,0.94)', radius: '22px',
-      backgroundImage: 'linear-gradient(125deg, transparent 38%, rgba(237,215,177,0.27) 38%, rgba(255,255,255,0.16) 71%, transparent 71%)',
+      backgroundImage: 'linear-gradient(180deg, rgba(237,215,177,0.15) 0%, rgba(255,255,255,0.07) 52%, transparent 100%)',
       decoration: 'linear-gradient(130deg, rgba(255,255,255,0.82), rgba(216,180,128,0.22))',
     },
   },
