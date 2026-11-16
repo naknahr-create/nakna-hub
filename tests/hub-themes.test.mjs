@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {HUB_THEMES, HUB_THEME_CATEGORIES, applyHubTheme, getHubTheme, getHubThemeCssVars} from '../lib/hub-themes.ts';
 
 const profile = {
@@ -59,4 +60,14 @@ test('legacy, custom and unknown themes keep the previous rendering without inje
     assert.equal(getHubTheme(themeId), undefined);
     assert.deepEqual(getHubThemeCssVars({...profile, themeId}), {});
   }
+});
+
+test('Amber Window stays visually aligned across desktop, mobile and previously published editorial profiles', () => {
+  const theme = getHubTheme('amber-window');
+  assert.equal(theme.profile.layout, 'stack', 'new Amber Window selections should stack content in one column');
+  assert.match(theme.tokens.backgroundImage, /linear-gradient\(180deg/, 'background must have a straight vertical gradient');
+  assert.doesNotMatch(theme.tokens.backgroundImage, /125deg/, 'the old diagonal stripe is removed');
+  const css = readFileSync(new URL('../app/hub-themes.css', import.meta.url), 'utf8');
+  assert.match(css, /\.hc\.hc-themed\[data-theme="amber-window"\]\.hc-editorial \.hc-inner\{[\s\S]*?display:block;[\s\S]*?max-width:520px;/);
+  assert.match(css, /\.hc\.hc-themed\[data-theme="amber-window"\]\.hc-editorial \.hc-links\{[\s\S]*?padding-top:0;/);
 });
