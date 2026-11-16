@@ -606,10 +606,13 @@ export async function serveAsset(request:Request,id:string):Promise<Response>{
       .bind('/media/'+id,'image:'+id,user.userId,asset.account_id,asset.page_id).first<{id:string;actor_id:string}>();
     if(candidate)allowed=await assetUsable(id,asset.account_id,candidate.id,candidate.actor_id);
   }
-  if(!allowed)allowed=!!await db().prepare(`WITH media AS (SELECT ? AS url,? AS icon)
-    SELECT p.id FROM hub_pages p CROSS JOIN media WHERE p.account_id=? AND p.published=1 AND p.archived=0
+  if(!allowed){
+    await expireBillingEntitlement(db(),asset.account_id);
+    allowed=!!await db().prepare(`WITH media AS (SELECT ? AS url,? AS icon)
+    SELECT p.id FROM hub_pages p JOIN hub_accounts a ON a.id=p.account_id CROSS JOIN media WHERE p.account_id=? AND a.plan='pro' AND p.published=1 AND p.archived=0
       AND NOT EXISTS(SELECT 1 FROM hub_page_controls c WHERE c.page_id=p.id AND c.suspended=1)
       AND ${PUBLISHED_MEDIA_REFERENCE} LIMIT 1`).bind('/media/'+id,'image:'+id,asset.account_id).first();
+  }
   if(!allowed)throw new HubError(404,'ไม่พบรูปภาพ');const object=await env.BUCKET.get(asset.storage_key);if(!object)throw new HubError(404,'ไม่พบรูปภาพ');
   return new Response(request.method==='HEAD'?null:object.body,{headers:{'Content-Type':asset.mime_type,'Content-Length':String(object.size),'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Content-Disposition':'inline; filename="image.'+(asset.mime_type==='image/jpeg'?'jpg':asset.mime_type==='image/png'?'png':'webp')+'"'}});
 }
