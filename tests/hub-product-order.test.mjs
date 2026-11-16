@@ -103,7 +103,7 @@ test('discount works for a normal product and keeps historic promotion records r
   assert.match(card,/isProductDiscountEnabled\(block\.type,content\)/);
   assert.match(card,/discountEnabled&&block\.type==='service'\?'hcb-promotion'/);
   assert.match(card,/\{promo&&<div className="hcb-promo-prices"/);
-  assert.match(card,/!discountEnabled&&content\.price/);
+  assert.match(card,/regularPrice/);
 });
 
 
@@ -180,7 +180,7 @@ test('same-height products share title, description, price and CTA rows without 
   assert.match(content,/hcb-product-price-slot/);
   assert.match(content,/hcb-product-action-slot/);
   assert.match(content,/\{promo&&<div className="hcb-promo-prices"/);
-  assert.match(content,/block.type==='service'&&!discountEnabled&&content.price/);
+  assert.match(content,/regularPrice&&<p/);
   assert.doesNotMatch(content,/hcb-promo-disclosure/);
   assert.doesNotMatch(content,/ลิงก์แนะนำสินค้า · ราคาและส่วนลดอาจเปลี่ยนตามร้านค้า/);
   assert.match(css,/\.hcb-product-stage/);
@@ -280,27 +280,27 @@ test('frosted product information panels stay equal height even when description
   const css=readFileSync(new URL('../app/hub-content.css',import.meta.url),'utf8');
   const card=readFileSync(new URL('../app/components/HubContentBlock.tsx',import.meta.url),'utf8');
   const clean=css.slice(css.indexOf('/* NAKNA HUB · Clean Editorial Commerce'));
-  assert.match(clean,/grid-template-rows:28px 24px 34px/);
+  assert.match(clean,/grid-template-rows:28px 22px 40px/);
   assert.match(clean,/height:108px;\s*min-height:108px;\s*max-height:108px/);
   assert.match(clean,/height:28px;\s*min-height:28px;\s*max-height:28px/);
   assert.match(clean,/\.hcb-product-description-slot:empty\{\s*display:block/);
-  assert.match(clean,/height:24px;\s*min-height:24px;\s*max-height:24px/);
+  assert.match(clean,/height:22px;\s*min-height:22px;\s*max-height:22px/);
   assert.match(clean,/\.hcb-product-price-slot:empty\{\s*display:flex/);
-  assert.match(clean,/height:34px;\s*min-height:34px;\s*max-height:34px/);
+  assert.match(clean,/height:40px;\s*min-height:40px;\s*max-height:40px/);
   assert.match(card,/className="hcb-product-description-slot"/);
   assert.match(card,/className="hcb-product-price-slot"/);
   assert.match(card,/\{promo&&<div className="hcb-promo-prices"/);
-  assert.match(card,/block.type==='service'&&!discountEnabled&&content.price/);
+  assert.match(card,/regularPrice&&<p/);
 });
 
 test('single-product white information panel also has reserved title, description and price rows',()=>{
   const css=readFileSync(new URL('../app/hub-content.css',import.meta.url),'utf8');
   const clean=css.slice(css.indexOf('/* NAKNA HUB · Clean Editorial Commerce'));
-  assert.match(clean,/grid-template-rows:38px 28px 44px/);
+  assert.match(clean,/grid-template-rows:38px 26px 46px/);
   assert.match(clean,/height:132px;\s*min-height:132px;\s*max-height:132px/);
   assert.match(clean,/height:38px;\s*min-height:38px;\s*max-height:38px/);
-  assert.match(clean,/height:28px;\s*min-height:28px;\s*max-height:28px/);
-  assert.match(clean,/height:44px;\s*min-height:44px;\s*max-height:44px/);
+  assert.match(clean,/height:26px;\s*min-height:26px;\s*max-height:26px/);
+  assert.match(clean,/height:46px;\s*min-height:46px;\s*max-height:46px/);
   assert.match(clean,/\.hc \.hc-card-carousel-compact \.hcb-product-footer/);
   assert.match(clean,/background:#fff;/);
   assert.match(clean,/flex:0 0 calc\(50% - 5px\)/);
@@ -316,7 +316,7 @@ test('product description wraps to two visual lines without making white panels 
     clean.indexOf('.hc .hc-card-carousel-compact .hcb-product-description-slot p{')
   );
   assert.match(description,/-webkit-line-clamp:2/);
-  assert.match(description,/max-height:24px/);
+  assert.match(description,/max-height:22px/);
   assert.match(description,/overflow-wrap:anywhere/);
   const paragraph=clean.slice(
     clean.indexOf('.hc .hc-card-carousel-compact .hcb-product-description-slot p{'),
@@ -324,8 +324,8 @@ test('product description wraps to two visual lines without making white panels 
   );
   assert.match(paragraph,/white-space:normal/);
   assert.doesNotMatch(paragraph,/white-space:nowrap/);
-  assert.match(clean,/grid-template-rows:28px 24px 34px/);
-  assert.match(clean,/grid-template-rows:38px 28px 44px/);
+  assert.match(clean,/grid-template-rows:28px 22px 40px/);
+  assert.match(clean,/grid-template-rows:38px 26px 46px/);
   assert.match(clean,/height:108px;\s*min-height:108px;\s*max-height:108px/);
   assert.match(clean,/height:132px;\s*min-height:132px;\s*max-height:132px/);
   const inProduct=jsx.slice(
@@ -356,14 +356,46 @@ test('smaller translucent info panels reveal more of both product photographs',(
     clean.indexOf('.hc .hc-card-carousel-compact .hcb-product-overlay,'),
     clean.indexOf('.hc .hc-card-carousel-compact .hcb-product-overlay>.hcb-title,')
   );
-  assert.match(multi,/grid-template-rows:28px 24px 34px/);
+  assert.match(multi,/grid-template-rows:28px 22px 40px/);
   assert.match(multi,/height:108px;\s*min-height:108px;\s*max-height:108px/);
   assert.match(multi,/background:rgba\(255,255,255,\.80\)/);
   assert.match(multi,/backdrop-filter:blur\(3px\)/);
   assert.doesNotMatch(multi,/height:136px|blur\(10px\)/);
   const single=clean.slice(clean.indexOf('.hc .hc-card-carousel-single .hcb-product-overlay,'));
-  assert.match(single,/grid-template-rows:38px 28px 44px/);
+  assert.match(single,/grid-template-rows:38px 26px 46px/);
   assert.match(single,/height:132px;\s*min-height:132px;\s*max-height:132px/);
   assert.match(clean,/\.hc \.hc-card-carousel-compact \.hcb-product-footer/);
   assert.match(clean,/flex:0 0 calc\(50% - 5px\)/);
+});
+
+
+test('six and nine figure prices have their own complete row and do not collide with discount badge',()=>{
+  const css=readFileSync(new URL('../app/hub-content.css',import.meta.url),'utf8');
+  const render=readFileSync(new URL('../app/components/HubContentBlock.tsx',import.meta.url),'utf8');
+  const clean=css.slice(css.indexOf('/* NAKNA HUB · Clean Editorial Commerce'));
+  assert.match(clean,/grid-template-rows:28px 22px 40px/);
+  assert.match(clean,/grid-template-rows:18px 22px/);
+  assert.match(clean,/grid-column:1\/-1;\s*grid-row:2/);
+  assert.match(clean,/grid-column:2;\s*grid-row:1/);
+  assert.match(clean,/display:contents/);
+  assert.match(clean,/hcb-sale-price-compact/);
+  assert.match(clean,/hcb-sale-price-long/);
+  assert.match(clean,/hcb-sale-price-extra-long/);
+  assert.match(clean,/hcb-regular-price-compact/);
+  assert.match(render,/saleText\.length>=8/);
+  assert.match(render,/saleText\.length>=13/);
+  assert.match(render,/hcb-sale-price-\$\{saleSize\}/);
+  assert.match(render,/hcb-regular-price-\$\{regularPriceSize\}/);
+});
+test('Studio shows only the actual product description field, with automatic image accessibility',()=>{
+  const editor=readFileSync(new URL('../app/components/HubContentEditor.tsx',import.meta.url),'utf8');
+  const card=readFileSync(new URL('../app/components/HubContentBlock.tsx',import.meta.url),'utf8');
+  const server=readFileSync(new URL('../lib/hub-data.ts',import.meta.url),'utf8');
+  assert.doesNotMatch(editor,/hce-alt-field/);
+  assert.doesNotMatch(editor,/คำอธิบายภาพสำหรับผู้อ่านหน้าจอ/);
+  assert.match(editor,/รายละเอียดบนการ์ด \(แสดงบนรูป\)/);
+  assert.match(editor,/บนการ์ดจะแสดงสูงสุด 2 บรรทัด/);
+  assert.match(editor,/คำบรรยายภาพ \(ไม่จำเป็น\)/);
+  assert.match(card,/alt=\{isProduct\?block\.title:content\.alt\|\|block\.title\}/);
+  assert.match(server,/content\.alt=contentText\(input\.alt\?\?title/);
 });
