@@ -3,6 +3,7 @@ import type {PageAccess} from './hub-team-types';
 import {getAuthConfiguration} from './hub-auth';
 import {imageAssetId} from './hub-link-media';
 import {HUB_GALLERY_LIMIT,hasBlockAction,isHubContentType,isRichContentType,readBlockContent} from './hub-content';
+import {HUB_MAX_IMAGE_BYTES,HUB_STORAGE_LIMIT_BYTES,canCreateContent,publishedLinksForPlan,publishedProfileForPlan} from './hub-plan-rules';
 import {getPromotionPricing,isProductDiscountEnabled} from './hub-promotion';
 import {applyHubTheme,getHubTheme} from './hub-themes';
 import {expireBillingEntitlement, hasAnalyticsEntitlement} from './hub-billing-entitlements';
@@ -148,10 +149,11 @@ async function pageSummary(page:PageRow,plan:HubPlan,analyticsAccess:boolean):Pr
 async function editorData(actor:AccountRow,page:PageRow):Promise<PageEditorData>{const {owner,access}=await resolveHubPageAccess(actor,page.id,page.account_id);const [summary,links]=await Promise.all([pageSummary(page,owner.plan,access.analytics),linksFor(page.id)]);return {page:{...summary,access},profile:profileOf(page,owner.plan),links,revision:page.revision,access};}
 export async function getWorkspace(request:Request):Promise<WorkspaceData>{
   const account=await requireAccount(request);
-  const [rows,archivedRows,usage,upgrade,info]=await Promise.all([
+  const [rows,archivedRows,usage,storage,upgrade,info]=await Promise.all([
     db().prepare('SELECT * FROM hub_pages WHERE account_id=? AND archived=0 ORDER BY updated_at DESC,id').bind(account.id).all<PageRow>(),
     db().prepare('SELECT * FROM hub_pages WHERE account_id=? AND archived=1 ORDER BY updated_at DESC,id').bind(account.id).all<PageRow>(),
     db().prepare("SELECT COUNT(*) AS n FROM hub_links l JOIN hub_pages p ON p.id=l.page_id WHERE p.account_id=? AND p.archived=0 AND l.archived=0").bind(account.id).first<{n:number}>(),
+    db().prepare("SELECT COALESCE(SUM(size),0) AS bytes FROM hub_assets WHERE account_id=?").bind(account.id).first<{bytes:number}>(),
     db().prepare('SELECT account_id FROM hub_upgrade_requests WHERE account_id=? AND resolved_at IS NULL').bind(account.id).first(),
     accountDTO(request,account),
   ]);
@@ -159,7 +161,7 @@ export async function getWorkspace(request:Request):Promise<WorkspaceData>{
   const total=info.entitlements.analytics?await db().prepare("SELECT COUNT(*) AS n FROM hub_events e JOIN hub_pages p ON p.id=e.page_id WHERE p.account_id=? AND e.type='click'").bind(account.id).first<{n:number}>():null;
   const sharedRows=await db().prepare("SELECT DISTINCT p.* FROM hub_pages p JOIN hub_team_pages tp ON tp.page_id=p.id JOIN hub_teams t ON t.id=tp.team_id AND t.owner_account_id=p.account_id JOIN hub_team_members m ON m.team_id=t.id WHERE m.account_id=? AND m.status='active' AND t.archived=0 AND p.archived=0 AND p.account_id<>? ORDER BY p.updated_at DESC,p.id").bind(account.id,account.id).all<PageRow>();
   const sharedPages=await Promise.all(sharedRows.results.map(async page=>{const {owner,access}=await resolveHubPageAccess(account,page.id,page.account_id);return {...await pageSummary(page,owner.plan,access.analytics),access};}));
-  return {account:info,limits:planLimits(account.plan),pages,archivedPages,sharedPages,usage:{pages:pages.length,links:usage?.n??0,totalClicks:info.entitlements.analytics?(total?.n??0):null},upgradeRequested:!!upgrade};
+  return {account:info,limits:planLimits(account.plan),pages,archivedPages,sharedPages,usage:{pages:pages.length,links:usage?.n??0,totalClicks:info.entitlements.analytics?(total?.n??0):null},storage:{usedBytes:storage?.bytes??0,limitBytes:HUB_STORAGE_LIMIT_BYTES[account.plan]},upgradeRequested:!!upgrade};
 }
 export function validateSlug(value:unknown):string{
   const slug=text(value,'ชื่อลิงก์',40,true);
@@ -218,8 +220,14 @@ async function validateProfile(input:unknown,current:HubProfile,account:AccountR
     profile=data.themeId==='custom'?{...profile,themeId:'custom'}:applyHubTheme(profile,data.themeId);
   }
   for(const field of ['name','handle','tagline','bio'] as const)if(field in data)profile[field]=text(data[field],field==='name'?'ชื่อหน้า':'ข้อความ',field==='bio'?280:field==='tagline'?120:80,field==='name');
-  if('avatarUrl'in data)profile.avatarUrl=await validateAvatar(data.avatarUrl,account,pageId,actorId);
-  if('shareImageUrl'in data)profile.shareImageUrl=await validateUploadedImage(data.shareImageUrl,account,pageId,actorId,'ภาพปกเวลาแชร์',false);
+  if('avatarUrl'in data){
+    if(account.plan!=='pro'&&data.avatarUrl!==current.avatarUrl&&data.avatarUrl!=='')throw new HubError(403,'อัปโหลดรูปโปรไฟล์ได้ใน Pro เท่านั้น',{code:'pro_media_required',upgradeUrl:'/studio?section=billing'});
+    profile.avatarUrl=await validateAvatar(data.avatarUrl,account,pageId,actorId);
+  }
+  if('shareImageUrl'in data){
+    if(account.plan!=='pro'&&data.shareImageUrl!==current.shareImageUrl&&data.shareImageUrl!=='')throw new HubError(403,'ภาพปกแชร์ลิงก์สำหรับสมาชิก Pro เท่านั้น',{code:'pro_media_required',upgradeUrl:'/studio?section=billing'});
+    profile.shareImageUrl=await validateUploadedImage(data.shareImageUrl,account,pageId,actorId,'ภาพปกเวลาแชร์',false);
+  }
   if('shareTitle'in data)profile.shareTitle=text(data.shareTitle,'ชื่อเวลาแชร์ลิงก์',120);
   if('shareDescription'in data)profile.shareDescription=text(data.shareDescription,'คำอธิบายเวลาแชร์ลิงก์',280);
   if('accent'in data){if(typeof data.accent!=='string'||!/^#[0-9a-f]{6}$/i.test(data.accent))throw new HubError(400,'รหัสสีต้องเป็น #RRGGBB');profile.accent=data.accent;}
@@ -255,9 +263,10 @@ export async function archivePage(request:Request,id:string):Promise<void>{
   const result=await db().prepare('UPDATE hub_pages SET archived=1,published=0,snapshot_json=NULL,revision=revision+1,updated_at=? WHERE id=? AND account_id=? AND archived=0').bind(Date.now(),id,account.id).run();if(!result.meta.changes)throw new HubError(404,'ไม่พบหน้านี้');
 }
 const LINK_KEYS=['type','title','description','url','icon','content','enabled','featured','sortOrder','archived'] as const;
-async function validateLinkIcon(value:unknown,account:AccountRow,pageId?:string,actorId?:string):Promise<string>{
+async function validateLinkIcon(value:unknown,account:AccountRow,pageId?:string,actorId?:string,existingIcon?:string):Promise<string>{
   const icon=text(value,'ไอคอน',80,true),assetId=imageAssetId(icon);
   if(assetId){
+    if(account.plan!=='pro'&&icon!==existingIcon)throw new HubError(403,'การอัปโหลดรูปไอคอนต้องใช้ Pro',{code:'pro_media_required',upgradeUrl:'/studio?section=billing'});
     if(!await assetUsable(assetId,account.id,pageId,actorId))throw new HubError(400,'คุณไม่มีสิทธิ์ใช้รูปนี้ กรุณาอัปโหลดรูปของคุณ');
     return 'image:'+assetId;
   }
@@ -346,11 +355,12 @@ async function validateBlockContent(value:unknown,type:HubLink['type'],title:str
 async function validateLink(data:Record<string,unknown>,account:AccountRow,existing?:HubLink,pageId?:string,actorId?:string):Promise<Omit<HubLink,'id'>>{
   keys(data,LINK_KEYS);const link:Omit<HubLink,'id'>=existing?{type:existing.type,title:existing.title,description:existing.description,url:existing.url,icon:existing.icon,...(existing.content?{content:existing.content}:{}),enabled:existing.enabled,featured:existing.featured,sortOrder:existing.sortOrder,archived:existing.archived}:{type:'link',title:'',description:'',url:'',icon:'auto',enabled:true,featured:false,sortOrder:0,archived:false};
   if('type'in data){if(!isHubContentType(data.type))throw new HubError(400,'ประเภทบล็อกไม่ถูกต้อง');link.type=data.type;}
+  if(!canCreateContent(account.plan,link.type))throw new HubError(403,'Starter ฟรีเพิ่มได้เฉพาะลิงก์ อัปเกรด Pro เพื่อใช้รูปภาพ ข้อความ และการ์ดสินค้า',{code:'pro_content_required',upgradeUrl:'/studio?section=billing'});
   const rich=isRichContentType(link.type);
   for(const field of ['title','description'] as const)link[field]=(rich?contentText:text)(field in data?data[field]:link[field],field==='title'?'ชื่อรายการ':'คำอธิบาย',field==='title'?100:rich?2000:220,field==='title');
   if(!link.title)throw new HubError(400,'กรอกชื่อรายการ');
   if(link.type==='text'&&!link.description)throw new HubError(400,'กรอกข้อความที่ต้องการแสดง');
-  link.icon=await validateLinkIcon('icon'in data?data.icon:link.icon,account,pageId,actorId);
+  link.icon=await validateLinkIcon('icon'in data?data.icon:link.icon,account,pageId,actorId,existing?.icon);
   if('url'in data)link.url=text(data.url,'ลิงก์ปลายทาง',2048);
   // Validate all content first: the same service can require a purchase link
   // only when its discount switch is on.
@@ -449,7 +459,7 @@ export async function reorderLinks(request:Request,pageId:string):Promise<HubLin
 export async function publishPage(request:Request,id:string):Promise<PageEditorData>{
   const actor=await requireAccount(request);sameOrigin(request);const {page,owner:account}=await pageContext(actor,id,'publish'),data=await body(request,true);keys(data,['revision']);clientRevision(data.revision,page);
   if(await db().prepare('SELECT page_id FROM hub_page_controls WHERE page_id=? AND suspended=1').bind(id).first())throw new HubError(403,'ฮับนี้ถูกพักการเผยแพร่โดยผู้ดูแล กรุณาติดต่อผู้ดูแลก่อนเผยแพร่อีกครั้ง',{code:'hub_suspended'});
-  const profile=profileOf(page,account.plan),links=(await linksFor(id,false)).filter(l=>l.enabled);
+  const profile=publishedProfileForPlan(profileOf(page,account.plan),account.plan),links=publishedLinksForPlan((await linksFor(id,false)).filter(l=>l.enabled),account.plan);
   if(!links.some(l=>l.type!=='heading'))throw new HubError(400,'เพิ่มเนื้อหาที่เปิดใช้งานอย่างน้อย 1 รายการก่อนเผยแพร่');
   for(const link of links){const {id:_id,...payload}=link;await validateLink(payload,account,link,id,actor.id);}
   if(profile.shareImageUrl)await validateUploadedImage(profile.shareImageUrl,account,id,actor.id,'ภาพปกเวลาแชร์');
@@ -468,7 +478,7 @@ async function publicPage(value:string,byId=false):Promise<PublicRow>{
   if(row.owner_plan==='pro'&&await expireBillingEntitlement(db(),row.account_id))row.owner_plan='starter';
   return row;
 }
-function snapshotOf(row:PublicRow):Snapshot{const snapshot=JSON.parse(row.snapshot_json!) as Snapshot;return {...snapshot,profile:{...snapshot.profile,showBranding:row.owner_plan==='pro'?snapshot.profile.showBranding:true}};}
+function snapshotOf(row:PublicRow):Snapshot{const snapshot=JSON.parse(row.snapshot_json!) as Snapshot;return {...snapshot,profile:publishedProfileForPlan(snapshot.profile,row.owner_plan),links:publishedLinksForPlan(snapshot.links,row.owner_plan)};}
 export async function getPublicHub(request:Request,slug:string):Promise<PublicHubData>{
   const page=await publicPage(slug),snapshot=snapshotOf(page);return {pageId:page.id,slug:page.slug,profile:snapshot.profile,links:snapshot.links,publishedAt:page.published_at!,isOwner:identity(request)?.userId===page.owner_user_id||!!identity(request)&&await isHubEditorIdentity(identity(request)!.userId,page.id,page.account_id)};
 }
@@ -561,16 +571,22 @@ export async function uploadAsset(request:Request):Promise<{url:string}>{
   try{form=await new Response(raw.buffer as ArrayBuffer,{headers:{'Content-Type':contentType}}).formData();}catch{throw new HubError(400,'อ่านไฟล์แนบไม่ได้ กรุณาลองใหม่');}
   if(Array.from(form.keys()).some(k=>!['file','pageId'].includes(k))||form.getAll('file').length!==1||form.getAll('pageId').length>1)throw new HubError(400,'แนบรูปภาพครั้งละ 1 ไฟล์');
   const pageId=form.get('pageId');if(pageId!==null){if(typeof pageId!=='string'||!UUID.test(pageId))throw new HubError(400,'ฮับของรูปภาพไม่ถูกต้อง');account=(await pageContext(actor,pageId,'edit')).owner;}
+  if(account.plan!=='pro')throw new HubError(403,'แพ็กเกจฟรีเพิ่มได้เฉพาะลิงก์ อัปเกรด Pro เพื่ออัปโหลดรูปภาพ',{code:'pro_media_required',upgradeUrl:'/studio?section=billing'});
   const file=form.get('file');if(!file||typeof file==='string'||!(file instanceof Blob))throw new HubError(400,'กรุณาแนบรูปภาพ');
-  if(file.size===0||file.size>2*1024*1024)throw new HubError(413,'ใช้รูปภาพขนาดไม่เกิน 2 MB');
+  if(file.size===0||file.size>HUB_MAX_IMAGE_BYTES)throw new HubError(413,'ใช้รูปภาพขนาดไม่เกิน 2 MB');
   const bytes=new Uint8Array(await file.arrayBuffer()),mime=imageMime(bytes);if(!mime||!['image/png','image/jpeg','image/webp'].includes(file.type)||mime!==file.type)throw new HubError(400,'รองรับรูป PNG, JPEG และ WebP เท่านั้น');
   const id=crypto.randomUUID(),key=`hub-assets/${account.id}/${id}`;
   await env.BUCKET.put(key,bytes,{httpMetadata:{contentType:mime}});
   try{
+    // The quota predicate is inside the INSERT so concurrent uploads cannot
+    // each pass a separate preflight check and exceed the shared account cap.
+    const quota=' AND (SELECT plan FROM hub_accounts WHERE id=?)=\'pro\' AND (SELECT COALESCE(SUM(size),0) FROM hub_assets WHERE account_id=?)+?<=?';
     const result=pageId===null
-      ?await db().prepare('INSERT INTO hub_assets (id,account_id,page_id,storage_key,mime_type,size,created_at) VALUES (?,?,NULL,?,?,?,?)').bind(id,actor.id,key,mime,bytes.byteLength,Date.now()).run()
-      :await db().prepare('INSERT INTO hub_assets (id,account_id,page_id,storage_key,mime_type,size,created_at) SELECT ?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM hub_pages WHERE id=? AND account_id=? AND archived=0 AND '+teamWriteGuard()+')').bind(id,account.id,pageId,key,mime,bytes.byteLength,Date.now(),pageId,account.id,actor.id,actor.id).run();
-    if(!result.meta.changes)throw new HubError(403,'สิทธิ์อัปโหลดเปลี่ยนไปแล้ว กรุณาโหลดฮับใหม่');
+      ?await db().prepare('INSERT INTO hub_assets (id,account_id,page_id,storage_key,mime_type,size,created_at) SELECT ?,?,NULL,?,?,?,? WHERE 1=1'+quota)
+        .bind(id,account.id,key,mime,bytes.byteLength,Date.now(),account.id,account.id,bytes.byteLength,HUB_STORAGE_LIMIT_BYTES.pro).run()
+      :await db().prepare('INSERT INTO hub_assets (id,account_id,page_id,storage_key,mime_type,size,created_at) SELECT ?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM hub_pages WHERE id=? AND account_id=? AND archived=0 AND '+teamWriteGuard()+')'+quota)
+        .bind(id,account.id,pageId,key,mime,bytes.byteLength,Date.now(),pageId,account.id,actor.id,actor.id,account.id,account.id,bytes.byteLength,HUB_STORAGE_LIMIT_BYTES.pro).run();
+    if(!result.meta.changes)throw new HubError(403,'พื้นที่รูปเต็ม 2 GB หรือสิทธิ์อัปโหลดเปลี่ยนไป กรุณาตรวจแพ็กเกจและพื้นที่ใช้งาน',{code:'storage_quota_or_permission',upgradeUrl:'/studio?section=billing'});
   }catch(error){try{await env.BUCKET.delete(key);}catch{}throw error;}
   return {url:'/media/'+id};
 }
