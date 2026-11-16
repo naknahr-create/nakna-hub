@@ -109,7 +109,8 @@ export function HubContentBlock({block,href,onDemoClick}:ContentBlockProps){
   const saleText=promo?formatThaiBaht(promo.saleSatang):"";
   const saleSize=saleText.length>=13?"extra-long":saleText.length>=10?"long":saleText.length>=8?"compact":"regular";
   const regularPrice=block.type==='service'&&!discountEnabled?content.price?.trim()||"":"";
-  const regularPriceSize=regularPrice.length>=13?"extra-long":regularPrice.length>=10?"long":regularPrice.length>=8?"compact":"regular";
+  const regularPriceIsAmount=/^(?:฿\s*)?\d[\d,]*(?:\.\d{1,2})?(?:\s*บาท)?$/u.test(regularPrice);
+  const regularPriceSize=!regularPriceIsAmount?"regular":regularPrice.length>=13?"extra-long":regularPrice.length>=10?"long":regularPrice.length>=8?"compact":"regular";
   const images=Array.isArray(content.images)?content.images.slice(0,6):[];
   const isProduct=block.type==='service'||block.type==='promotion';
   function navigate(event:MouseEvent<HTMLAnchorElement>){if(onDemoClick){event.preventDefault();onDemoClick(block.title);}}
