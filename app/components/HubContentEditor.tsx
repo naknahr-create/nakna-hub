@@ -57,11 +57,11 @@ export function contentDraftError(draft:ContentDraft):string {
   return "";
 }
 
-export function ContentTypePicker({onChoose,onClose,disabled=false}:{onChoose:(type:HubContentType)=>void;onClose:()=>void;disabled?:boolean}) {
+export function ContentTypePicker({onChoose,onClose,onUpgrade,pro=false,disabled=false}:{onChoose:(type:HubContentType)=>void;onClose:()=>void;onUpgrade?:()=>void;pro?:boolean;disabled?:boolean}) {
   return <section className="hce-picker" aria-labelledby="content-picker-heading">
     <div className="hce-picker-heading"><div><span className="hce-eyebrow"><Layers3 size={15}/>เล่าเรื่องในแบบของคุณ</span><h3 id="content-picker-heading">อยากเพิ่มอะไรในฮับ?</h3><p>เลือกเนื้อหา แล้วให้ธีมจัดหน้าตาให้</p></div><button type="button" aria-label="ปิดตัวเลือกเนื้อหา" onClick={onClose} disabled={disabled}><X size={20}/></button></div>
-    <div className="hce-type-grid" role="group" aria-label="ประเภทเนื้อหาที่เพิ่มได้">{CONTENT_OPTIONS.map(option=>{const Icon=option.icon;return <button key={option.type} type="button" className={`hce-type hce-tone-${option.color}`} disabled={disabled} onClick={()=>onChoose(option.type)}><span className="hce-type-icon"><Icon size={23}/></span><span><strong>{option.label}</strong><small>{option.description}</small></span><ArrowUpRight size={17} className="hce-type-arrow"/></button>;})}</div>
-    <p className="hce-picker-note"><Check size={15}/>ทุกแบบใช้สีและสไตล์จากธีมของคุณ · 1 บล็อกนับเป็น 1 รายการ</p>
+    <div className="hce-type-grid" role="group" aria-label="ประเภทเนื้อหาที่เพิ่มได้">{CONTENT_OPTIONS.map(option=>{const Icon=option.icon;const locked=!pro&&option.type!=="link";return <button key={option.type} type="button" className={`hce-type hce-tone-${option.color}`} disabled={disabled} onClick={()=>locked?onUpgrade?.():onChoose(option.type)}><span className="hce-type-icon"><Icon size={23}/></span><span><strong>{option.label}{locked?" · PRO":""}</strong><small>{locked?"สมัคร Pro 149 บาท/เดือน เพื่อปลดล็อก":option.description}</small></span><ArrowUpRight size={17} className="hce-type-arrow"/></button>;})}</div>
+    <p className="hce-picker-note"><Check size={15}/>{pro?"ทุกแบบใช้สีและสไตล์จากธีมของคุณ · 1 บล็อกนับเป็น 1 รายการ":"ฟรีเพิ่มได้ 5 ลิงก์ · รูปภาพ ผลงาน และสินค้าเป็นสิทธิ์ Pro"}</p>
   </section>;
 }
 
