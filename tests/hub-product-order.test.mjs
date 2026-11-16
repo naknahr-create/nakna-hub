@@ -282,7 +282,7 @@ test('frosted product information panels stay equal height even when description
   const clean=css.slice(css.indexOf('/* NAKNA HUB · Clean Editorial Commerce'));
   assert.match(clean,/grid-template-rows:28px 22px 40px/);
   assert.match(clean,/height:108px;\s*min-height:108px;\s*max-height:108px/);
-  assert.match(clean,/height:26px;\s*min-height:26px;\s*max-height:26px/);
+  assert.match(clean,/height:28px;\s*min-height:28px;\s*max-height:28px/);
   assert.match(clean,/\.hcb-product-description-slot:empty\{\s*display:block/);
   assert.match(clean,/height:22px;\s*min-height:22px;\s*max-height:22px/);
   assert.match(clean,/\.hcb-product-price-slot:empty\{\s*display:flex/);
