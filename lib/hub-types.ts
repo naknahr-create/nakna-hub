@@ -74,14 +74,14 @@ export type PageSummary = {
   access?: PageAccess;
 };
 export type HubAccount = {id: string; displayName: string; email: string; plan: HubPlan; isOperator?: boolean; entitlements: {analytics: boolean; lineDigest: boolean}};
-export type PlanLimits = {maxPages: number; maxLinksPerPage: number};
+export type PlanLimits = {maxPages: number; maxLinksPerPage: number; maxStorageBytes: number};
 export type WorkspaceData = {
   account: HubAccount;
   limits: PlanLimits;
   pages: PageSummary[];
   archivedPages: PageSummary[];
   sharedPages: PageSummary[];
-  usage: {pages: number; links: number; totalClicks: number | null};
+  usage: {pages: number; links: number; totalClicks: number | null; storageBytes: number};
   upgradeRequested: boolean;
 };
 export type PageEditorData = {page: PageSummary; profile: HubProfile; links: HubLink[]; revision: number; access: PageAccess};
