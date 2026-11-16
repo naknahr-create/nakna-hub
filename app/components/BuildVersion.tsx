@@ -41,7 +41,8 @@ export function BuildVersion({location='sidebar'}:{location?:'sidebar'|'footer'}
     return ()=>{mounted=false;window.clearInterval(interval);document.removeEventListener('visibilitychange',whenVisible);};
   },[]);
 
-  const id=BUILD_INFO.commit?BUILD_INFO.commit.slice(0,7):BUILD_INFO.buildId;
+  const commit=String(BUILD_INFO.commit);
+  const id=commit?commit.slice(0,7):BUILD_INFO.buildId;
   const hasUpdate=!!latest&&latest.buildId!=='not-built'&&latest.buildId!==BUILD_INFO.buildId;
   return <div className={`hub-build-version hub-build-${location}`} data-update={hasUpdate?'true':undefined}>
     <button type="button" className="hub-build-trigger" aria-expanded={expanded}
