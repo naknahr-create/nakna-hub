@@ -464,11 +464,13 @@ export async function reorderLinks(request:Request,pageId:string):Promise<HubLin
 export async function publishPage(request:Request,id:string):Promise<PageEditorData>{
   const actor=await requireAccount(request);sameOrigin(request);const {page,owner:account}=await pageContext(actor,id,'publish'),data=await body(request,true);keys(data,['revision']);clientRevision(data.revision,page);
   if(await db().prepare('SELECT page_id FROM hub_page_controls WHERE page_id=? AND suspended=1').bind(id).first())throw new HubError(403,'ฮับนี้ถูกพักการเผยแพร่โดยผู้ดูแล กรุณาติดต่อผู้ดูแลก่อนเผยแพร่อีกครั้ง',{code:'hub_suspended'});
-  const profile=profileOf(page,account.plan),links=(await linksFor(id,false)).filter(l=>l.enabled);
+  const profile=profileOf(page,account.plan),allLinks=(await linksFor(id,false)).filter(l=>l.enabled);
+   const links=account.plan==='pro'?allLinks:allLinks.filter(link=>link.type==='link').map(link=>({...link,icon:imageAssetId(link.icon)?'auto':link.icon}));
   if(!links.some(l=>l.type!=='heading'))throw new HubError(400,'เพิ่มเนื้อหาที่เปิดใช้งานอย่างน้อย 1 รายการก่อนเผยแพร่');
   for(const link of links){const {id:_id,...payload}=link;await validateLink(payload,account,link,id,actor.id);}
-  if(profile.shareImageUrl)await validateUploadedImage(profile.shareImageUrl,account,id,actor.id,'ภาพปกเวลาแชร์');
-  const snapshot:Snapshot={profile,links,revision:page.revision},now=Date.now();
+  if(profile.shareImageUrl&&account.plan==='pro')await validateUploadedImage(profile.shareImageUrl,account,id,actor.id,'ภาพปกเวลาแชร์');
+  const publicProfile=account.plan==='pro'?profile:{...profile,avatarUrl:'',shareImageUrl:'',showBranding:true};
+   const snapshot:Snapshot={profile:publicProfile,links,revision:page.revision},now=Date.now();
   const result=await db().prepare('UPDATE hub_pages SET snapshot_json=?,published=1,published_revision=?,published_at=?,updated_at=? WHERE id=? AND account_id=? AND archived=0 AND revision=? AND NOT EXISTS(SELECT 1 FROM hub_page_controls c WHERE c.page_id=hub_pages.id AND c.suspended=1) AND '+teamWriteGuard('hub_pages','publish')).bind(JSON.stringify(snapshot),page.revision,now,now,id,account.id,page.revision,actor.id,actor.id).run();
   if(!result.meta.changes)throw new HubError(409,'ร่างหรือสิทธิ์เปลี่ยนไประหว่างเผยแพร่ กรุณาโหลดใหม่');await recordTeamPageActivity(actor,account.id,id,'เผยแพร่ฮับ');return editorData(actor,await ownPage(account,id));
 }
@@ -483,7 +485,16 @@ async function publicPage(value:string,byId=false):Promise<PublicRow>{
   if(row.owner_plan==='pro'&&await expireBillingEntitlement(db(),row.account_id))row.owner_plan='starter';
   return row;
 }
-function snapshotOf(row:PublicRow):Snapshot{const snapshot=JSON.parse(row.snapshot_json!) as Snapshot;return {...snapshot,profile:{...snapshot.profile,showBranding:row.owner_plan==='pro'?snapshot.profile.showBranding:true}};}
+function snapshotOf(row:PublicRow):Snapshot{
+  const snapshot=JSON.parse(row.snapshot_json!) as Snapshot;
+  if(row.owner_plan==='pro')return snapshot;
+  // Downgraded accounts keep all draft and stored assets, but their public
+  // content cannot keep using the paid photo, gallery and product features.
+  return {...snapshot,
+    profile:{...snapshot.profile,avatarUrl:'',shareImageUrl:'',showBranding:true},
+    links:snapshot.links.filter(link=>link.type==='link').map(link=>({...link,icon:imageAssetId(link.icon)?'auto':link.icon}))
+  };
+}
 export async function getPublicHub(request:Request,slug:string):Promise<PublicHubData>{
   const page=await publicPage(slug),snapshot=snapshotOf(page);return {pageId:page.id,slug:page.slug,profile:snapshot.profile,links:snapshot.links,publishedAt:page.published_at!,isOwner:identity(request)?.userId===page.owner_user_id||!!identity(request)&&await isHubEditorIdentity(identity(request)!.userId,page.id,page.account_id)};
 }
