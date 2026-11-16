@@ -37,6 +37,7 @@ function Gallery({images,title,layout}:{images:HubBlockImage[];title:string;layo
   const lightboxTitle=useId();
   const railId=useId();
   const selectedImage=selected===null?undefined:images[selected];
+  const imageSignature=images.map(image=>image.url).join('|');
 
   useEffect(()=>{
     const modal=dialog.current;
@@ -48,7 +49,7 @@ function Gallery({images,title,layout}:{images:HubBlockImage[];title:string;layo
   useEffect(()=>{
     setCurrent(0);
     rail.current?.scrollTo({left:0});
-  },[layout,images.length]);
+  },[layout,imageSignature]);
 
   function step(direction:number){
     if(selected===null)return;
@@ -60,16 +61,22 @@ function Gallery({images,title,layout}:{images:HubBlockImage[];title:string;layo
     if(!track)return;
     const target=Math.max(0,Math.min(images.length-1,current+direction));
     const tile=track.children[target] as HTMLElement|undefined;
-    if(tile)track.scrollTo({left:tile.offsetLeft,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+    const first=track.children[0] as HTMLElement|undefined;
+    if(!tile||!first)return;
+    // Offset from the first slide avoids Safari's offset-parent differences.
+    track.scrollTo({left:tile.offsetLeft-first.offsetLeft,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+    setCurrent(target);
   }
 
   function updatePosition(){
     const track=rail.current;
     if(!track)return;
     let index=0,distance=Infinity;
+    const first=track.children[0] as HTMLElement|undefined;
+    if(!first)return;
     for(let i=0;i<track.children.length;i++){
       const tile=track.children[i] as HTMLElement;
-      const next=Math.abs(tile.offsetLeft-track.scrollLeft);
+      const next=Math.abs(tile.offsetLeft-first.offsetLeft-track.scrollLeft);
       if(next<distance){distance=next;index=i;}
     }
     setCurrent(index);
