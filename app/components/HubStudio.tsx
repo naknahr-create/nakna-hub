@@ -272,6 +272,7 @@ export default function HubStudio(){
   const editorAnalytics=editor?.access?.analytics??workspace.account.entitlements.analytics;
   const editorPlan=editor?.access?.plan??workspace.account.plan;
   const editorLimit=editorPlan==="pro"?100:5;
+  const editorQuotaCount=editorPlan==='pro'?links.length:links.filter(link=>link.type==='link').length;
   return <div className="hs-shell"><HubTooltips/><a href="#studio-main" className="hs-skip">ข้ามไปเนื้อหา</a>
     <aside className="hs-sidebar">
       <a href="/" className="hs-brand-link" aria-label="นากนะ HUB หน้าแรก"><HubBrand/></a>
@@ -323,9 +324,9 @@ export default function HubStudio(){
         {editorTab!=="analytics"?<div className="hs-editor-grid"><section className="hs-edit-column">
           {editorTab==="content"&&<>
              {editorPlan!=='pro'&&<div className="hce-quota-note" style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,flexWrap:'wrap'}}><span><strong>Free: 5 ลิงก์ ไม่มีรูปอัปโหลด</strong><br/>รูปโปรไฟล์ แกลเลอรี สินค้า และเนื้อหาแบบอื่นปลดล็อกด้วย Pro</span>{editorCanManage&&<button type="button" onClick={()=>navigate('billing')} style={{color:'#08787a',fontWeight:600,textDecoration:'underline'}}>อัปเกรด ฿149/เดือน</button>}</div>}
-            <div className="hs-content-intro"><div><h2>เนื้อหาบนฮับของคุณ</h2><p>{editorPlan==='pro'?'เล่าเรื่องด้วยรูป ผลงาน และบริการ แล้วพาคนไปต่อ':'รวมทุกช่องทางไว้ใน 5 ลิงก์ · ใส่ไอคอนมาตรฐานได้'}</p></div><span title="รวมเนื้อหาทุกประเภท ทั้งรายการที่แสดงและซ่อน">{links.length}/{editorLimit} รายการ</span></div>
-            <div className="hs-add-actions"><button className="hs-button hs-primary hce-add-button" disabled={!!busy||links.length>=editorLimit||!!newBlockType} onClick={()=>setContentPicker(!contentPicker)} aria-expanded={contentPicker}><Plus size={19}/>เพิ่มเนื้อหา</button><span className="hce-add-hint"><LayoutGrid size={15}/>{editorPlan==='pro'?'ปลดล็อกเนื้อหาทุกแบบ':'ลิงก์ใช้ฟรี · รูปภาพใช้ Pro'}</span></div>
-            {links.length>=editorLimit&&<p className="hce-quota-note">ใช้ครบ {editorLimit} รายการแล้ว เก็บรายการที่ไม่ใช้เข้าคลังเพื่อเพิ่มรายการใหม่{editorPlan==="starter"?" หรือเลือก Pro เพื่อเพิ่มได้ถึง 100 รายการต่อฮับ":""}</p>}
+            <div className="hs-content-intro"><div><h2>เนื้อหาบนฮับของคุณ</h2><p>{editorPlan==='pro'?'เล่าเรื่องด้วยรูป ผลงาน และบริการ แล้วพาคนไปต่อ':'รวมทุกช่องทางไว้ใน 5 ลิงก์ · ใส่ไอคอนมาตรฐานได้'}</p></div><span title="รวมเนื้อหาทุกประเภท ทั้งรายการที่แสดงและซ่อน">{editorQuotaCount}/{editorLimit} {editorPlan==='pro'?'รายการ':'ลิงก์'}</span></div>
+            <div className="hs-add-actions"><button className="hs-button hs-primary hce-add-button" disabled={!!busy||editorQuotaCount>=editorLimit||!!newBlockType} onClick={()=>setContentPicker(!contentPicker)} aria-expanded={contentPicker}><Plus size={19}/>เพิ่มเนื้อหา</button><span className="hce-add-hint"><LayoutGrid size={15}/>{editorPlan==='pro'?'ปลดล็อกเนื้อหาทุกแบบ':'ลิงก์ใช้ฟรี · รูปภาพใช้ Pro'}</span></div>
+            {editorQuotaCount>=editorLimit&&<p className="hce-quota-note">ใช้ครบ {editorLimit} รายการแล้ว เก็บรายการที่ไม่ใช้เข้าคลังเพื่อเพิ่มรายการใหม่{editorPlan==="starter"?" หรือเลือก Pro เพื่อเพิ่มได้ถึง 100 รายการต่อฮับ":""}</p>}
             {contentPicker&&!newBlockType&&<ContentTypePicker onChoose={addContent} onClose={()=>setContentPicker(false)} disabled={!!busy} isPro={editorPlan==='pro'} onUpgrade={()=>editorCanManage?navigate('billing'):notify('เจ้าของฮับต้องเป็นผู้สมัคร Pro')}/>}
             {newBlockType&&!newBlockAfterId&&<form className="hs-panel hs-new-block-form" onSubmit={createBlock} aria-busy={!!busy}><div className="hs-panel-heading"><div><span className="hce-new-form-badge">เนื้อหาใหม่</span><h2>{CONTENT_OPTIONS.find(item=>item.type===newBlockType)?.label}</h2></div><button type="button" aria-label="ยกเลิกเพิ่มรายการ" disabled={!!busy} onClick={cancelNewContent}><X size={18}/></button></div><ContentFields pageId={editor.page.id} draft={newBlockDraft} onChange={setNewBlockDraft} disabled={!!busy} onUploadingChange={setMediaUploading} allowImages={editorPlan==='pro'} onUpgrade={()=>editorCanManage?navigate('billing'):notify('เจ้าของฮับต้องเป็นผู้สมัคร Pro')} autoFocus/><div className="hs-new-block-actions"><button type="button" className="hs-button hs-outline" disabled={!!busy} onClick={cancelNewContent}>ยกเลิก</button><button type="submit" className="hs-button hs-primary" disabled={!!busy}>{busy==="add"?<LoaderCircle className="hs-spin" size={16}/>:<Plus size={16}/>}เพิ่มรายการ</button></div></form>}
             {links.length===0&&!newBlockType?<div className="hs-editor-empty"><span><ImageIcon size={27}/></span><h3>เริ่มสร้างฮับของคุณ</h3><p>{editorPlan==='pro'?'เพิ่มรูป ผลงาน บริการ หรือลิงก์แรก':'เพิ่มลิงก์แรกได้เลย ฟรีสูงสุด 5 ลิงก์'}<br/>แล้วดูหน้าฮับเปลี่ยนไปพร้อมกัน</p><button type="button" className="hs-button hs-primary" onClick={()=>setContentPicker(true)}><Plus size={17}/>เลือกเนื้อหาแรก</button></div>:<div className="hs-link-rows">{links.map((link,index)=>(link.type==="service"||link.type==="promotion")?
@@ -359,7 +360,7 @@ export default function HubStudio(){
                      onReorder={reorderProduct} onDirty={markDirty} onDraft={markDraft}
                      onUploadState={setMediaUploading} onStatistics={showLinkStatistics}
                      hasAnalyticsAccess={editorAnalytics} onDuplicate={duplicateBlock}
-                     canDuplicate={links.length<editorLimit} allowImages={editorPlan==='pro'} onUpgrade={()=>editorCanManage?navigate('billing'):notify('ให้เจ้าของฮับสมัคร Pro')}/>)}
+                     canDuplicate={editorQuotaCount<editorLimit} allowImages={editorPlan==='pro'} onUpgrade={()=>editorCanManage?navigate('billing'):notify('ให้เจ้าของฮับสมัคร Pro')}/>)}
                  </div>
                  {newBlockType==="service"&&!!newBlockAfterId&&
                    <form className="hs-panel hs-new-block-form hs-inline-product-form"
@@ -384,7 +385,7 @@ export default function HubStudio(){
                    </form>}
                  <div className="hs-product-collection-actions">
                    <button type="button" className="hs-add-next-product"
-                     disabled={!!busy||links.length>=editorLimit||!!newBlockType}
+                     disabled={!!busy||editorQuotaCount>=editorLimit||!!newBlockType}
                      onClick={()=>addProductAfter(productLinks[0].id)}>
                      <Plus size={18}/>เพิ่มสินค้าอีกรายการ
                    </button>
@@ -396,8 +397,8 @@ export default function HubStudio(){
                 onArchive={archiveLink} onReorder={reorder}
                 onDirty={markDirty} onDraft={markDraft} onUploadState={setMediaUploading}
                 onStatistics={showLinkStatistics} hasAnalyticsAccess={editorAnalytics}
-                onDuplicate={duplicateBlock} canDuplicate={links.length<editorLimit} allowImages={editorPlan==='pro'} onUpgrade={()=>editorCanManage?navigate('billing'):notify('ให้เจ้าของฮับสมัคร Pro')}/>)}</div>}
-            {archivedLinks.length>0&&<details className="hs-archive"><summary><span><Archive size={15}/>เนื้อหาในคลัง <b>{archivedLinks.length}</b></span><ChevronDown size={16}/></summary><p>กู้คืนได้โดยไม่เสียประวัติคลิก</p>{archivedLinks.map(link=><div className="hs-archived-row" key={link.id}><HubLinkIcon icon={link.type==="heading"?"file":link.icon} url={link.url} size={21}/><span>{link.title}</span><button className="hs-button hs-outline" disabled={!!busy||links.length>=editorLimit} data-tooltip={links.length>=editorLimit?`ครบ ${editorLimit} รายการแล้ว เก็บรายการที่ไม่ใช้เข้าคลังก่อนกู้คืน`:"นำรายการกลับมาแก้ไขในฉบับร่าง"} onClick={()=>void patchLink(link,{archived:false,enabled:false,sortOrder:Math.max(-1,...links.map(item=>item.sortOrder))+1})}><RotateCcw size={13}/>กู้คืน</button></div>)}</details>}
+                onDuplicate={duplicateBlock} canDuplicate={editorQuotaCount<editorLimit} allowImages={editorPlan==='pro'} onUpgrade={()=>editorCanManage?navigate('billing'):notify('ให้เจ้าของฮับสมัคร Pro')}/>)}</div>}
+            {archivedLinks.length>0&&<details className="hs-archive"><summary><span><Archive size={15}/>เนื้อหาในคลัง <b>{archivedLinks.length}</b></span><ChevronDown size={16}/></summary><p>กู้คืนได้โดยไม่เสียประวัติคลิก</p>{archivedLinks.map(link=><div className="hs-archived-row" key={link.id}><HubLinkIcon icon={link.type==="heading"?"file":link.icon} url={link.url} size={21}/><span>{link.title}</span><button className="hs-button hs-outline" disabled={!!busy||editorQuotaCount>=editorLimit} data-tooltip={editorQuotaCount>=editorLimit?`ครบ ${editorLimit} รายการแล้ว เก็บรายการที่ไม่ใช้เข้าคลังก่อนกู้คืน`:"นำรายการกลับมาแก้ไขในฉบับร่าง"} onClick={()=>void patchLink(link,{archived:false,enabled:false,sortOrder:Math.max(-1,...links.map(item=>item.sortOrder))+1})}><RotateCcw size={13}/>กู้คืน</button></div>)}</details>}
             <div className="hs-edit-note"><ShieldCheck size={16}/><p><strong>บันทึกก่อน แล้วค่อยเผยแพร่</strong>รูปและเนื้อหาจะอยู่ในฉบับร่าง กด “เผยแพร่การเปลี่ยนแปลง” เมื่อพร้อมให้คนเข้าชม</p></div>
             <div className="hs-profile-save hs-content-save" aria-label="บันทึกการแก้ไขเนื้อหาทั้งหมด">
               <span role="status">{unsavedCount?`มีการแก้ไขที่ยังไม่บันทึก ${unsavedCount} รายการ`:"บันทึกข้อมูลครบแล้ว"}</span>
