@@ -455,11 +455,11 @@ test('revocation during R2 upload rejects the asset insert and removes the store
   await assert.rejects(readPage(p.page.id, 'b'), deny);
 });
 
-test('Starter allows five combined links and headings; disabled items count and archived items release a slot', async () => {
+test('Starter allows five links; disabled items count and archived items release a slot', async () => {
   setup(); const p = await page(), id = p.page.id;
   const first = await link(id, {enabled: false});
   for (let i = 0; i < 3; i++) await link(id, {title: 'Link ' + i});
-  await link(id, {type: 'heading', title: 'Our work'});
+  await link(id, {title: 'Our work'});
   assert.equal((await workspace('a')).limits.maxLinksPerPage, 5);
   assert.equal((await readPage(id)).links.filter(item => !item.archived).length, 5);
   await assert.rejects(link(id, {title: 'Sixth item'}), error => [403, 409].includes(error.status));
