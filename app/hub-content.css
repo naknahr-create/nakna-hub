@@ -107,31 +107,44 @@
 .hc .hcb-gallery-grid[data-count="1"] .hcb-media,
 .hc .hcb-gallery-grid[data-count="3"]>.hcb-gallery-item:first-child .hcb-media,
 .hc .hcb-gallery-grid[data-count="5"]>.hcb-gallery-item:first-child .hcb-media{aspect-ratio:16/10}
-.hc .hcb-gallery-carousel{
+/* One slide at a time: explicit full-width stage for every screen size.
+   No old grid tracks or horizontal rail can shrink the artwork. */
+.hc .hcb-gallery-stage{
   position:relative;
-  display:flex;
-  flex-wrap:nowrap;
+  display:block;
   width:100%;
-  max-width:100%;
   min-width:0;
-  gap:12px;
-  margin-top:8px;
-  padding:0 0 4px;
-  overflow-x:auto;
-  overscroll-behavior-x:contain;
-  scroll-snap-type:x mandatory;
-  -webkit-overflow-scrolling:touch;
-  scrollbar-width:none;
-}
-.hc .hcb-gallery-carousel::-webkit-scrollbar{display:none}
-.hc .hcb-gallery-carousel>.hcb-gallery-item{
-  flex:0 0 100%;
-  width:100%;
   max-width:100%;
-  scroll-snap-align:start;
-  scroll-snap-stop:always;
+  margin-top:12px;
+  overflow:hidden;
+  touch-action:pan-y;
 }
-.hc .hcb-gallery-carousel .hcb-media{aspect-ratio:1/1}
+.hc .hcb-gallery-stage>.hcb-gallery-item{
+  display:block;
+  width:100%;
+  min-width:0;
+  max-width:100%;
+  margin:0;
+}
+.hc .hcb-gallery-stage .hcb-gallery-open{
+  display:block;
+  width:100%;
+  min-width:0;
+  max-width:100%;
+}
+.hc .hcb-gallery-stage .hcb-media{
+  position:relative;
+  display:block;
+  width:100%;
+  aspect-ratio:1;
+}
+.hc .hcb-gallery-stage .hcb-media img{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
 .hc .hcb-gallery-toolbar{
   display:flex;
   justify-content:space-between;
