@@ -143,7 +143,7 @@ export function HubContentBlock({block,href,onDemoClick}:ContentBlockProps){
   function navigate(event:MouseEvent<HTMLAnchorElement>){if(onDemoClick){event.preventDefault();onDemoClick(block.title);}}
   const action=hasAction?<a className="hcb-action" href={href} target="_blank" rel="noopener" aria-label={`${actionLabel}: ${block.title} เปิดในแท็บใหม่`} onClick={navigate}><span>{actionLabel}</span><ArrowUpRight size={18} aria-hidden="true"/></a>:null;
   const photo=content.imageUrl?<ContentImage url={content.imageUrl} alt={isProduct?block.title:content.alt||block.title}
-    ratio={content.aspectRatio||'landscape'} fit={content.fit||'cover'}
+    ratio={content.aspectRatio||'landscape'} fit={isProduct?'contain':content.fit||'cover'}
     focusX={isProduct?content.imageFocusX??50:undefined}
     focusY={isProduct?content.imageFocusY??35:undefined}
     zoom={isProduct?content.imageZoom??100:undefined}/>:null;
@@ -160,7 +160,8 @@ export function HubContentBlock({block,href,onDemoClick}:ContentBlockProps){
         {photo?<div className="hcb-cover hcb-product-photo">
           {hasAction?<a href={href} target="_blank" rel="noopener" aria-label={`${actionLabel}: ${block.title} เปิดในแท็บใหม่`} onClick={navigate}>{photo}</a>:photo}
         </div>:<div className="hcb-product-placeholder" aria-hidden="true"><ImageOff size={26}/></div>}
-        <div className="hcb-product-overlay hcb-product-body">
+       </div>
+       <div className="hcb-product-info">
           <h2 id={titleId} className="hcb-title">{block.title}</h2>
           <div className="hcb-product-description-slot">
             {block.description&&<div className="hcb-description">{block.description.replace(/\s+/g," ").trim()}</div>}
@@ -175,9 +176,8 @@ export function HubContentBlock({block,href,onDemoClick}:ContentBlockProps){
             </div>}
             {regularPrice&&<p className={`hcb-price hcb-regular-price-${regularPriceSize}`}>{regularPrice}</p>}
           </div>
-        </div>
-      </div>
-      <div className="hcb-product-footer">
+       </div>
+       <div className="hcb-product-footer">
         <div className="hcb-product-action-slot">{action}</div>
       </div>
     </>:<>

@@ -132,3 +132,24 @@ test('very large prices remain complete in rendered output with responsive size 
   assert.match(html,/฿888,888,888\.99/);
   assert.match(html,/hcb-product-footer/);
 });
+
+
+test('product carousel shows complete images with details below the photo on both Studio and public hubs', () => {
+  const merchandise = link('merchandise', 'service', {
+    title: 'เสื้อกีฬา', description: 'สินค้าตัวอย่าง', url: 'https://example.com/shirt',
+    content: {imageUrl: media, fit: 'cover', hasPromotion: true, originalPrice: '10000', salePrice: '2000'}
+  });
+  for (const preview of [false, true]) {
+    const html = render({preview, links: [merchandise]});
+    const stage = html.indexOf('hcb-product-stage');
+    const info = html.indexOf('hcb-product-info');
+    const action = html.indexOf('hcb-product-footer');
+    assert.ok(stage >= 0 && info > stage && action > info, 'product info must be below image and above action');
+    assert.match(html, /object-fit:contain/, 'old saved cover fit must render the entire product');
+    assert.doesNotMatch(html, /hcb-product-overlay/, 'no text overlay should hide part of the merchandise');
+    assert.match(html, /ลด 80%/);
+  }
+  const styles = readFileSync(new URL('../app/hub-content.css', import.meta.url), 'utf8');
+  assert.match(styles, /Product image-first layout/);
+  assert.match(styles, /\.hcb-product-stage[\s\S]*?aspect-ratio:1 \/ 1/);
+});

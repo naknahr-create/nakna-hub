@@ -839,3 +839,92 @@
 .hc .hc-card-carousel-single .hcb-product-price-slot>.hcb-price.hcb-regular-price-long{font-size:18px}
 .hc .hc-card-carousel-single .hcb-product-price-slot .hcb-promo-amount strong.hcb-sale-price-extra-long,
 .hc .hc-card-carousel-single .hcb-product-price-slot>.hcb-price.hcb-regular-price-extra-long{font-size:15px}
+
+
+/* Product image-first layout: the entire item is visible.
+   Unlike the previous frosted card, details cannot cover the merchandise.
+   Keep the CTA in a separate solid-white footer. Scoped to product rails. */
+.hc .hc-card-carousel-compact .hcb-product-stage,
+.hc .hc-card-carousel-single .hcb-product-stage{
+  position:relative;
+  flex:0 0 auto;
+  display:block;
+  aspect-ratio:1 / 1;
+  height:auto;
+  min-height:0;
+  max-height:none;
+  overflow:hidden;
+  background:#f5f8f7;
+  border-radius:15px 15px 0 0;
+}
+.hc .hc-card-carousel-compact .hcb-product-photo .hcb-media img{
+  padding:8px;
+  object-fit:contain !important;
+  object-position:center !important;
+}
+/* Info is a dedicated compact row BELOW the image, never a picture overlay. */
+.hc .hc-card-carousel-compact .hcb-product-info{
+  position:relative;
+  z-index:1;
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  grid-template-rows:30px 24px 40px;
+  align-content:center;
+  gap:4px;
+  flex:0 0 auto;
+  width:100%;
+  min-width:0;
+  min-height:121px;
+  margin:0;
+  padding:10px 12px;
+  background:#fff;
+  border-top:1px solid #e6ecec;
+  color:#17353b;
+}
+.hc .hc-card-carousel-compact .hcb-product-info>.hcb-title{
+  display:-webkit-box;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:2;
+  height:30px;
+  max-height:30px;
+  overflow:hidden;
+  margin:0;
+  font-size:12px;
+  line-height:1.25;
+  letter-spacing:-.01em;
+  font-weight:700;
+  color:#18343a;
+}
+.hc .hc-card-carousel-compact .hcb-product-info .hcb-product-description-slot{
+  height:24px;
+  min-height:24px;
+  max-height:24px;
+}
+.hc .hc-card-carousel-compact .hcb-product-info .hcb-product-description-slot .hcb-description{
+  font-size:10px;
+  line-height:1.2;
+  max-height:24px;
+}
+.hc .hc-card-carousel-single .hcb-product-info{
+  grid-template-rows:38px 26px 46px;
+  min-height:140px;
+  padding:13px 16px;
+  gap:4px;
+}
+.hc .hc-card-carousel-single .hcb-product-info>.hcb-title{
+  height:38px;
+  max-height:38px;
+  font-size:16px;
+  line-height:1.18;
+}
+@media(max-width:350px){
+  .hc .hc-card-carousel-compact .hcb-product-info{
+    padding:9px 7px;
+  }
+  .hc .hc-card-carousel-compact .hcb-product-info>.hcb-title{
+    font-size:11px;
+  }
+  .hc .hc-card-carousel-compact .hcb-product-photo .hcb-media img{
+    padding:4px;
+  }
+}
