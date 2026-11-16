@@ -129,6 +129,8 @@ function paid(db, id, {status = 'active', live = 1, until = Date.now() + 8640000
   db.prepare('INSERT INTO hub_billing_subscriptions VALUES (?,?,?,?,?,?,?,?,?,?,?)')
     .run('sub_'+id,id,'cus_'+id,'price_month','month',status,until,until,0,live,Date.now());
 }
+async function usePro(actor='a') {paid(testEnv.DB.sql,(await account(actor)).id);}
+
 async function team(pageIds, actor = 'a') {
   return teams.createTeam(await request('/api/teams', {actor, method: 'POST', body: {name: 'Content team', pageIds}}));
 }
@@ -206,7 +208,7 @@ test('all content types round-trip without losing old links; image-only pages ca
 });
 
 test('rich media access follows the published snapshot, never unpublished edits or disabled blocks', async () => {
-  setup(); const p = await page(), id = p.page.id;
+  setup(); const p = await page(), id = p.page.id; await usePro();
   const oldImage = await upload(id), newImage = await upload(id), hiddenImage = await upload(id);
   const image = await link(id, {type: 'image', url: '', content: {imageUrl: oldImage.url}});
   await link(id, {type: 'service', title: 'Hidden offer', enabled: false, content: {imageUrl: hiddenImage.url}});
@@ -227,7 +229,7 @@ test('rich media access follows the published snapshot, never unpublished edits 
 });
 
 test('share covers are private drafts, retain old published cover until republish and stop serving when removed', async () => {
-  setup(); const p = await page(), id = p.page.id;
+  setup(); const p = await page(), id = p.page.id; await usePro();
   await link(id);
   const oldCover = await upload(id), newCover = await upload(id);
   await patchProfile(id, {shareImageUrl: oldCover.url});
@@ -248,7 +250,7 @@ test('share covers are private drafts, retain old published cover until republis
 });
 
 test('owned uploaded media is required; another account cannot attach or fetch private content or share covers', async () => {
-  setup(); const p = await page(), foreign = await page('c'), id = p.page.id;
+  setup(); const p = await page(), foreign = await page('c'), id = p.page.id; await usePro('a'); await usePro('c');
   const secret = await upload(foreign.page.id, 'c');
   const invalidMedia = [secret.url, '/media/' + crypto.randomUUID(), 'https://example.com/image.png', 'data:image/png;base64,xxx', 'javascript:alert(1)'];
   for (const url of invalidMedia) {
@@ -263,7 +265,7 @@ test('owned uploaded media is required; another account cannot attach or fetch p
 });
 
 test('gallery bounds, captions, structured fields, plain text and URL validation are enforced on the server', async () => {
-  setup(); const p = await page(), id = p.page.id, image = await upload(id);
+  setup(); const p = await page(), id = p.page.id; await usePro(); const image = await upload(id);
   const invalidSpecs = [
     {type: 'image', content: {}},
     {type: 'image', content: {imageUrl: image.url, aspectRatio: 'infinite'}},
@@ -300,20 +302,22 @@ test('gallery bounds, captions, structured fields, plain text and URL validation
   assert.equal((await readPage(id)).page.linkCount, 2, 'six gallery photos count as one bounded content item');
 });
 
-test('Starter quota counts five mixed content blocks, including hidden items; archiving releases one slot', async () => {
-  setup(); const p = await page(), id = p.page.id, image = await upload(id);
-  const first = await link(id, {type: 'image', enabled: false, url: '', content: {imageUrl: image.url}});
-  await link(id, {type: 'heading', title: 'Services', url: ''});
-  await link(id, {type: 'service', title: 'Consulting', url: '', content: {price: 'สอบถามราคา'}});
-  await link(id, {type: 'text', title: 'About', description: 'Company information', url: ''});
-  await link(id, {type: 'gallery', title: 'Work', url: '', content: {images: [{url: image.url, alt: 'Our work'}]}});
-  assert.equal((await readPage(id)).page.linkCount, 5);
-  assert.equal((await workspace('a')).usage.links, 5);
-  await assert.rejects(link(id, {title: 'Sixth'}), conflict);
-  await hub.archiveLink(await request(`/api/pages/${id}/links/${first.id}?revision=${await revision(id)}`, {method: 'DELETE'}), id, first.id);
-  await link(id, {title: 'Available slot'});
-  await assert.rejects(patchBlock(id, first.id, {archived: false}), conflict);
-  assert.equal((await readPage(id)).page.linkCount, 5);
+test('Starter permits five links, blocks media even via API, and archiving frees one slot',async()=>{
+  setup();const p=await page(),id=p.page.id;
+  const first=await link(id,{title:'First free link'});
+  await assert.rejects(upload(id),error=>error.status===403&&error.extra?.code==='pro_media_required');
+  for(const type of ['heading','text','image','gallery','service','promotion']){
+    await assert.rejects(link(id,{type,title:'Paid only'}),error=>error.status===403&&error.extra?.code==='pro_content_required');
+  }
+  await assert.rejects(patchProfile(id,{avatarUrl:'https://example.com/avatar.png'}),error=>error.status===403);
+  await assert.rejects(patchProfile(id,{shareImageUrl:'/media/'+crypto.randomUUID()}),error=>error.status===403);
+  for(let i=1;i<5;i++)await link(id,{title:'Free link '+i});
+  assert.equal((await workspace('a')).usage.links,5);
+  await assert.rejects(link(id,{title:'Sixth'}),conflict);
+  await hub.archiveLink(await request('/api/pages/'+id+'/links/'+first.id+'?revision='+await revision(id),{method:'DELETE'}),id,first.id);
+  await link(id,{title:'Fifth active link'});
+  await publish(id);
+  assert.equal((await publicHub(p.page.slug)).links.length,5);
 });
 
 test('rich CTA redirects use published destinations, record actual clicks and appear in paid analytics', async () => {
@@ -351,6 +355,7 @@ test('rich CTA redirects use published destinations, record actual clicks and ap
 
 test('team editor can use assigned hub images but cannot reuse unrelated private owner or personal images', async () => {
   const {db,p,a,t,b} = await sharing({paidOwner: true}), id = p.page.id;
+  paid(db,b.id);
   const other = await page('a', '-private'), ownPrivate = await upload(other.page.id), memberPrivate = await upload(null, 'b');
   const shared = await upload(id, 'b');
   const image = await link(id, {type: 'image', title: 'Team image', url: '', content: {imageUrl: shared.url}}, 'b');
@@ -460,12 +465,13 @@ test('affiliate promotion shows 100 -> 80 baht as a 20% discount and counts a re
   assert.equal(redirect.headers.get('Location'),'https://shop.example.com/item?affiliate=abc');
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM hub_events WHERE type='click'").get().n,1);
   await patchBlock(id,promotion.id,{enabled:false});
+  await link(id,{title:'Contact us',url:'https://example.com/contact'});
   await publish(id);
   await assert.rejects(publicAsset(img.url),missing,'disabled promo images become private');
 });
 
 test('promotion requires a real image, positive prices, discount and an affiliate product URL',async()=>{
-  setup();const p=await page(),id=p.page.id,img=await upload(id);
+  setup();const p=await page(),id=p.page.id; await usePro(); const img=await upload(id);
   const valid={imageUrl:img.url,originalPrice:'100',salePrice:'80'};
   const invalidSpecs=[
     {url:'',content:valid},
@@ -525,7 +531,7 @@ test('service product discount switch saves sale pricing and removes the sale wh
 });
 
 test('service discount switch validates boolean, image, prices, and outbound link',async()=>{
-  setup();const p=await page(),id=p.page.id,image=await upload(id);
+  setup();const p=await page(),id=p.page.id; await usePro(); const image=await upload(id);
   const offer={imageUrl:image.url,hasPromotion:true,originalPrice:'100',salePrice:'80'};
   const invalidOffers=[
     {url:'',content:offer},
@@ -586,7 +592,7 @@ test('legacy promotion converts in-place to product with enabled discount withou
 
 
 test('product photo focus and zoom persist in drafts and published snapshots',async()=>{
-  setup();const p=await page(),id=p.page.id;
+  setup();const p=await page(),id=p.page.id; await usePro();
   const image=await upload(id);
   const product=await link(id,{
     type:'service',title:'Product with focal image',url:'https://example.com/order',
@@ -616,7 +622,7 @@ test('product photo focus and zoom persist in drafts and published snapshots',as
 });
 
 test('product photo framing accepts only bounded integer percentages',async()=>{
-  setup();const p=await page(),id=p.page.id;const image=await upload(id);
+  setup();const p=await page(),id=p.page.id; await usePro(); const image=await upload(id);
   const base={imageUrl:image.url,fit:'cover',price:'500'};
   const badCases=[
     {imageFocusX:-1},{imageFocusX:101},{imageFocusX:35.5},{imageFocusX:'50'},

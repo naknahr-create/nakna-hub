@@ -18,7 +18,7 @@ const ICONS = [
 ];
 function modeOf(value:string):Mode { return imageAssetId(value) ? 'image' : value === 'auto' ? 'auto' : 'icon'; }
 
-export default function LinkMediaPicker({pageId,value,url,onChange,disabled=false,onUploadingChange}:{pageId?:string;value:string;url:string;onChange:(value:string)=>void;disabled?:boolean;onUploadingChange?:(uploading:boolean)=>void}) {
+export default function LinkMediaPicker({pageId,value,url,onChange,disabled=false,onUploadingChange,allowImages=true,onUpgrade}:{pageId?:string;value:string;url:string;onChange:(value:string)=>void;disabled?:boolean;onUploadingChange?:(uploading:boolean)=>void;allowImages?:boolean;onUpgrade?:()=>void}) {
   const [mode,setMode] = useState<Mode>(() => modeOf(value));
   const [uploading,setUploading] = useState(false);
   const [error,setError] = useState('');
@@ -37,12 +37,14 @@ export default function LinkMediaPicker({pageId,value,url,onChange,disabled=fals
   const assetId = imageAssetId(value);
   function choose(next:Mode) {
     if(locked) return;
+    if(next==='image'&&!allowImages){onUpgrade?.();setError('การใช้รูปภาพส่วนตัวเป็นไอคอนต้องสมัคร Pro');return;}
     setMode(next); setError('');
     if(next === 'auto') onChange('auto');
     if(next === 'icon') onChange(lastIcon.current);
   }
   async function upload(file?:File) {
     if(!file || locked) return;
+    if(!allowImages){setError('เพิ่มรูปภาพได้ใน Pro เท่านั้น');return;}
     setError('');
     if(!['image/png','image/jpeg','image/webp'].includes(file.type) || !file.size || file.size > 2*1024*1024) {
       setError('เลือกรูป PNG, JPG หรือ WebP ขนาดไม่เกิน 2 MB');
@@ -71,12 +73,12 @@ export default function LinkMediaPicker({pageId,value,url,onChange,disabled=fals
     <div className="hlm-modes" role="group" aria-label="รูปแบบไอคอนลิงก์">
       <button type="button" disabled={locked} aria-pressed={mode === 'auto'} aria-controls={panelId} className={mode === 'auto' ? 'selected' : ''} data-tooltip="ใช้ไอคอนจาก URL ของเว็บไซต์โดยอัตโนมัติ" onClick={() => choose('auto')}><Globe2 size={20} aria-hidden="true"/><span><strong>จากเว็บไซต์</strong><small>ดึงจาก URL อัตโนมัติ</small></span><span className="hlm-mode-check" aria-hidden="true">{mode === 'auto' && <Check size={15}/>}</span></button>
       <button type="button" disabled={locked} aria-pressed={mode === 'icon'} aria-controls={panelId} className={mode === 'icon' ? 'selected' : ''} data-tooltip="เลือกไอคอนสำเร็จรูปให้เหมาะกับลิงก์" onClick={() => choose('icon')}><Shapes size={20} aria-hidden="true"/><span><strong>เลือกไอคอน</strong><small>มีให้เลือก 18 แบบ</small></span><span className="hlm-mode-check" aria-hidden="true">{mode === 'icon' && <Check size={15}/>}</span></button>
-      <button type="button" disabled={locked} aria-pressed={mode === 'image'} aria-controls={panelId} className={mode === 'image' ? 'selected' : ''} data-tooltip="อัปโหลดโลโก้หรือรูปภาพของคุณ" onClick={() => choose('image')}><ImageIcon size={20} aria-hidden="true"/><span><strong>อัปโหลดรูป</strong><small>ใช้โลโก้หรือรูปของคุณ</small></span><span className="hlm-mode-check" aria-hidden="true">{mode === 'image' && <Check size={15}/>}</span></button>
+      <button type="button" disabled={locked} aria-pressed={mode === 'image'} aria-controls={panelId} className={mode === 'image' ? 'selected' : ''} data-tooltip="อัปโหลดโลโก้หรือรูปภาพของคุณ" onClick={() => choose('image')}><ImageIcon size={20} aria-hidden="true"/><span><strong>อัปโหลดรูป {!allowImages&&<small style={{color:'#04878a',fontWeight:700}}>PRO</small>}</strong><small>{allowImages?'ใช้โลโก้หรือรูปของคุณ':'ปลดล็อกด้วย Pro ฿149/เดือน'}</small></span><span className="hlm-mode-check" aria-hidden="true">{mode === 'image' && <Check size={15}/>}</span></button>
     </div>
     <div id={panelId} className="hlm-mode-panel">
     {mode === 'auto' && <div className="hlm-auto-note"><Info size={18} aria-hidden="true"/><p>{websiteIconUrl(url) ? 'ระบบจะดึงไอคอนจากเว็บไซต์ให้ ถ้าเว็บไซต์ไม่มีรูปที่ใช้ได้ จะแสดงไอคอนลิงก์แทน' : 'ใส่ URL เว็บไซต์ในช่องลิงก์ปลายทางเพื่อใช้ไอคอนอัตโนมัติ หรือเลือกไอคอนสำเร็จรูปได้เลย'}</p></div>}
     {mode === 'icon' && <div className="hlm-icon-grid" role="group" aria-label="เลือกไอคอนสำหรับลิงก์">{ICONS.map(icon => <button key={icon.id} type="button" disabled={locked} aria-pressed={value === icon.id} aria-label={`ใช้ไอคอน${icon.label}`} data-tooltip={`ใช้ไอคอน${icon.label}`} className={value === icon.id ? 'selected' : ''} onClick={() => { lastIcon.current = icon.id; onChange(icon.id); }}><HubIcon name={icon.id} size={24}/><span>{icon.label}</span>{value === icon.id && <Check className="hlm-icon-check" size={13} aria-hidden="true"/>}</button>)}</div>}
-    {mode === 'image' && <div className="hlm-upload-area">
+    {mode === 'image' && !allowImages ? <div className="hlm-auto-note"><Info size={18}/><p>รูปไอคอนเดิมยังถูกเก็บไว้ แต่ Free ใช้รูปอัปโหลดไม่ได้ เลือกไอคอนมาตรฐาน หรืออัปเกรด Pro เพื่อกลับมาใช้รูป</p><button type="button" onClick={()=>{onChange('auto');setMode('auto');}} style={{textDecoration:'underline',color:'#04878a'}}>ใช้ไอคอนเว็บไซต์แทน</button></div> : mode === 'image' && <div className="hlm-upload-area">
       <button type="button" disabled={locked} aria-describedby={uploadHintId} className={`hlm-dropzone ${dragging ? 'hlm-dragging' : ''}`} onClick={() => input.current?.click()} onDragOver={event => {event.preventDefault();if(!locked)setDragging(true);}} onDragLeave={event => {if(!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget))setDragging(false);}} onDrop={event => {event.preventDefault();setDragging(false);if(!locked)void upload(event.dataTransfer.files[0]);}}>
         <span className="hlm-upload-symbol">{uploading ? <LoaderCircle className="hs-spin" size={24} aria-hidden="true"/> : assetId ? <HubLinkIcon icon={value} url={url} size={42}/> : <Upload size={24} aria-hidden="true"/>}</span>
         <span><strong>{uploading ? 'กำลังอัปโหลดรูป…' : assetId ? 'เปลี่ยนรูปของลิงก์' : 'เลือกไฟล์รูปภาพ'}</strong><small>{assetId ? 'เลือกรูปใหม่เพื่อแทนรูปเดิม' : 'คลิกเพื่อเลือกไฟล์ หรือลากรูปมาวางที่นี่'}</small></span><span className="hlm-upload-action" aria-hidden="true">{uploading ? 'กำลังอัปโหลด' : assetId ? 'เปลี่ยนรูป' : 'เลือกไฟล์'}</span>

@@ -197,7 +197,7 @@ test('admin overview uses actual paid access, real events and correctly normaliz
   assert.equal((await adminHubs(await request('/api/operator/hubs?q=owner-b'))).items[0].id,b.page.id);
 });
 test('hub suspension blocks public hub, media, views, redirects and republishing, then restores unchanged snapshot',async()=>{
-  const {db}=setup(),p=await page(),asset=await upload(),l=await link(p.page.id,{icon:'image:'+asset.url.slice(7)});await publish(p.page.id);await bindOperator(db);
+  const {db}=setup(),p=await page(); paid(db,(await account()).id);const asset=await upload(),l=await link(p.page.id,{icon:'image:'+asset.url.slice(7)});await publish(p.page.id);await bindOperator(db);
   const original=db.prepare('SELECT snapshot_json,revision,published FROM hub_pages WHERE id=?').get(p.page.id);
   const patch=(suspended,reason)=>request('/api/operator/hubs/'+p.page.id,{method:'PATCH',body:{suspended,reason}});
   await adminUpdateHub(await patch(true,'ตรวจสอบเนื้อหาจากรายงาน'),p.page.id);

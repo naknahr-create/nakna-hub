@@ -192,7 +192,7 @@ test('same-height products share title, description, price and CTA rows without 
 test('non-product content cards retain image/gallery actions unaffected by shared price slots',()=>{
   const content=readFileSync(new URL('../app/components/HubContentBlock.tsx',import.meta.url),'utf8');
   assert.match(content,/block.type==='gallery'&&/);
-  assert.match(content,/:action&&<div className="hcb-bottom">\{action\}<\/div>/);
+  assert.match(content,/\{action&&<div className="hcb-bottom">\{action\}<\/div>/);
   assert.match(content,/hasAction\?<a href=\{href\}/);
 });
 
@@ -205,7 +205,8 @@ test('exactly two products fit the preview width with tall bright imagery',()=>{
   assert.match(css,/flex:0 0 244px/);
   assert.match(css,/height:244px/);
   assert.match(css,/height:44px/);
-  assert.match(css,/max-height:15px/);
+  assert.match(css,/\.hcb-product-description-slot/);
+  assert.match(css,/max-height:22px/);
   assert.match(css,/\.hc \.hc-card-carousel-compact \.hcb-product-footer/);
   assert.match(markup,/hcb-product-price-slot/);
   assert.match(markup,/hcb-product-action-slot/);

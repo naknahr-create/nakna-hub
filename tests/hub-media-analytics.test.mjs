@@ -188,7 +188,9 @@ test('publishing rechecks image ownership and disabled image links do not expose
 });
 
 test('image uploads reject MIME disguises and files over the supported limit', async () => {
-  setup();
+  setup(); await page();
+  const account=testEnv.DB.sql.prepare('SELECT id FROM hub_accounts LIMIT 1').get();
+  testEnv.DB.sql.prepare("UPDATE hub_accounts SET plan='pro' WHERE id=?").run(account.id);
   await assert.rejects(upload('a', new Blob(['<svg><script>alert(1)</script></svg>'], {type: 'image/png'})), error => error.status === 400);
   await assert.rejects(upload('a', new Blob([PNG], {type: 'image/jpeg'})), error => error.status === 400);
   await assert.rejects(upload('a', new Blob([new Uint8Array(2 * 1024 * 1024 + 1)], {type: 'image/png'})), error => error.status === 413);
