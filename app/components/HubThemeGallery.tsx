@@ -1,7 +1,7 @@
 "use client";
 
 import {useMemo, useState} from "react";
-import {ArrowRight, ChevronDown, Eye, Layers3, Search, Sparkles, X} from "lucide-react";
+import {ArrowRight, Check, ChevronDown, Eye, Layers3, Search, Sparkles, X} from "lucide-react";
 import type {HubLink, HubProfile} from "../../lib/hub-types";
 import {applyHubTheme, getHubTheme, HUB_THEMES, HUB_THEME_CATEGORIES, type HubThemeCategory} from "../../lib/hub-themes";
 import {HubThemeThumbnail} from "./HubThemeThumbnail";

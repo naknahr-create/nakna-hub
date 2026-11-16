@@ -31,6 +31,7 @@ const hooks = registerHooks({
 });
 after(() => hooks.deregister());
 const {HubCanvas} = await import('../app/components/HubCanvas.tsx');
+const {default: HubThemeGallery} = await import('../app/components/HubThemeGallery.tsx');
 const {HUB_THEMES, applyHubTheme} = await import('../lib/hub-themes.ts');
 const profile = {name: 'ธุรกิจทดสอบ', handle: '@test-hub', tagline: 'ผลงานของเรา', bio: 'ข้อมูลจริงของธุรกิจ', avatarUrl: '', accent: '#04878a', theme: 'light', layout: 'stack', background: 'mint', showBranding: true};
 const media = '/media/12000000-0000-4000-8000-000000000001';
@@ -77,4 +78,24 @@ test('rich content is preserved through all 24 theme presets and hidden or archi
     assert.match(html, /ธุรกิจทดสอบ/);
     assert.match(html, /alt="ภาพสินค้า"/);
   }
+});
+
+
+test('appearance tab renders selected theme and reassurance instead of crashing', () => {
+  const selectedTheme = HUB_THEMES[0];
+  const selectedProfile = {...profile, themeId: selectedTheme.id};
+  const html = renderToStaticMarkup(createElement(HubThemeGallery, {
+    profile: selectedProfile,
+    links: blocks,
+    savedThemeId: selectedTheme.id,
+    dirty: false,
+    busy: false,
+    onChange: () => {},
+    onPreview: () => {},
+  }));
+  assert.match(html, /เลือกสไตล์ที่เป็นคุณ/);
+  assert.match(html, /เลือกอยู่/, 'selected theme must render its Check icon');
+  assert.match(html, /เปลี่ยนธีมได้เสมอ/, 'footer must render its Check icon');
+  assert.match(html, /เลือกธีมสำเร็จรูป/);
+  assert.match(html, /ธีมพร้อมใช้/);
 });
