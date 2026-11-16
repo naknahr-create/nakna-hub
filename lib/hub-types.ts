@@ -82,6 +82,7 @@ export type WorkspaceData = {
   archivedPages: PageSummary[];
   sharedPages: PageSummary[];
   usage: {pages: number; links: number; totalClicks: number | null};
+  storage: {usedBytes: number; limitBytes: number};
   upgradeRequested: boolean;
 };
 export type PageEditorData = {page: PageSummary; profile: HubProfile; links: HubLink[]; revision: number; access: PageAccess};
