@@ -18,7 +18,7 @@ const ICONS = [
 ];
 function modeOf(value:string):Mode { return imageAssetId(value) ? 'image' : value === 'auto' ? 'auto' : 'icon'; }
 
-export default function LinkMediaPicker({pageId,value,url,onChange,disabled=false,onUploadingChange}:{pageId?:string;value:string;url:string;onChange:(value:string)=>void;disabled?:boolean;onUploadingChange?:(uploading:boolean)=>void}) {
+export default function LinkMediaPicker({pageId,value,url,onChange,disabled=false,pro=true,onUploadingChange}:{pageId?:string;value:string;url:string;onChange:(value:string)=>void;disabled?:boolean;pro?:boolean;onUploadingChange?:(uploading:boolean)=>void}) {
   const [mode,setMode] = useState<Mode>(() => modeOf(value));
   const [uploading,setUploading] = useState(false);
   const [error,setError] = useState('');
@@ -71,7 +71,7 @@ export default function LinkMediaPicker({pageId,value,url,onChange,disabled=fals
     <div className="hlm-modes" role="group" aria-label="รูปแบบไอคอนลิงก์">
       <button type="button" disabled={locked} aria-pressed={mode === 'auto'} aria-controls={panelId} className={mode === 'auto' ? 'selected' : ''} data-tooltip="ใช้ไอคอนจาก URL ของเว็บไซต์โดยอัตโนมัติ" onClick={() => choose('auto')}><Globe2 size={20} aria-hidden="true"/><span><strong>จากเว็บไซต์</strong><small>ดึงจาก URL อัตโนมัติ</small></span><span className="hlm-mode-check" aria-hidden="true">{mode === 'auto' && <Check size={15}/>}</span></button>
       <button type="button" disabled={locked} aria-pressed={mode === 'icon'} aria-controls={panelId} className={mode === 'icon' ? 'selected' : ''} data-tooltip="เลือกไอคอนสำเร็จรูปให้เหมาะกับลิงก์" onClick={() => choose('icon')}><Shapes size={20} aria-hidden="true"/><span><strong>เลือกไอคอน</strong><small>มีให้เลือก 18 แบบ</small></span><span className="hlm-mode-check" aria-hidden="true">{mode === 'icon' && <Check size={15}/>}</span></button>
-      <button type="button" disabled={locked} aria-pressed={mode === 'image'} aria-controls={panelId} className={mode === 'image' ? 'selected' : ''} data-tooltip="อัปโหลดโลโก้หรือรูปภาพของคุณ" onClick={() => choose('image')}><ImageIcon size={20} aria-hidden="true"/><span><strong>อัปโหลดรูป</strong><small>ใช้โลโก้หรือรูปของคุณ</small></span><span className="hlm-mode-check" aria-hidden="true">{mode === 'image' && <Check size={15}/>}</span></button>
+      <button type="button" disabled={locked||!pro} aria-pressed={mode === 'image'} aria-controls={panelId} className={mode === 'image' ? 'selected' : ''} data-tooltip="อัปโหลดโลโก้หรือรูปภาพของคุณ" onClick={() => choose('image')}><ImageIcon size={20} aria-hidden="true"/><span><strong>อัปโหลดรูป</strong><small>ใช้โลโก้หรือรูปของคุณ</small></span><span className="hlm-mode-check" aria-hidden="true">{mode === 'image' && <Check size={15}/>}</span></button>
     </div>
     <div id={panelId} className="hlm-mode-panel">
     {mode === 'auto' && <div className="hlm-auto-note"><Info size={18} aria-hidden="true"/><p>{websiteIconUrl(url) ? 'ระบบจะดึงไอคอนจากเว็บไซต์ให้ ถ้าเว็บไซต์ไม่มีรูปที่ใช้ได้ จะแสดงไอคอนลิงก์แทน' : 'ใส่ URL เว็บไซต์ในช่องลิงก์ปลายทางเพื่อใช้ไอคอนอัตโนมัติ หรือเลือกไอคอนสำเร็จรูปได้เลย'}</p></div>}
