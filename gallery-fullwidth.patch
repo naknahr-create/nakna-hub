@@ -1,0 +1,9 @@
+--- a/app/components/HubContentBlock.tsx
++++ b/app/components/HubContentBlock.tsx
+@@ -150,5 +150,5 @@
+   if(!['text','image','gallery','service','promotion'].includes(block.type))return null;
+ 
+-  return <article className={`hcb hcb-${block.type} ${discountEnabled&&block.type==='service'?'hcb-promotion':''} ${block.featured?'hcb-featured':''} ${!photo?'hcb-no-photo':''}`} aria-labelledby={titleId} data-block-type={block.type}>
++  return <article className={`hcb ${block.type==='gallery'?'hcb-gallery-block':`hcb-${block.type}`} ${discountEnabled&&block.type==='service'?'hcb-promotion':''} ${block.featured?'hcb-featured':''} ${!photo?'hcb-no-photo':''}`} aria-labelledby={titleId} data-block-type={block.type}>
+     {block.featured&&!discountEnabled&&<span className="hcb-featured-label"><Sparkles size={12} aria-hidden="true"/>แนะนำ</span>}
+     {isProduct?<>

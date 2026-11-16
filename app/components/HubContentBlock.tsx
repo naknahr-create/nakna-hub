@@ -29,10 +29,9 @@ function ContentImage({url,alt,ratio='landscape',fit='cover',large=false,focusX,
   </span>;
 }
 
-
 /**
- * A single visible, full-width gallery slide avoids the old overflowing
- * CSS-grid track shrinking inside the narrow Studio phone preview.
+ * The gallery shows one full-width slide at a time. Both Studio and the live
+ * page share the same component, and swipe gestures are supported on mobile.
  */
 function Gallery({images,title,layout}:{images:HubBlockImage[];title:string;layout:'grid'|'carousel'}){
   const [selected,setSelected]=useState<number|null>(null);
@@ -150,7 +149,11 @@ export function HubContentBlock({block,href,onDemoClick}:ContentBlockProps){
     zoom={isProduct?content.imageZoom??100:undefined}/>:null;
   if(!['text','image','gallery','service','promotion'].includes(block.type))return null;
 
-  return <article className={`hcb hcb-${block.type} ${discountEnabled&&block.type==='service'?'hcb-promotion':''} ${block.featured?'hcb-featured':''} ${!photo?'hcb-no-photo':''}`} aria-labelledby={titleId} data-block-type={block.type}>
+  // IMPORTANT: The outer card must NOT have `hcb-gallery`.
+  // `.hcb-gallery` is the two-column inner gallery GRID selector in hub-content.css.
+  // Reusing it on the article split the entire card into 2 columns and kept
+  // the carousel artwork stuck in the left half (the reported Studio bug).
+  return <article className={`hcb ${block.type==='gallery'?'hcb-gallery-block':`hcb-${block.type}`} ${discountEnabled&&block.type==='service'?'hcb-promotion':''} ${block.featured?'hcb-featured':''} ${!photo?'hcb-no-photo':''}`} aria-labelledby={titleId} data-block-type={block.type}>
     {block.featured&&!discountEnabled&&<span className="hcb-featured-label"><Sparkles size={12} aria-hidden="true"/>แนะนำ</span>}
     {isProduct?<>
       <div className="hcb-product-stage">
