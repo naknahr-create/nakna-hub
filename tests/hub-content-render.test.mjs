@@ -99,3 +99,36 @@ test('appearance tab renders selected theme and reassurance instead of crashing'
   assert.match(html, /เลือกธีมสำเร็จรูป/);
   assert.match(html, /ธีมพร้อมใช้/);
 });
+
+
+test('hundred-thousand and million-baht sale prices render without sharing the discount badge row',()=>{
+  const sale = link('sale-car','service',{
+    title:'รถตัวอย่าง',description:'Station Wagon / Estate',url:'https://example.com/car',sortOrder:1,
+    content:{imageUrl:media,alt:'old alternate description',hasPromotion:true,
+      originalPrice:'999000',salePrice:'699000',buttonLabel:'ดูสินค้า / ซื้อเลย'}
+  });
+  const regular = link('ordinary-shirt','service',{
+    title:'เสื้อกีฬา',url:'https://example.com/shirt',sortOrder:2,
+    content:{imageUrl:media,price:'฿120,000',buttonLabel:'ดูสินค้า / ซื้อเลย'}
+  });
+  const html=render({links:[sale,regular]});
+  assert.match(html,/฿999,000/);
+  assert.match(html,/฿699,000/);
+  assert.match(html,/ลด 30%/);
+  assert.match(html,/hcb-sale-price-compact/);
+  assert.match(html,/hcb-regular-price-compact/);
+  assert.match(html,/alt="รถตัวอย่าง"/,'product image alt should come from title, not editable alt text');
+  assert.doesNotMatch(html,/alt="old alternate description"/);
+  assert.match(html,/href="\/go\/test-hub\/sale-car"/);
+  assert.match(html,/href="\/go\/test-hub\/ordinary-shirt"/);
+});
+test('very large prices remain complete in rendered output with responsive size class',()=>{
+  const luxury=link('luxury','service',{
+    title:'สินค้าราคาสูง',url:'https://example.com/luxury',
+    content:{imageUrl:media,hasPromotion:true,originalPrice:'999999999.99',salePrice:'888888888.99'}
+  });
+  const html=render({links:[luxury]});
+  assert.match(html,/hcb-sale-price-extra-long/);
+  assert.match(html,/฿888,888,888\.99/);
+  assert.match(html,/hcb-product-footer/);
+});
