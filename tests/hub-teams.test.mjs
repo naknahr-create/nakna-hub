@@ -441,7 +441,7 @@ test('legacy unscoped owner media is usable only when attached to the authorized
 });
 
 test('revocation during R2 upload rejects the asset insert and removes the stored object', async () => {
-  const {db, objects, p, t} = await sharing();
+  const {db, objects, p, t} = await sharing({paidOwner:true});
   const id = await memberId(t.id);
   const before = db.prepare('SELECT COUNT(*) AS n FROM hub_assets').get().n;
   const put = testEnv.BUCKET.put.bind(testEnv.BUCKET);
@@ -495,7 +495,7 @@ test('shared editors use the hub owner limit regardless of the editor own paid p
 });
 
 test('ready-made theme persists as a draft, preserves content and media, and reaches the public hub only on publish', async () => {
-  setup(); const p = await page(), id = p.page.id;
+  const {db}=setup(); const p = await page(), id = p.page.id; paid(db,(await account()).id);
   const asset = await upload(id);
   const originalLink = await link(id, {title: 'My original link', icon: 'image:' + asset.url.slice(7)});
   const save = async profile => hub.updatePage(await request('/api/pages/' + id,
