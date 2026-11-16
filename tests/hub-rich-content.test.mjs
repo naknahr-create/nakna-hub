@@ -465,6 +465,7 @@ test('affiliate promotion shows 100 -> 80 baht as a 20% discount and counts a re
   assert.equal(redirect.headers.get('Location'),'https://shop.example.com/item?affiliate=abc');
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM hub_events WHERE type='click'").get().n,1);
   await patchBlock(id,promotion.id,{enabled:false});
+  await link(id,{title:'Contact us',url:'https://example.com/contact'});
   await publish(id);
   await assert.rejects(publicAsset(img.url),missing,'disabled promo images become private');
 });
