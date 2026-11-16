@@ -61,7 +61,15 @@ export function text(value:unknown,label:string,max:number,required=false):strin
   if(typeof value!=='string')throw new HubError(400,`${label}ต้องเป็นข้อความ`);const clean=value.trim();
   if((required&&!clean)||clean.length>max||/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(clean))throw new HubError(400,`${label}ไม่ถูกต้อง (ไม่เกิน ${max} ตัวอักษร)`);return clean;
 }
-export function planLimits(plan:HubPlan):PlanLimits{return plan==='pro'?{maxPages:10,maxLinksPerPage:100}:{maxPages:1,maxLinksPerPage:5};}
+export const HUB_PRO_STORAGE_LIMIT_BYTES = 2 * 1024 * 1024 * 1024;
+export function planLimits(plan:HubPlan):PlanLimits{return plan==='pro'?{maxPages:10,maxLinksPerPage:100,maxStorageBytes:HUB_PRO_STORAGE_LIMIT_BYTES}:{maxPages:1,maxLinksPerPage:5,maxStorageBytes:0};}
+async function storageUsed(accountId:string):Promise<number>{
+  const row=await db().prepare('SELECT COALESCE(SUM(size),0) AS used FROM hub_assets WHERE account_id=?').bind(accountId).first<{used:number}>();
+  return row?.used??0;
+}
+function requireProMedia(account:AccountRow):void{
+  if(account.plan!=='pro')throw new HubError(403,'รูปภาพ แกลเลอรี และเนื้อหาพรีเมียมใช้ได้ใน Pro 149 บาท/เดือน',{code:'pro_media_required',upgradeUrl:'/studio?section=billing'});
+}
 async function operatorFor(user:Identity,bind=false):Promise<boolean>{
   const existing=await db().prepare('SELECT user_id FROM hub_operators WHERE slot=?').bind('operator').first<{user_id:string}>();
   if(existing)return existing.user_id===user.userId;
@@ -159,7 +167,7 @@ export async function getWorkspace(request:Request):Promise<WorkspaceData>{
   const total=info.entitlements.analytics?await db().prepare("SELECT COUNT(*) AS n FROM hub_events e JOIN hub_pages p ON p.id=e.page_id WHERE p.account_id=? AND e.type='click'").bind(account.id).first<{n:number}>():null;
   const sharedRows=await db().prepare("SELECT DISTINCT p.* FROM hub_pages p JOIN hub_team_pages tp ON tp.page_id=p.id JOIN hub_teams t ON t.id=tp.team_id AND t.owner_account_id=p.account_id JOIN hub_team_members m ON m.team_id=t.id WHERE m.account_id=? AND m.status='active' AND t.archived=0 AND p.archived=0 AND p.account_id<>? ORDER BY p.updated_at DESC,p.id").bind(account.id,account.id).all<PageRow>();
   const sharedPages=await Promise.all(sharedRows.results.map(async page=>{const {owner,access}=await resolveHubPageAccess(account,page.id,page.account_id);return {...await pageSummary(page,owner.plan,access.analytics),access};}));
-  return {account:info,limits:planLimits(account.plan),pages,archivedPages,sharedPages,usage:{pages:pages.length,links:usage?.n??0,totalClicks:info.entitlements.analytics?(total?.n??0):null},upgradeRequested:!!upgrade};
+  return {account:info,limits:planLimits(account.plan),pages,archivedPages,sharedPages,usage:{pages:pages.length,links:usage?.n??0,totalClicks:info.entitlements.analytics?(total?.n??0):null,storageBytes:await storageUsed(account.id)},upgradeRequested:!!upgrade};
 }
 export function validateSlug(value:unknown):string{
   const slug=text(value,'ชื่อลิงก์',40,true);
@@ -218,8 +226,8 @@ async function validateProfile(input:unknown,current:HubProfile,account:AccountR
     profile=data.themeId==='custom'?{...profile,themeId:'custom'}:applyHubTheme(profile,data.themeId);
   }
   for(const field of ['name','handle','tagline','bio'] as const)if(field in data)profile[field]=text(data[field],field==='name'?'ชื่อหน้า':'ข้อความ',field==='bio'?280:field==='tagline'?120:80,field==='name');
-  if('avatarUrl'in data)profile.avatarUrl=await validateAvatar(data.avatarUrl,account,pageId,actorId);
-  if('shareImageUrl'in data)profile.shareImageUrl=await validateUploadedImage(data.shareImageUrl,account,pageId,actorId,'ภาพปกเวลาแชร์',false);
+  if('avatarUrl'in data){if(data.avatarUrl&&data.avatarUrl!==current.avatarUrl)requireProMedia(account);profile.avatarUrl=await validateAvatar(data.avatarUrl,account,pageId,actorId);}
+  if('shareImageUrl'in data){if(data.shareImageUrl&&data.shareImageUrl!==current.shareImageUrl)requireProMedia(account);profile.shareImageUrl=await validateUploadedImage(data.shareImageUrl,account,pageId,actorId,'ภาพปกเวลาแชร์',false);}
   if('shareTitle'in data)profile.shareTitle=text(data.shareTitle,'ชื่อเวลาแชร์ลิงก์',120);
   if('shareDescription'in data)profile.shareDescription=text(data.shareDescription,'คำอธิบายเวลาแชร์ลิงก์',280);
   if('accent'in data){if(typeof data.accent!=='string'||!/^#[0-9a-f]{6}$/i.test(data.accent))throw new HubError(400,'รหัสสีต้องเป็น #RRGGBB');profile.accent=data.accent;}
@@ -346,11 +354,18 @@ async function validateBlockContent(value:unknown,type:HubLink['type'],title:str
 async function validateLink(data:Record<string,unknown>,account:AccountRow,existing?:HubLink,pageId?:string,actorId?:string):Promise<Omit<HubLink,'id'>>{
   keys(data,LINK_KEYS);const link:Omit<HubLink,'id'>=existing?{type:existing.type,title:existing.title,description:existing.description,url:existing.url,icon:existing.icon,...(existing.content?{content:existing.content}:{}),enabled:existing.enabled,featured:existing.featured,sortOrder:existing.sortOrder,archived:existing.archived}:{type:'link',title:'',description:'',url:'',icon:'auto',enabled:true,featured:false,sortOrder:0,archived:false};
   if('type'in data){if(!isHubContentType(data.type))throw new HubError(400,'ประเภทบล็อกไม่ถูกต้อง');link.type=data.type;}
-  const rich=isRichContentType(link.type);
+  // Existing Pro-only entries stay visible after downgrade and may be archived,
+   // but Free accounts cannot add, edit or convert them into premium entries.
+   if(account.plan!=='pro' && (link.type!=='link' || imageAssetId(String(data.icon??link.icon)))) {
+     if(!(existing && data.archived===true && link.type===existing.type))
+       requireProMedia(account);
+   }
+   const rich=isRichContentType(link.type);
   for(const field of ['title','description'] as const)link[field]=(rich?contentText:text)(field in data?data[field]:link[field],field==='title'?'ชื่อรายการ':'คำอธิบาย',field==='title'?100:rich?2000:220,field==='title');
   if(!link.title)throw new HubError(400,'กรอกชื่อรายการ');
   if(link.type==='text'&&!link.description)throw new HubError(400,'กรอกข้อความที่ต้องการแสดง');
   link.icon=await validateLinkIcon('icon'in data?data.icon:link.icon,account,pageId,actorId);
+   if(account.plan!=='pro'&&imageAssetId(link.icon))requireProMedia(account);
   if('url'in data)link.url=text(data.url,'ลิงก์ปลายทาง',2048);
   // Validate all content first: the same service can require a purchase link
   // only when its discount switch is on.
@@ -562,15 +577,17 @@ export async function uploadAsset(request:Request):Promise<{url:string}>{
   if(Array.from(form.keys()).some(k=>!['file','pageId'].includes(k))||form.getAll('file').length!==1||form.getAll('pageId').length>1)throw new HubError(400,'แนบรูปภาพครั้งละ 1 ไฟล์');
   const pageId=form.get('pageId');if(pageId!==null){if(typeof pageId!=='string'||!UUID.test(pageId))throw new HubError(400,'ฮับของรูปภาพไม่ถูกต้อง');account=(await pageContext(actor,pageId,'edit')).owner;}
   const file=form.get('file');if(!file||typeof file==='string'||!(file instanceof Blob))throw new HubError(400,'กรุณาแนบรูปภาพ');
-  if(file.size===0||file.size>2*1024*1024)throw new HubError(413,'ใช้รูปภาพขนาดไม่เกิน 2 MB');
+  requireProMedia(account);
+   if(file.size===0||file.size>2*1024*1024)throw new HubError(413,'ใช้รูปภาพขนาดไม่เกิน 2 MB');
+   if((await storageUsed(account.id))+file.size>HUB_PRO_STORAGE_LIMIT_BYTES)throw new HubError(413,'พื้นที่เก็บรูป Pro เต็ม 2 GB กรุณาจัดการรูปก่อนอัปโหลดใหม่',{code:'storage_quota_exceeded',upgradeUrl:'/studio?section=billing'});
   const bytes=new Uint8Array(await file.arrayBuffer()),mime=imageMime(bytes);if(!mime||!['image/png','image/jpeg','image/webp'].includes(file.type)||mime!==file.type)throw new HubError(400,'รองรับรูป PNG, JPEG และ WebP เท่านั้น');
   const id=crypto.randomUUID(),key=`hub-assets/${account.id}/${id}`;
   await env.BUCKET.put(key,bytes,{httpMetadata:{contentType:mime}});
   try{
     const result=pageId===null
-      ?await db().prepare('INSERT INTO hub_assets (id,account_id,page_id,storage_key,mime_type,size,created_at) VALUES (?,?,NULL,?,?,?,?)').bind(id,actor.id,key,mime,bytes.byteLength,Date.now()).run()
-      :await db().prepare('INSERT INTO hub_assets (id,account_id,page_id,storage_key,mime_type,size,created_at) SELECT ?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM hub_pages WHERE id=? AND account_id=? AND archived=0 AND '+teamWriteGuard()+')').bind(id,account.id,pageId,key,mime,bytes.byteLength,Date.now(),pageId,account.id,actor.id,actor.id).run();
-    if(!result.meta.changes)throw new HubError(403,'สิทธิ์อัปโหลดเปลี่ยนไปแล้ว กรุณาโหลดฮับใหม่');
+      ?await db().prepare('INSERT INTO hub_assets (id,account_id,page_id,storage_key,mime_type,size,created_at) SELECT ?,?,NULL,?,?,?,? WHERE (SELECT plan FROM hub_accounts WHERE id=?)='pro' AND (SELECT COALESCE(SUM(size),0) FROM hub_assets WHERE account_id=?)+?<=?').bind(id,actor.id,key,mime,bytes.byteLength,Date.now(),actor.id,actor.id,bytes.byteLength,HUB_PRO_STORAGE_LIMIT_BYTES).run()
+      :await db().prepare('INSERT INTO hub_assets (id,account_id,page_id,storage_key,mime_type,size,created_at) SELECT ?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM hub_pages WHERE id=? AND account_id=? AND archived=0 AND '+teamWriteGuard()+') AND (SELECT plan FROM hub_accounts WHERE id=?)='pro' AND (SELECT COALESCE(SUM(size),0) FROM hub_assets WHERE account_id=?)+?<=?').bind(id,account.id,pageId,key,mime,bytes.byteLength,Date.now(),pageId,account.id,actor.id,actor.id,account.id,account.id,bytes.byteLength,HUB_PRO_STORAGE_LIMIT_BYTES).run();
+    if(!result.meta.changes)throw new HubError(403,'ไม่สามารถอัปโหลดได้: สิทธิ์ Pro หรือพื้นที่เก็บรูป 2 GB อาจเต็มแล้ว กรุณาโหลดใหม่',{code:'upload_quota_or_entitlement'});
   }catch(error){try{await env.BUCKET.delete(key);}catch{}throw error;}
   return {url:'/media/'+id};
 }
