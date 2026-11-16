@@ -1,6 +1,6 @@
 'use client';
 
-import {useEffect,useId,useRef,useState,type CSSProperties,type MouseEvent} from 'react';
+import {useEffect,useId,useRef,useState,type CSSProperties,type MouseEvent,type TouchEvent} from 'react';
 import {ArrowUpRight,ChevronLeft,ChevronRight,Expand,ImageOff,Sparkles,X} from 'lucide-react';
 import type {HubBlockImage,HubLink} from '../../lib/hub-types';
 import {formatThaiBaht,getPromotionPricing,isProductDiscountEnabled} from '../../lib/hub-promotion';
@@ -12,32 +12,42 @@ type ContentBlockProps = {
   onDemoClick?: (title:string)=>void;
 };
 
-function ContentImage({url,alt,ratio='landscape',fit='cover',large=false,focusX,focusY,zoom}:{url:string;alt:string;ratio?:string;fit?:'cover'|'contain';large?:boolean;focusX?:number;focusY?:number;zoom?:number}){
+function ContentImage({url,alt,ratio='landscape',fit='cover',large=false,focusX,focusY,zoom,fullBleed=false}:{url:string;alt:string;ratio?:string;fit?:'cover'|'contain';large?:boolean;focusX?:number;focusY?:number;zoom?:number;fullBleed?:boolean}){
   const framed=focusX!==undefined||focusY!==undefined||zoom!==undefined;
   const x=typeof focusX==='number'&&Number.isFinite(focusX)?Math.max(0,Math.min(100,focusX)):50;
   const y=typeof focusY==='number'&&Number.isFinite(focusY)?Math.max(0,Math.min(100,focusY)):35;
   const zoomRatio=typeof zoom==='number'&&Number.isFinite(zoom)?Math.max(1,Math.min(1.8,zoom/100)):1;
-  const imageStyle:CSSProperties={objectFit:fit,...(framed?{
+  const imageStyle:CSSProperties={objectFit:fit,...(fullBleed?{objectFit:'cover',width:'100%',height:'100%',position:'absolute' as const,inset:0}:{}),...(framed?{
     objectPosition:`${x}% ${y}%`,
     transform:`scale(${zoomRatio})`,
     transformOrigin:`${x}% ${y}%`
   }: {})};
   const [failed,setFailed]=useState(false);
   useEffect(()=>setFailed(false),[url]);
-  return <span className={`hcb-media hcb-ratio-${ratio} ${large?'hcb-media-large':''}`}>
+  return <span className={`hcb-media hcb-ratio-${ratio} ${large?'hcb-media-large':''}`} style={fullBleed?{position:'relative',display:'block',width:'100%',aspectRatio:'1 / 1',overflow:'hidden'}:undefined}>
     {url&&!failed?<img src={url} alt={alt} loading={large?'eager':'lazy'} decoding="async" style={imageStyle} onError={()=>setFailed(true)}/>:<span className="hcb-image-fallback"><ImageOff size={24} aria-hidden="true"/><span>{alt||'รูปภาพยังไม่พร้อมแสดง'}</span></span>}
   </span>;
 }
 
+
+/**
+ * A single visible, full-width gallery slide avoids the old overflowing
+ * CSS-grid track shrinking inside the narrow Studio phone preview.
+ */
 function Gallery({images,title,layout}:{images:HubBlockImage[];title:string;layout:'grid'|'carousel'}){
   const [selected,setSelected]=useState<number|null>(null);
   const [current,setCurrent]=useState(0);
   const dialog=useRef<HTMLDialogElement>(null);
-  const rail=useRef<HTMLDivElement>(null);
+  const swipeStart=useRef<{x:number;y:number}|null>(null);
+  const skipOpen=useRef(false);
   const lightboxTitle=useId();
-  const railId=useId();
-  const selectedImage=selected===null?undefined:images[selected];
+  const galleryId=useId();
   const imageSignature=images.map(image=>image.url).join('|');
+  const selectedImage=selected===null?undefined:images[selected];
+  const activeIndex=Math.max(0,Math.min(current,images.length-1));
+  const entries=layout==='carousel'
+    ? images.slice(activeIndex,activeIndex+1).map(image=>({image,index:activeIndex}))
+    : images.map((image,index)=>({image,index}));
 
   useEffect(()=>{
     const modal=dialog.current;
@@ -45,49 +55,60 @@ function Gallery({images,title,layout}:{images:HubBlockImage[];title:string;layo
     if(selectedImage&&!modal.open)modal.showModal();
     if(!selectedImage&&modal.open)modal.close();
   },[selectedImage]);
-
   useEffect(()=>{
     setCurrent(0);
-    rail.current?.scrollTo({left:0});
+    setSelected(null);
   },[layout,imageSignature]);
 
-  function step(direction:number){
-    if(selected===null)return;
-    setSelected((selected+direction+images.length)%images.length);
+  function stepLightbox(direction:number){
+    setSelected(index=>index===null?null:(index+direction+images.length)%images.length);
   }
-
-  function moveRail(direction:number){
-    const track=rail.current;
-    if(!track)return;
-    const target=Math.max(0,Math.min(images.length-1,current+direction));
-    const tile=track.children[target] as HTMLElement|undefined;
-    const first=track.children[0] as HTMLElement|undefined;
-    if(!tile||!first)return;
-    // Offset from the first slide avoids Safari's offset-parent differences.
-    track.scrollTo({left:tile.offsetLeft-first.offsetLeft,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
-    setCurrent(target);
+  function moveSlide(direction:number){
+    setCurrent(index=>Math.max(0,Math.min(images.length-1,index+direction)));
   }
-
-  function updatePosition(){
-    const track=rail.current;
-    if(!track)return;
-    let index=0,distance=Infinity;
-    const first=track.children[0] as HTMLElement|undefined;
-    if(!first)return;
-    for(let i=0;i<track.children.length;i++){
-      const tile=track.children[i] as HTMLElement;
-      const next=Math.abs(tile.offsetLeft-first.offsetLeft-track.scrollLeft);
-      if(next<distance){distance=next;index=i;}
-    }
-    setCurrent(index);
+  function onSwipeStart(event:TouchEvent<HTMLDivElement>){
+    const touch=event.touches[0];
+    swipeStart.current=event.touches.length===1&&touch?{x:touch.clientX,y:touch.clientY}:null;
+  }
+  function onSwipeEnd(event:TouchEvent<HTMLDivElement>){
+    const start=swipeStart.current;
+    swipeStart.current=null;
+    const touch=event.changedTouches[0];
+    if(!start||!touch)return;
+    const dx=touch.clientX-start.x,dy=touch.clientY-start.y;
+    if(Math.abs(dx)<42||Math.abs(dx)<Math.abs(dy)*1.2)return;
+    skipOpen.current=true;
+    moveSlide(dx<0?1:-1);
+    window.setTimeout(()=>{skipOpen.current=false;},300);
   }
 
   return <>
-    {layout==='carousel'&&images.length>1&&<div className="hcb-gallery-toolbar"><span aria-live="polite">{current+1} / {images.length} รูป</span><div><button type="button" aria-label={`ดูรูปก่อนหน้าใน ${title}`} aria-controls={railId} disabled={current===0} onClick={()=>moveRail(-1)}><ChevronLeft size={18}/></button><button type="button" aria-label={`ดูรูปถัดไปใน ${title}`} aria-controls={railId} disabled={current===images.length-1} onClick={()=>moveRail(1)}><ChevronRight size={18}/></button></div></div>}
-    <div ref={rail} id={railId} className={`hcb-gallery hcb-gallery-${layout}`} data-count={images.length} onScroll={layout==='carousel'?updatePosition:undefined}>
-      {images.map((image,index)=><figure className="hcb-gallery-item" key={`${image.url}-${index}`}>
-        <button className="hcb-gallery-open" type="button" aria-label={`ขยายรูป ${index+1} จาก ${images.length}: ${image.alt||image.caption||title}`} aria-haspopup="dialog" onClick={()=>setSelected(index)}>
-          <ContentImage url={image.url} alt={image.alt||image.caption||`${title} รูปที่ ${index+1}`} ratio="square"/>
+    {layout==='carousel'&&images.length>1&&
+      <div className="hcb-gallery-toolbar">
+        <span aria-live="polite">{activeIndex+1} / {images.length} รูป</span>
+        <div>
+          <button type="button" aria-label={'ดูรูปก่อนหน้าใน '+title} aria-controls={galleryId} disabled={activeIndex===0} onClick={()=>moveSlide(-1)}><ChevronLeft size={18}/></button>
+          <button type="button" aria-label={'ดูรูปถัดไปใน '+title} aria-controls={galleryId} disabled={activeIndex===images.length-1} onClick={()=>moveSlide(1)}><ChevronRight size={18}/></button>
+        </div>
+      </div>}
+    <div id={galleryId}
+      className={layout==='carousel'?'hcb-gallery-stage':'hcb-gallery hcb-gallery-grid'}
+      data-count={images.length}
+      aria-label={layout==='carousel'?'ผลงาน '+(activeIndex+1)+' จาก '+images.length:undefined}
+      onTouchStart={layout==='carousel'?onSwipeStart:undefined}
+      onTouchEnd={layout==='carousel'?onSwipeEnd:undefined}
+      onTouchCancel={layout==='carousel'?()=>{swipeStart.current=null;}:undefined}
+      style={layout==='carousel'
+        ? {display:'block',width:'100%',minWidth:0,maxWidth:'100%',overflow:'hidden',touchAction:'pan-y'}
+        : {display:'grid',width:'100%',minWidth:0,maxWidth:'100%',gridTemplateColumns:'repeat(2,minmax(0,1fr))'}}>
+      {entries.map(({image,index})=><figure className="hcb-gallery-item" key={image.url+'-'+index}
+        style={{display:'block',width:'100%',minWidth:0,maxWidth:'100%',margin:0}}>
+        <button className="hcb-gallery-open" type="button"
+          style={{display:'block',width:'100%',minWidth:0}}
+          aria-label={'ขยายรูป '+(index+1)+' จาก '+images.length+': '+(image.alt||image.caption||title)}
+          aria-haspopup="dialog"
+          onClick={()=>{if(skipOpen.current){skipOpen.current=false;return;}setSelected(index);}}>
+          <ContentImage url={image.url} alt={image.alt||image.caption||(title+' รูปที่ '+(index+1))} ratio="square" fullBleed/>
           <span className="hcb-expand" aria-hidden="true"><Expand size={16}/></span>
         </button>
         {image.caption&&<figcaption>{image.caption}</figcaption>}
@@ -96,11 +117,11 @@ function Gallery({images,title,layout}:{images:HubBlockImage[];title:string;layo
     <dialog className="hcb-lightbox" ref={dialog} aria-labelledby={lightboxTitle}
       onClose={()=>setSelected(null)} onCancel={()=>setSelected(null)}
       onClick={event=>{if(event.target===event.currentTarget)setSelected(null);}}
-      onKeyDown={event=>{if(event.key==='ArrowLeft'){event.preventDefault();step(-1);}if(event.key==='ArrowRight'){event.preventDefault();step(1);}}}>
+      onKeyDown={event=>{if(event.key==='ArrowLeft'){event.preventDefault();stepLightbox(-1);}if(event.key==='ArrowRight'){event.preventDefault();stepLightbox(1);}}}>
       <div className="hcb-lightbox-panel">
         <div className="hcb-lightbox-header"><h2 id={lightboxTitle}>{title}</h2><button type="button" autoFocus onClick={()=>setSelected(null)} aria-label="ปิดรูปภาพ"><X size={23}/></button></div>
         {selectedImage&&<figure className="hcb-lightbox-figure"><ContentImage url={selectedImage.url} alt={selectedImage.alt||selectedImage.caption||title} fit="contain" ratio="auto" large/><figcaption>{selectedImage.caption||selectedImage.alt||title}</figcaption></figure>}
-        <div className="hcb-lightbox-footer"><button type="button" aria-label="รูปก่อนหน้า" disabled={images.length<2} onClick={()=>step(-1)}><ChevronLeft size={20}/><span>ก่อนหน้า</span></button><span aria-live="polite">{selected===null?1:selected+1} / {images.length}</span><button type="button" aria-label="รูปถัดไป" disabled={images.length<2} onClick={()=>step(1)}><span>ถัดไป</span><ChevronRight size={20}/></button></div>
+        <div className="hcb-lightbox-footer"><button type="button" aria-label="รูปก่อนหน้า" disabled={images.length<2} onClick={()=>stepLightbox(-1)}><ChevronLeft size={20}/><span>ก่อนหน้า</span></button><span aria-live="polite">{selected===null?1:selected+1} / {images.length}</span><button type="button" aria-label="รูปถัดไป" disabled={images.length<2} onClick={()=>stepLightbox(1)}><span>ถัดไป</span><ChevronRight size={20}/></button></div>
       </div>
     </dialog>
   </>;
